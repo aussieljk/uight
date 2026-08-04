@@ -42,6 +42,30 @@ and in a deployed static explorer, which it did not before.
 Writing into `about:blank` stays as the fallback for a mount with no URL to
 offer, so an embedded `<Uaight />` is unaffected.
 
+### Fixed — `uaight build` ran the app's framework plugins
+
+`buildStatic` runs the user's own Vite config on purpose, so the explorer is
+built by the same resolver, aliases and transforms as their app. A
+meta-framework's plugins are the exception: they are not transforms, they *are*
+an application — they own the document, the SSR entry, the route tree and the
+client manifest — and pointing them at the explorer's document asks them to
+build an app that is not there.
+
+In a TanStack Start project the build died on `multiple entries detected`
+naming two hashed filenames and no cause, because the manifest plugin counted
+the explorer's document and the emitted renderer chunk. Dropping that one plugin
+then produced `Cannot get config before root is resolved`, because a framework's
+plugins are a set and its router-generator reads the config context its
+`…-core:config` plugin installs. So the whole set goes, matched by
+`FRAMEWORK_PLUGINS` and extensible per build with `excludePlugins`.
+
+Nothing is dropped in silence: `buildStatic` returns `excluded`, and the CLI
+prints the count and the frameworks it belongs to.
+
+The user's config is now loaded through `loadConfigFromFile` and passed inline
+with `configFile: false` — a plugin cannot remove another plugin, so before the
+config reaches Vite is the only place a filter can run.
+
 ### Fixed — `uaight build` passed `input` as an array
 
 A plugin in the user's own config that appends its entry to

@@ -90,6 +90,23 @@ async function main() {
 		console.log(
 			`\nuaight → ${path.relative(process.cwd(), result.outDir)} (${result.files} files)`,
 		);
+		// Never drop a plugin in silence: the explorer being built without a
+		// framework's transforms is the kind of thing that only shows up as a
+		// fixture rendering differently here than in `bun dev`.
+		if (result.excluded?.length) {
+			// Grouped by the part before the first colon. A framework contributes
+			// two dozen plugins and naming each one is a wall of text nobody
+			// reads, which is the same as not reporting it.
+			const groups = new Map();
+			for (const name of result.excluded) {
+				const key = name.split(":")[0];
+				groups.set(key, (groups.get(key) ?? 0) + 1);
+			}
+			const summary = [...groups]
+				.map(([key, n]) => (n > 1 ? `${key} (${n})` : key))
+				.join(", ");
+			console.log(`  without ${result.excluded.length} framework plugin(s): ${summary}`);
+		}
 		return;
 	}
 

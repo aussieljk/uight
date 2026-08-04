@@ -21,6 +21,7 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
+import type { PluginOption } from "vite";
 import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASS } from "../ui/constants.ts";
 import { STATIC_ENV } from "./config.ts";
 
@@ -64,12 +65,75 @@ export interface BuildStaticOptions {
 	title?: string;
 	/** Suppress Vite's own build output. */
 	quiet?: boolean;
+	/**
+	 * Plugins to leave out, by name. Added to `FRAMEWORK_PLUGINS` rather than
+	 * replacing it; pass `[]` to change nothing.
+	 */
+	excludePlugins?: readonly (string | RegExp)[];
 }
+
+/**
+ * Meta-framework plugins, which this build must not run.
+ *
+ * The explorer is built by the user's own Vite config on purpose (see the file
+ * header): same resolver, same aliases, same transforms, so a fixture resolves
+ * exactly as the app does. A meta-framework's plugins are the exception,
+ * because they are not transforms — they *are* an application. They own the
+ * document, the SSR entry, the route tree and the client manifest, and pointing
+ * them at the explorer's document asks them to build an app that is not there.
+ *
+ * TanStack Start fails loudly: its manifest plugin counts entries, sees the
+ * explorer's document and the emitted renderer chunk, and dies with "multiple
+ * entries detected" naming two hashed filenames and no cause. The others in
+ * this list are here because the same reasoning applies to them, not because
+ * each has been seen to fail.
+ *
+ * Matched against `plugin.name` as a prefix, or by regex.
+ */
+export const FRAMEWORK_PLUGINS: readonly (string | RegExp)[] = [
+	// A framework's plugins are a set, and half of one is worse than none:
+	// TanStack Start's router-generator reads the config context that its
+	// `…-core:config` plugin installs, so dropping the manifest plugin alone
+	// trades "multiple entries detected" for "Cannot get config before root is
+	// resolved". Route generation is not wanted here anyway — it exists to
+	// write the app's route tree, which is a side effect on the user's
+	// repository during a build that was asked for an explorer.
+	// One regex rather than four prefixes: `tanstack-start-core:…`,
+	// `tanstack-react-start:…`, `tanstack:router-generator` and
+	// `tanstack-router:code-splitter:…` are all contributed by one
+	// `tanstackStart()` call, and a list of prefixes is a list of chances to
+	// miss the next one they add.
+	/^tanstack[-:]/,
+	"react-router",
+	"remix",
+	"vite-plugin-sveltekit",
+	"vike",
+];
 
 export interface BuildStaticResult {
 	outDir: string;
 	/** Emitted asset and chunk count, as Rollup reported it. */
 	files: number;
+	/** Names of the plugins left out, in config order. Never silently empty. */
+	excluded: string[];
+}
+
+/**
+ * Vite allows arrays, promises and falsy holes anywhere in `plugins`, and a
+ * filter can only see names once all three are gone.
+ */
+async function flattenPlugins(input: unknown): Promise<PluginOption[]> {
+	const one = await input;
+	if (!one) return [];
+	if (Array.isArray(one)) {
+		const nested = await Promise.all(one.map(flattenPlugins));
+		return nested.flat();
+	}
+	return [one as PluginOption];
+}
+
+function matches(name: string, patterns: readonly (string | RegExp)[]): boolean {
+	return patterns.some((p) => (typeof p === "string" ? name.startsWith(p) : p.test(name)));
 }
 
 function documentHtml(title: string): string {
@@ -178,21 +242,56 @@ export async function buildStatic(
 		await fsp.writeFile(entryPath, entryJs(previewUrl));
 		await fsp.writeFile(previewPath, previewHtml());
 
-		const { build } = await import("vite");
+		const { build, loadConfigFromFile } = await import("vite");
+		const mode = options.mode ?? "production";
+
+		// The user's config is loaded here rather than left to `build()` because
+		// filtering it is the whole point: a plugin cannot remove another
+		// plugin, so the only place a meta-framework's plugins can be dropped is
+		// before the config reaches Vite. `configFile: false` afterwards stops
+		// it being read a second time.
+		const exclude = [...FRAMEWORK_PLUGINS, ...(options.excludePlugins ?? [])];
+		const loaded =
+			options.configFile === false
+				? null
+				: await loadConfigFromFile(
+						{ command: "build", mode, isSsrBuild: false },
+						options.configFile,
+						root,
+						options.quiet ? "warn" : undefined,
+					);
+
+		const excluded: string[] = [];
+		const plugins: PluginOption[] = (await flattenPlugins(loaded?.config.plugins)).filter(
+			(plugin) => {
+				const name =
+					plugin && typeof plugin === "object" && "name" in plugin ? plugin.name : "";
+				if (!name || !matches(name, exclude)) return true;
+				excluded.push(name);
+				return false;
+			},
+		);
+
 		const result = await build({
+			...loaded?.config,
+			configFile: false,
 			root,
 			base,
-			...(options.configFile !== undefined ? { configFile: options.configFile } : {}),
-			...(options.mode ? { mode: options.mode } : {}),
+			mode,
 			...(options.quiet ? { logLevel: "warn" as const } : {}),
+			...(loaded ? { plugins } : {}),
 			build: {
+				...loaded?.config.build,
 				outDir,
 				emptyOutDir: true,
 				// A record, not an array. A plugin in the user's own config may
 				// append its entry to `input`, and appending to an array of
 				// strings is how `{ index: "virtual:…" }` ends up as `input.2`
 				// and the build dies on a type error naming neither plugin.
-				rollupOptions: { input: { uaightExplorer: htmlPath, uaightPreview: previewPath } },
+				rollupOptions: {
+					...loaded?.config.build?.rollupOptions,
+					input: { uaightExplorer: htmlPath, uaightPreview: previewPath },
+				},
 			},
 		});
 
@@ -216,7 +315,7 @@ export async function buildStatic(
 		}
 		await fsp.rm(path.join(outDir, "node_modules"), { recursive: true, force: true });
 
-		return { outDir, files };
+		return { outDir, files, excluded };
 	} finally {
 		if (previous === undefined) delete process.env[STATIC_ENV];
 		else process.env[STATIC_ENV] = previous;
