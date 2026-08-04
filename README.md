@@ -74,7 +74,6 @@ bun run docs:build # …built, with SPEC/ARCHITECTURE/ROADMAP/CHANGELOG and /r s
 bun run typecheck  # builds first: uaight/client resolves types through dist
 bun run check      # the whole local gate, in the order that makes it mean something
 bun run bench      # SPEC §20.3's budgets; fails on a breach
-bun run --cwd packages/uaight corpus -- --write   # refresh the golden corpus snapshot
 ```
 
 ## Releasing
@@ -100,7 +99,8 @@ enforced there rather than remembered:
   passes one (`latest` by default, so `npm i uaight` resolves).
 
 `package.json` and `UAIGHT_VERSION` are held in lockstep by `version:bump` and asserted by
-a test — the runtime compares them at §16.2, so drift reaches users as a version-skew error.
+`version:check`, which the release gate runs first — the runtime compares them at §16.2,
+so drift reaches users as a version-skew error.
 
 ## Fixtures
 

@@ -4,6 +4,13 @@ Findings recorded during implementation. Each entry names the SPEC/ARCHITECTURE
 section it relates to and says whether it is an answer, a divergence, or a
 caveat.
 
+> **Every reference below to a `*.test.ts`, a `*.spec.ts` or the golden-corpus
+> harness is historical.** §20.1's unit suite, §20.2's browser matrix and
+> `scripts/corpus.ts` were all removed; this repository has no automated tests.
+> A sentence like "regression test: `tests/parse.test.ts`" records how a finding
+> was established at the time, not something that runs today. The findings
+> themselves still hold — nothing re-checks them.
+
 ---
 
 ## Integration log

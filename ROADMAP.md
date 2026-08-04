@@ -114,8 +114,8 @@ The `$schema` divergence is settled: the emitted items always used `registry-ite
 and SPEC §11.2's example — which named the _index_ schema on an item, and depended on an
 `@uaight/tree-item` that §11.3 never listed — has been corrected.
 
-`tests/registry-resolve.test.ts` is now a client rather than another shape assertion. It
-serves `registry/` over a real loopback HTTP server and resolves it the way `shadcn add`
+Resolution was proven by a since-deleted test (`tests/registry-resolve.test.ts`) that
+served `registry/` over a real loopback HTTP server and resolved it the way `shadcn add`
 does — a `{name}` URL template as a `components.json` `registries` entry, transitive
 `registryDependencies` resolved dependencies-first, files written to their `target` — and
 asserts the installed tree.
@@ -137,9 +137,9 @@ files. Needs hosting, then a scratch project.
   already exercised: add (in sorted position, not arrival order), delete, rename (both
   events, and the moment between them when both files exist), a display-path collision
   appearing and clearing, an irrelevant file changing nothing, and the emitted glob
-  _patterns_ staying fixed while the corpus moves. The browser half is now `hmr.spec.ts`:
-  add, delete and rename all move the tree with no page reload, and the added file is
-  selectable and renders. It took three changes — the generated runtime module accepts its
+  _patterns_ staying fixed while the corpus moves. The browser half was proven by the
+  since-deleted `hmr.spec.ts`: add, delete and rename all move the tree with no page
+  reload, and the added file is selectable and renders. Nothing re-checks it now. It took three changes — the generated runtime module accepts its
   own update, the host sends the renderer its reconciled index (`SET_INDEX`) because Vite
   re-globs before the plugin's debounced rescan produces the index that goes with it, and
   the debounce coalesces the _set_ of changed files so a rename's `unlink` is not

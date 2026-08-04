@@ -6,16 +6,108 @@ and the project follows [semantic versioning](https://semver.org/spec/v2.0.0.htm
 **Release format: `0.0.1-canary.N`.** Everything published while the surface is still
 moving is a canary, and the counter is the only part that changes. `package.json` and
 `UAIGHT_VERSION` are held in lockstep by `scripts/version.ts` and asserted by
-`tests/version.test.ts` — the runtime compares them at §16.2, so drift reaches users as
-"one of them is a stale build artefact". The `1.0.0` in earlier drafts of this file was
-never published; it is folded into the first canary below.
+`version:check`, which the release gate runs first — the runtime compares them at §16.2,
+so drift reaches users as "one of them is a stale build artefact". The `1.0.0` in earlier
+drafts of this file was never published; it is folded into the first canary below.
 
 Section numbers refer to `SPEC.md`; the findings behind most entries are recorded in
 `NOTES.md`. Planned work is in `ROADMAP.md`.
 
 ---
 
-## [Unreleased]
+## [0.0.1-canary.1] — 4 August 2026
+
+### Removed — every automated test
+
+`packages/uaight/tests/**` (514 tests across 33 files), `tests/e2e/**` and
+`playwright.config.ts` (§20.2's Chromium/Firefox/WebKit matrix), and
+`scripts/corpus.ts` (the golden-corpus harness) are all gone, with the `test`
+scripts, CI's `e2e` job and the test step in `check` and `release`.
+
+**This is a divergence from SPEC §20, which still asks for both halves, and it is the
+most consequential entry in this release.** Nothing now executes the package's
+behaviour: `bun run check` is the stylesheet freshness check, the build, two type
+checks, lint and format. The six defects the browser matrix found this cycle are fixed
+in the source, but nothing prevents any of them from returning silently, and
+`FrameHost` carries three bootstrap defences precisely because each covers a different
+engine's ordering — losing one is once again invisible. The §20.3 browser budgets
+(first paint, handshake, HMR latency, memory) are no longer measured; the four Node
+budgets in `scripts/bench.ts` still run in CI and still fail on a breach.
+
+### Changed — protocol version 2, and version 1 is not accepted
+
+`RESYNC` carries the dropped patch **paths** rather than a count, so §7.3's "reported
+once per input per revision" can name the input that lost a setting instead of showing
+an aggregate. `SUPPORTED_PROTOCOL_VERSIONS` is `[2]`: the shape is incompatible and a
+version-1 renderer is refused rather than partially understood. A mixed install
+therefore surfaces as a protocol error, which is the intended failure.
+
+### Added — prop tables (§15.2), behind a docgen interface
+
+A `DocgenResolver` interface with a Babel implementation (`react-docgen`, a
+dynamically-imported dev dependency — `docgen` defaults off, so no install pays for a
+parser). `PropTable` is a §11.3 ejectable and renders documented props for detected
+components. **D18 holds: this is display metadata, and docgen never infers a control
+from a prop name.** Every `ComponentDoc` carries the `inherited-props` limitation so a
+table cannot render without its caveat.
+
+### Added — `render_fixture`, an MCP screenshot tool
+
+Returns a real image rather than a URL. Playwright is an **optional peer dependency**,
+dynamically imported; without it the tool explains itself and points at `fixture_url`.
+Chromium only, deliberately: this is a capture, not a compatibility matrix.
+
+### Added — `uaight doctor`
+
+Config, index, problems by kind, call sites, and what is on — the answer to "why is my
+component missing" without opening the UI. It loads the **Vite config**, not just
+`uaight.config.json`, so it sees options passed inline to `uaight()` and agrees with
+the dev server (84 files / 593 fixtures on the demo, where a config-file-only read
+reported 6).
+
+### Fixed — installed registry items now compile
+
+A real `shadcn` CLI run over HTTP resolved and installed the items, and the installed
+files did not typecheck: emitted bodies kept in-repo specifiers (`../../shared/types.ts`,
+`../cx.ts`). Specifiers are now rewritten at emit — published ones to `uaight/chrome`,
+internal helpers shipped as companion files — and an unmapped relative import **fails
+the build** rather than passing through silently. `uaight/chrome` gained the surface
+that required: `fixtureIdsEqual`, `serializeFixtureId`, `applyPatches`, `pathKey`,
+`builtinCodecEditors`, `withBuiltinEditors`, and seven types. **No emitted artifact
+names a host any more** — pinned items use an `@uaight-v0-0/` namespace instead of
+absolute `uaight.dev` URLs, so they resolve against any mirror. Verified: 13 files
+installed into a scratch project, `tsc --noEmit` exits 0.
+
+### Fixed — six defects the browser matrix found before it was removed
+
+A control-panel edit never reaching the frame (two causes, neither in the transport);
+inline isolation never receiving a selection; two mounts on one page under StrictMode,
+where neither owned the URL; a rename leaving its old path in the tree, deep-linking to
+a dead file; a fixture edit reloading the host document instead of fast-refreshing
+(which alone took HMR latency from ~880 ms to 37 ms); and a CSP failure not naming the
+directive §6.7 step 5 requires. Root causes are in `NOTES.md`.
+
+### Added — UX and UI pass
+
+Windowed fixture tree (a search keystroke over 591 fixtures renders ~50 rows);
+session-restored navigation that still yields to URL parameters per §5.4; palette
+recents; an undoable control reset; named dropped patches; copy-link feedback;
+call-site-first rendering for detected components; `/__open-in-editor` from a call
+site, degrading where the endpoint is absent; a sticky viewport with fixture-declared
+defaults (§3.1). Selection is a left accent bar with the focus ring reserved for focus;
+panes resize and persist; one overlay primitive with a real focus trap backs both the
+palette and the help dialog; the type scale moved to Tailwind's predefined utilities.
+
+### Changed — plugin and tooling
+
+Call sites resolve path aliases through `configResolved`'s alias table. `uaight mcp`
+discovers the dev server instead of assuming port 5173. The static build writes its
+scaffold under `node_modules/.uaight/` rather than the project root, so a crashed build
+cannot leave files in your working tree. An out-of-root `fixturesDir` reports
+`kind: "confinement"` rather than `unreadable`. `.mdx` fixtures are documented and
+demonstrated. `const fixtures = {…}; export default fixtures` now resolves in the index
+(§3.4's decision table changed). `bun run check` runs the local gate; `bench` enforces
+an 8 KB drift limit on the chrome bundle alongside the absolute 90 KB budget.
 
 ### Added — `uaight init`, one command from a Storybook repository
 
@@ -72,6 +164,16 @@ was interrupt the first render of every session to say it. Selection is still ex
 still never on hover or in bulk, and that is the part that was doing the work.
 
 ---
+
+### Known limitations
+
+- **No tests, as above.** The demo is the only way to observe that any of this works.
+- **Q8 needs a deployed `uaight.dev`.** Everything else is proven against a local
+  mirror; nothing emitted names a host, so the proof transfers unchanged.
+- **Q4 and Q9's browser halves are unmeasured**, and can no longer be measured here.
+- **Chrome bundle is 58.9 KB gzipped**, up from 41.2 KB at canary.0.
+- **axe reported `color-contrast` violations** across the chrome surfaces before the
+  a11y spec was removed with the rest of the suite. They are not fixed.
 
 ## [0.0.1-canary.0] — 4 August 2026
 

@@ -67,7 +67,6 @@
 		"build:css": "bun run scripts/build-css.ts",
 		"dev": "bun run build:css && tsdown --watch",
 		"registry": "bun run scripts/build-registry.ts",
-		"corpus": "bun run scripts/corpus.ts",
 		"prepublishOnly": "bun run version:check && bun run build",
 		"version:bump": "bun run scripts/version.ts --bump",
 		"version:sync": "bun run scripts/version.ts --sync",
