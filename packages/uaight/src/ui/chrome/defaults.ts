@@ -9,6 +9,7 @@
 
 import type { ComponentType } from "react";
 import type { UaightComponents } from "../../shared/types.ts";
+import { CommandPalette } from "./CommandPalette.tsx";
 import { ControlPanel } from "./ControlPanel.tsx";
 import { ControlPanelInputs } from "./ControlPanelInputs.tsx";
 import type { ControlPanelInputsProps } from "./ControlPanelInputs.tsx";
@@ -34,6 +35,7 @@ export const DEFAULT_COMPONENTS: UaightChromeSet = {
 	EmptyState,
 	ErrorState,
 	InventoryList,
+	CommandPalette,
 };
 
 export function resolveComponents(

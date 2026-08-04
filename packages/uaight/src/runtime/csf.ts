@@ -23,9 +23,14 @@
  *    (`startCase` of the export) goes to `meta.title`, where it cannot break a
  *    deep link.
  *
- * `globalDecorators` are declined by construction: `.storybook/preview` is
- * never loaded, so a global decorator has no way to reach a fixture. App-wide
- * providers belong in the preview entry (§6.4).
+ * `globalDecorators` were originally declined by construction: `.storybook/preview`
+ * was never loaded, so a global decorator had no way to reach a fixture. The
+ * plugin can now find and load that module, and when it does they are honoured
+ * — that is the whole difference between reading a repository's stories and
+ * *running* them, because nearly every real Storybook install puts its
+ * providers, theme and global styles there. With no preview in play the
+ * original position stands, and app-wide providers belong in the preview entry
+ * (§6.4).
  */
 
 import * as React from "react";
@@ -131,6 +136,31 @@ export interface CsfStory {
 	loaders?: unknown;
 	globals?: Record<string, unknown>;
 }
+
+/**
+ * A `.storybook/preview` module, normalized by the plugin's virtual module.
+ *
+ * Storybook accepts both spellings — named exports and a default `Preview`
+ * object — so the virtual module flattens them into this shape before the
+ * runtime ever sees it, and the runtime never has to guess which it got.
+ */
+export interface StorybookPreview {
+	decorators: CsfDecorator | CsfDecorator[];
+	parameters: Record<string, unknown>;
+	globalTypes: Record<string, unknown>;
+	initialGlobals: Record<string, unknown>;
+	args: CsfArgs;
+	argTypes: CsfArgTypes;
+}
+
+const EMPTY_PREVIEW: StorybookPreview = {
+	decorators: [],
+	parameters: {},
+	globalTypes: {},
+	initialGlobals: {},
+	args: {},
+	argTypes: {},
+};
 
 /* ------------------------------------------------------------------ *
  * Names
@@ -291,8 +321,10 @@ export interface PreparedStory {
 	render?: CsfRender;
 	component?: unknown;
 	parameters: Record<string, unknown>;
-	/** Outermost first, as §3.3 nests them. */
+	/** Outermost first, as §3.3 nests them: preview, then meta, then story. */
 	decorators: CsfDecorator[];
+	/** `initialGlobals` from the preview, plus anything the story sets. */
+	globals: Record<string, unknown>;
 	tags: string[];
 	viewport?: Viewport;
 	layout?: "centered" | "fullscreen" | "padded";
@@ -348,6 +380,7 @@ export function prepareStory(
 	meta: CsfMeta,
 	support: CsfSupport,
 	order: number,
+	preview: StorybookPreview = EMPTY_PREVIEW,
 ): PreparedStory {
 	const story: CsfStory =
 		typeof exported === "function"
@@ -376,28 +409,43 @@ export function prepareStory(
 		decline("parameters");
 	}
 
+	// Preview-level values are the base layer Storybook applies beneath the
+	// meta's, which is beneath the story's.
 	const args: CsfArgs = {
+		...(support.metaArgs ? preview.args : undefined),
 		...(support.metaArgs ? meta.args : undefined),
 		...(support.storyArgs ? story.args : undefined),
 	};
 
 	const argTypes: CsfArgTypes = {};
 	if (support.argTypes) {
-		for (const [key, value] of Object.entries(meta.argTypes ?? {})) argTypes[key] = value;
+		for (const [key, value] of Object.entries(preview.argTypes ?? {})) argTypes[key] = value;
+		for (const [key, value] of Object.entries(meta.argTypes ?? {})) {
+			argTypes[key] = { ...argTypes[key], ...value };
+		}
 		for (const [key, value] of Object.entries(story.argTypes ?? {})) {
 			argTypes[key] = { ...argTypes[key], ...value };
 		}
 	}
 
 	// Storybook applies its array innermost-first and nests story decorators
-	// inside meta decorators; we nest outermost-first, so both are reversed.
+	// inside meta decorators inside global ones; we nest outermost-first, so
+	// each list is reversed and the three are concatenated outermost first.
 	const decorators: CsfDecorator[] = [
+		...(support.globalDecorators ? asArray(preview.decorators).slice().reverse() : []),
 		...(support.metaDecorators ? asArray(meta.decorators).slice().reverse() : []),
 		...(support.storyDecorators ? asArray(story.decorators).slice().reverse() : []),
 	];
 
 	const parameters: Record<string, unknown> =
-		support.parameters === false ? {} : { ...meta.parameters, ...story.parameters };
+		support.parameters === false
+			? {}
+			: { ...preview.parameters, ...meta.parameters, ...story.parameters };
+
+	const globals: Record<string, unknown> = {
+		...preview.initialGlobals,
+		...(support.globals ? { ...meta.globals, ...story.globals } : undefined),
+	};
 
 	const inputKeys: string[] = [...Object.keys(args)];
 	for (const key of Object.keys(argTypes)) if (!inputKeys.includes(key)) inputKeys.push(key);
@@ -429,6 +477,7 @@ export function prepareStory(
 		component: meta.component,
 		parameters,
 		decorators,
+		globals,
 		tags: [...(meta.tags ?? []), ...(story.tags ?? [])],
 		unsupported,
 		order,
@@ -547,7 +596,7 @@ export function createStoryComponent(story: PreparedStory): React.ComponentType 
 				initialArgs: story.args,
 				argTypes: story.argTypes,
 				parameters: story.parameters,
-				globals: {},
+				globals: story.globals,
 				tags: story.tags,
 				viewMode: "story",
 				loaded: {},
@@ -593,6 +642,7 @@ export function normalizeCsfModule(
 	module: unknown,
 	_file: FixtureFileIndex,
 	support: CsfSupport = DEFAULT_CSF_SUPPORT,
+	preview: StorybookPreview | null = null,
 ): NormalizedCsfModule {
 	if (!module || typeof module !== "object") return { fixtures: [] };
 	const namespace = module as Record<string, unknown>;
@@ -600,7 +650,8 @@ export function normalizeCsfModule(
 	if (typeof meta !== "object") return { fixtures: [] };
 
 	// A stories module cannot declare global decorators, but a preview-shaped
-	// module can; badge it rather than pretend it ran.
+	// module can; badge it rather than pretend it ran. With a real preview
+	// loaded there is nothing to badge — the decorators actually run.
 	const hasPreviewDecorators =
 		!support.globalDecorators &&
 		(Array.isArray(namespace.decorators) || namespace.globalTypes !== undefined);
@@ -609,7 +660,14 @@ export function normalizeCsfModule(
 	const fixtures: NormalizedCsfFixture[] = [];
 
 	names.forEach((exportName, index) => {
-		const story = prepareStory(exportName, namespace[exportName], meta, support, index);
+		const story = prepareStory(
+			exportName,
+			namespace[exportName],
+			meta,
+			support,
+			index,
+			preview ?? EMPTY_PREVIEW,
+		);
 		if (hasPreviewDecorators) story.unsupported.push("global decorators");
 
 		const fixtureMeta: FixtureMeta = { order: story.order };

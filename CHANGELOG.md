@@ -3,6 +3,13 @@
 Notable changes to `uaight`. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project follows [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+**Release format: `0.0.1-canary.N`.** Everything published while the surface is still
+moving is a canary, and the counter is the only part that changes. `package.json` and
+`UAIGHT_VERSION` are held in lockstep by `scripts/version.ts` and asserted by
+`tests/version.test.ts` — the runtime compares them at §16.2, so drift reaches users as
+"one of them is a stale build artefact". The `1.0.0` in earlier drafts of this file was
+never published; it is folded into the first canary below.
+
 Section numbers refer to `SPEC.md`; the findings behind most entries are recorded in
 `NOTES.md`. Planned work is in `ROADMAP.md`.
 
@@ -14,17 +21,182 @@ Nothing yet.
 
 ---
 
-## [1.0.0] — unreleased
+## [0.0.1-canary.0] — 4 August 2026
 
-The first release. Package version `1.0.0`, protocol version `1`. Not yet published to
-npm — Q13 (name availability and trademark) is still open, see `ROADMAP.md`.
+The first published build. Protocol version `1`.
 
-v1.0 is the product thesis: install the package, add the plugin, open `/uaight`. No config
-file, no second process, no HTML file in the repository.
+The thesis is unchanged: install the package, add the plugin, open `/uaight`. No config
+file, no second process, no HTML file in the repository. What this canary adds is what
+happens when you do that on a codebase with **no fixtures at all** — you get your own
+components, rendered with the props your own code already passes them.
 
-Two things landed **ahead of the §21.2 plan**: the declared Storybook CSF subset (planned
-for v1.1) and the ejection registry (planned for v1.2). The facade does **not** freeze
-here — that is still a v1.2 commitment.
+Three things landed **ahead of the §21.2 plan**: the declared Storybook CSF subset
+(planned for v1.1), the ejection registry (planned for v1.2), and now a Storybook
+drop-in path that §13 had ruled out by construction. The chrome facade does **not**
+freeze here.
+
+### Added — fixtures harvested from real call sites
+
+§12 gave a codebase with no fixtures a *list of components*. A list is not the payoff:
+selecting a detected component usually rendered a crash, because a real component needs
+props — and its props are already written down wherever the app uses it.
+
+- One more pass over the ASTs the inventory scan already parses, collecting every
+  `<Component …>` usage with statically readable props (`src/vite/callsites.ts`).
+- Syntax only, exactly like §12 step 2. A value that is not statically readable is
+  **named in `dynamic` and left out** — never guessed. Spreads, computed props, regexes
+  and bigints are all recorded as dynamic; a template literal with no expressions is not.
+- Ranked by distinctness rather than frequency, deduplicated by prop signature, capped
+  per component (`callSites: { max }`, default 8).
+- Each usage renders as a real fixture: its props register through `useFixtureInput`, so
+  the control panel drives them and the overlay model backs them. This does not conflict
+  with D18 — nothing is inferred from a prop *name*; the starting values are code the
+  user wrote.
+- Sites are matched to a detected component by name, narrowed by the import specifier
+  when it resolved. A usage in the file that defines the component has no import, so
+  those are kept rather than dropped.
+- "Copy as fixture" emits a fixture module as text. uaight still writes no files (§1.4).
+- New endpoint `/@uaight/callsites.json`.
+- Verified live: 26 components, 45 usages across the demo, with `onClick`, `src` and
+  `children` correctly excluded as dynamic.
+
+### Added — Storybook drop-in (`.storybook/preview`)
+
+§13 declined global decorators "by construction: `.storybook/preview` is never loaded".
+That construction was the whole distance between reading a repository's stories and
+*running* them: nearly every real Storybook install puts its providers, theme and global
+styles in that file, so declining it rendered a corpus stripped of context.
+
+- `.storybook/preview.{ts,tsx,js,jsx}` is discovered automatically when Storybook support
+  is on; `storybook: { preview }` sets a path or turns it off.
+- Finding one flips `globalDecorators` on by default. An explicit `support.globalDecorators`
+  still wins in both directions, and with no preview the original position stands.
+- Decorators nest preview → meta → story, outermost first. Args, argTypes and parameters
+  layer in the same order.
+- `initialGlobals` reaches `context.globals`.
+- Nothing is badged for a feature that now runs.
+- `uaight storybook` (and `storybookReport()` from `uaight/vite`) reports, syntax-only,
+  which CSF features in a repository would not survive the move — the question a team
+  evaluating uaight actually asks.
+
+### Added — `uaight/mcp`, the explorer as an agent tool
+
+A component explorer answers *what exists*, *what states does it have* and *what does
+this look like* — the questions an agent editing a component cannot answer from source.
+§19.6's read-only endpoints already answered them for "tools that cannot import the
+package".
+
+- Stdio JSON-RPC MCP server, no SDK dependency, shipped as `uaight-mcp` and `uaight mcp`.
+- Tools: `list_fixtures`, `list_components`, `list_call_sites`, `fixture_url`,
+  `get_config`, `health`.
+- A **client of a running dev server**, not a second index: it cannot disagree with what
+  the explorer shows, and it inherits §19.6's read-only guarantee — no tool here writes.
+- `fixture_url` emits byte-identical URLs to the ones the explorer's own router writes,
+  verified by round-trip rather than by inspection.
+
+### Added — shareable control state
+
+§5.4 kept control values out of links and §1.3's job 4 said "not in a state". That was
+the right default when the overlay model was new and the wrong one now that it has held.
+
+- `?state=` carries the overlay as base64url next to `?fixture=`. Off by switching
+  `shareState={false}`; the parameter name is `stateParam`.
+- Safe by construction: `Patch.value` is `EditableWire`, which excludes `opaque` by type,
+  so no function, element or DOM node can reach a URL even in principle.
+- A link is untrusted input, so paths are re-validated on the way in — `__proto__` and
+  friends are rejected here as well as at the transport boundary (§7.3).
+- Revisions are not carried. Seeded patches adopt whatever revision their input registers
+  with and are pruned against its current shape, so a stale link degrades to the fixture
+  rather than to a wrong render.
+- Opening a link and touching nothing leaves the URL intact; state edits replace rather
+  than push, so twenty slider tweaks are not twenty history entries.
+- "Copy link" in the toolbar, with a fallback for the non-secure contexts a LAN dev
+  server runs in.
+
+### Added — `uaight/test`, fixtures doing double duty
+
+The standing objection to any explorer is that fixtures are work that only powers a UI.
+
+- `fixtureIds()`, `loadFixture()`, `mountFixture()`, `inventory()`, `loadComponent()`.
+- The **same** normalization the explorer uses, so a fixture that renders there renders
+  here — CSF stories, meta and story decorators, `uaight.decorator`, and the preview
+  entry's providers included.
+- Returns elements by default and mounts only on request, so it has no opinion about
+  which testing library you use.
+
+### Added — the static explorer build
+
+§9 covered embedding the explorer in an app; it did not cover *publishing* one, which is
+how a design system gets adopted across an organisation. Without it §1.3's job 3 stopped
+at the edge of one machine.
+
+- `uaight build` → a deployable site (`dist-uaight/` by default), plus `buildStatic()`
+  from `uaight/vite`.
+- Runs the **user's own Vite config**, so the explorer is built by the same resolver,
+  aliases and plugins as their app.
+- `UAIGHT_STATIC=1` is the one thing that can override `production` from outside the
+  config, because an inline plugin cannot reach into another plugin's options and a
+  second `uaight()` would claim the same virtual modules twice.
+- Verified against the demo: 274 files, the explorer chunk, the emitted renderer and
+  per-story code splitting, with the scaffold files cleaned up afterwards.
+
+### Added — the command palette
+
+- `⌘K` / `Ctrl K` over every fixture, detected component and harvested call site.
+- Subsequence matching with bonuses for contiguous runs and word boundaries; an exact
+  substring outranks a scattered match, and a label outranks a path.
+- Filtering and ranking happen outside the component, so a replacement palette never
+  reimplements the matcher.
+- Scoped to the mount, like every other shortcut here: an embedded explorer must not take
+  ⌘K from its host.
+- Ejectable, as `@uaight/command-palette`.
+
+### Added — the golden corpus harness, and CI
+
+`NOTES.md` records the lesson: *a checker that has never been observed to fail is not
+evidence of anything*. Three of the four worst defects in this project's history were
+integration defects that the unit suites could not see, because each part was correct on
+its own — and the sweep that caught one of them lived in a scratchpad and was discarded.
+
+- `scripts/corpus.ts` runs the whole index pipeline over frosted-ui's 77 CSF files plus
+  the demo's fixtures and digests the result; `tests/corpus.test.ts` pins it.
+- A **negative control** that must fail: a scan over a deliberately broken fixture has to
+  report `unparseable`, and the good file beside it has to survive. Verified to
+  discriminate in both directions, not assumed.
+- `.github/workflows/ci.yml`: version lockstep, build, typecheck (package and demo),
+  lint, tests, registry build, stylesheet freshness. `oxfmt --check` is deliberately not
+  a step yet — oxfmt 0.61 with no config disagrees with 205 of the repository's 209
+  files, and that reformat deserves to be its own change.
+- 336 unit tests across 18 files, up from 269 across 12.
+
+### Changed
+
+- **Release format is `0.0.1-canary.N`**, with `version:bump`, `version:sync` and
+  `version:check` scripts and a test holding `package.json` and `UAIGHT_VERSION` together.
+- `UaightComponents` gains `CommandPalette`; `FixtureIndex` and `RuntimeConfig` gain
+  `callSites`; `RuntimeConfig` gains `hasStorybookPreview`; `UaightProps` gains
+  `shareState` and `stateParam`; `StorybookSupport` gains `preview`;
+  `UaightPluginOptions` gains `callSites`.
+- `SELECT_FIXTURE` gains optional `props`, `children` and `origin` — an added field
+  rather than a new message, because the renderer's reaction is the one it already has.
+- The ejectable set is §11.3's table plus the palette, admitted under the same rule the
+  list is drawn by.
+
+### Fixed
+
+- **`dist/client.d.ts` was a directory, not a file.** tsdown's `copy.to` names a
+  destination directory, so `to: "dist/client.d.ts"` produced
+  `dist/client.d.ts/client.d.ts` — the `./client` export pointed at a directory and
+  `"types": ["uaight/client"]` could not resolve at all. Caught by inspecting the tarball
+  rather than the source tree.
+- The package had **no README and no LICENSE of its own**, so the npm page would have
+  been blank and the licence would not have travelled with the tarball.
+
+---
+
+## The base this canary builds on
+
+Everything below was written before the first publish and ships in `0.0.1-canary.0`.
 
 ### Added — discovery and the plugin (`uaight/vite`)
 
@@ -249,5 +421,5 @@ Kept here because the fixes are load-bearing and the reasoning is in `NOTES.md`.
 
 ---
 
-[unreleased]: https://github.com/aussieljk/uaight/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/aussieljk/uaight/releases/tag/v1.0.0
+[unreleased]: https://github.com/aussieljk/uaight/compare/v0.0.1-canary.0...HEAD
+[0.0.1-canary.0]: https://github.com/aussieljk/uaight/releases/tag/v0.0.1-canary.0

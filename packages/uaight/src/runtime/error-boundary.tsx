@@ -105,9 +105,9 @@ export class RendererErrorBoundary extends React.Component<RendererErrorBoundary
 
 const panelStyle: React.CSSProperties = {
 	font: "13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace",
-	color: "#b42318",
-	background: "#fff",
-	border: "1px solid #f0c4c0",
+	color: "#b91c1c",
+	background: "#ffffff",
+	border: "1px solid #fecaca",
 	borderRadius: 6,
 	padding: "12px 14px",
 	margin: 12,

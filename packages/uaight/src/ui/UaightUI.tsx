@@ -24,11 +24,20 @@ import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { config, fixtureModules } from "virtual:uaight/runtime";
 import { rendererEntryUrl } from "virtual:uaight/renderer-url";
 
+import {
+	callSiteLabel,
+	callSiteSummary,
+	callSitesFor,
+	formatFixtureModule,
+} from "../shared/callsites.ts";
 import { matchesFilter } from "../shared/filter.ts";
 import { fixtureIdsEqual, fixtureLabel, parseFixtureId, serializeFixtureId } from "../shared/fixture-id.ts";
-import { buildTree, flattenSelectable, searchTree } from "../shared/tree.ts";
+import { buildTree, flattenRows, flattenSelectable, searchTree } from "../shared/tree.ts";
 import { ALL_FIXTURES } from "../shared/types.ts";
 import type {
+	CallSite,
+	CallSiteGroup,
+	CommandPaletteItem,
 	EditableWire,
 	FixtureCodec,
 	FixtureFileIndex,
@@ -57,8 +66,10 @@ import {
 } from "./constants.ts";
 import { FOCUS_RING, MOTION, QUIET_BUTTON, cx } from "./cx.ts";
 import { FrameHost } from "./FrameHost.tsx";
+import { buildPaletteItems, rankPaletteItems } from "./palette.ts";
 import { useUaightDefaults } from "./provider-context.ts";
 import { useRouterBinding } from "./router.ts";
+import { decodeOverlays, encodeOverlays } from "./share.ts";
 import { createOverlayStore, useOverlayState } from "./store.ts";
 import { ensureStyles, readNonce } from "./styles.ts";
 import { themeVars, useResolvedTheme } from "./theme.ts";
@@ -259,9 +270,15 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	}, []);
 
 	/* ---- index, kept live by the plugin's HMR event (§4.5) ---- */
-	const [index, setIndex] = useState<{ files: FixtureFileIndex[]; inventory: InventoryItem[] }>(
-		() => ({ files: config.files, inventory: config.inventory }),
-	);
+	const [index, setIndex] = useState<{
+		files: FixtureFileIndex[];
+		inventory: InventoryItem[];
+		callSites: CallSiteGroup[];
+	}>(() => ({
+		files: config.files,
+		inventory: config.inventory,
+		callSites: config.callSites ?? [],
+	}));
 
 	useEffect(() => {
 		const hot = viteHot();
@@ -272,6 +289,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 			setIndex({
 				files: next.files,
 				inventory: Array.isArray(next.inventory) ? next.inventory : [],
+				callSites: Array.isArray(next.callSites) ? next.callSites : [],
 			});
 		};
 		hot.on("uaight:index", handler);
@@ -390,6 +408,8 @@ export default function UaightUI(props: UaightProps): ReactElement {
 
 	const [localSelection, setLocalSelection] = useState<FixtureId | null>(null);
 	const [selectedComponent, setSelectedComponent] = useState<InventoryItem | null>(null);
+	/** Which harvested usage of the selected component is on screen. */
+	const [selectedSite, setSelectedSite] = useState<CallSite | null>(null);
 
 	const routerSelection = binding.owned ? parseFixtureId(binding.value) : localSelection;
 	const selection: FixtureId | null =
@@ -414,6 +434,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	const select = useCallback(
 		(id: FixtureId | null) => {
 			setSelectedComponent(null);
+			setSelectedSite(null);
 			// Legal without `selected` (§5.3), so it always fires.
 			onSelectProp?.(id);
 			if (mode === "controlled" || mode === "pinned") return;
@@ -433,8 +454,9 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	 * URL; it clears the fixture selection and lives in local state.
 	 */
 	const selectComponent = useCallback(
-		(item: InventoryItem) => {
+		(item: InventoryItem, site: CallSite | null = null) => {
 			setSelectedComponent(item);
+			setSelectedSite(site);
 			if (mode === "controlled" || mode === "pinned") return;
 			if (mode === "router" && routerOwned) routerWrite(null, { replace: true });
 			else setLocalSelection(null);
@@ -442,6 +464,24 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		},
 		[mode, routerOwned, routerWrite, onSelectProp],
 	);
+
+	/**
+	 * The usages of the selected component, harvested from the project's own
+	 * source. This is what turns §12's list of names into something worth
+	 * selecting: a detected component with no props usually renders a crash, and
+	 * its real props are already written down wherever the app uses it.
+	 */
+	const componentSites = useMemo(
+		() => (selectedComponent ? callSitesFor(index.callSites, selectedComponent) : []),
+		[index.callSites, selectedComponent],
+	);
+
+	// Land on the most distinct usage rather than an empty render. Selecting the
+	// component itself stays available as "no props" in the toolbar.
+	useEffect(() => {
+		if (!selectedComponent || selectedSite || !componentSites.length) return;
+		setSelectedSite(componentSites[0] ?? null);
+	}, [selectedComponent, selectedSite, componentSites]);
 
 	// §5.3 — a `fixture` outside `filter` renders anyway, with a warning.
 	useEffect(() => {
@@ -502,18 +542,55 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	}, []);
 
 	const selectable = useMemo(() => flattenSelectable(fixtureNodes), [fixtureNodes]);
+	/** What ↑/↓ walks: one row per file, its variants left to ←/→. */
+	const rows = useMemo(() => flattenRows(fixtureNodes), [fixtureNodes]);
 
 	const step = useCallback(
 		(delta: number) => {
-			if (!selectable.length) return;
-			const index_ = selectable.findIndex((n) => fixtureIdsEqual(n.fixture, selection));
+			if (!rows.length) return;
+			// A variant selection highlights its file's row, so when the exact id
+			// is not itself a row, fall back to the file it belongs to.
+			let index_ = rows.findIndex((n) => fixtureIdsEqual(n.fixture, selection));
+			if (index_ < 0 && selection) {
+				index_ = rows.findIndex((n) => n.fixture?.path === selection.path);
+			}
 			const next =
-				selectable[
-					Math.max(0, Math.min(selectable.length - 1, (index_ < 0 ? -1 : index_) + delta))
-				];
+				rows[Math.max(0, Math.min(rows.length - 1, (index_ < 0 ? -1 : index_) + delta))];
 			if (next?.fixture) select(next.fixture);
 		},
-		[selectable, selection, select],
+		[rows, selection, select],
+	);
+
+	/**
+	 * The fixtures of the selected file, listed in the toolbar rather than nested
+	 * in the sidebar. `null` means the selection has no siblings worth showing.
+	 */
+	const variants = useMemo(() => {
+		if (!selection) return null;
+		const find = (list: readonly TreeNode[]): TreeNode | null => {
+			for (const node of list) {
+				if (node.kind === "file" && node.fixture?.path === selection.path) return node;
+				const hit = node.children ? find(node.children) : null;
+				if (hit) return hit;
+			}
+			return null;
+		};
+		const file = find(fixtureNodes);
+		const children = file?.children?.filter((c) => c.fixture) ?? [];
+		return children.length > 1 && file?.fixture ? { all: file.fixture, children } : null;
+	}, [selection?.path, fixtureNodes]);
+
+	/** ←/→ walk the ring the toolbar chips draw: "All", then each fixture. */
+	const stepVariant = useCallback(
+		(delta: number) => {
+			if (!variants) return;
+			const ring = [variants.all, ...variants.children.map((c) => c.fixture!)];
+			const at = ring.findIndex((id) => fixtureIdsEqual(id, selection));
+			const from = at < 0 ? 0 : at;
+			const next = ring[(((from + delta) % ring.length) + ring.length) % ring.length];
+			if (next) select(next);
+		},
+		[variants, selection, select],
 	);
 
 	/* ---- resolution and progressive disclosure — §3.5 ---- */
@@ -600,8 +677,11 @@ export default function UaightUI(props: UaightProps): ReactElement {
 
 	const target = resolution.target;
 	const targetKey = target ? serializeFixtureId(target) : "";
+	const siteKey = selectedSite
+		? `${selectedSite.globPath}:${selectedSite.line}:${selectedSite.column}`
+		: "";
 	const componentKey = selectedComponent
-		? `${selectedComponent.globPath}#${selectedComponent.exportName}`
+		? `${selectedComponent.globPath}#${selectedComponent.exportName}#${siteKey}`
 		: "";
 
 	const selectMessage = useMemo(
@@ -614,9 +694,15 @@ export default function UaightUI(props: UaightProps): ReactElement {
 						exportName: selectedComponent.exportName,
 					}
 				: null,
+			// Harvested props travel with the selection. They are JSON by
+			// construction — the harvester only records what it could read
+			// statically — so nothing opaque can cross the realm boundary here.
+			props: selectedSite ? selectedSite.props : null,
+			children: selectedSite?.children ?? null,
+			origin: selectedSite ? callSiteLabel(selectedSite) : null,
 		}),
 		// `targetKey`/`componentKey` are the identity; the objects are not stable.
-		[targetKey, componentKey, selectedComponent],
+		[targetKey, componentKey, selectedComponent, selectedSite],
 	);
 
 	useEffect(() => {
@@ -634,6 +720,48 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		if (!transport || status !== "ready") return;
 		transport.send(selectMessageRef.current);
 	}, [transport, status]);
+
+	/* ---- shareable control state — §5.4, revisited ---- */
+
+	const stateParam = props.stateParam ?? "state";
+	const shareState = (props.shareState ?? true) && mode === "router";
+	const {
+		owned: stateOwned,
+		value: stateValue,
+		write: stateWrite,
+	} = useRouterBinding({
+		router: routerSpec,
+		urlParam: stateParam,
+		routerId: props.routerId,
+		active: shareState,
+	});
+
+	// Seed once per fixture: a link's patches wait in the store until the inputs
+	// they name register, and are pruned against the current shape like any
+	// other patch (§7.3). Re-seeding on our own writes would be a loop, so the
+	// guard is the fixture, not the parameter.
+	const seededFor = useRef<string | null>(null);
+	useEffect(() => {
+		if (!shareState || !stateOwned) return;
+		if (seededFor.current === targetKey) return;
+		seededFor.current = targetKey;
+		const seeded = decodeOverlays(stateValue);
+		if (seeded.length) store.seed(seeded);
+	}, [shareState, stateOwned, stateValue, targetKey, store]);
+
+	const lastWrittenState = useRef<string | null>(null);
+	useEffect(() => {
+		if (!shareState || !stateOwned) return;
+		const encoded = encodeOverlays(overlayState.overlays);
+		if (encoded === lastWrittenState.current) return;
+		// Never clear a parameter we have not written: opening a shared link and
+		// touching nothing has to leave the link intact.
+		if (encoded === null && lastWrittenState.current === null) return;
+		lastWrittenState.current = encoded;
+		// State edits replace rather than push — twenty tweaks to a slider should
+		// not be twenty entries in the back button.
+		stateWrite(encoded, { replace: true });
+	}, [shareState, stateOwned, stateWrite, overlayState.overlays]);
 
 	/* ---- viewport — §6.5 ---- */
 	const [viewport, setViewport] = useState<ViewportPreset | null>(null);
@@ -766,10 +894,53 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		}
 	};
 
+	/* ---- command palette — ⌘K ---- */
+
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [paletteQuery, setPaletteQuery] = useState("");
+
+	const paletteItems = useMemo(
+		() =>
+			buildPaletteItems({
+				nodes: fixtureNodes,
+				inventory: inventoryItems,
+				callSites: index.callSites,
+			}),
+		[fixtureNodes, inventoryItems, index.callSites],
+	);
+	const rankedItems = useMemo(
+		() => rankPaletteItems(paletteItems, paletteQuery),
+		[paletteItems, paletteQuery],
+	);
+
+	const closePalette = useCallback(() => {
+		setPaletteOpen(false);
+		setPaletteQuery("");
+	}, []);
+
+	const onPaletteSelect = useCallback(
+		(item: CommandPaletteItem) => {
+			closePalette();
+			if (item.kind === "fixture" && item.fixture) {
+				select(item.fixture);
+				return;
+			}
+			if (item.component) selectComponent(item.component, item.callSite ?? null);
+		},
+		[closePalette, select, selectComponent],
+	);
+
 	/* ---- keyboard — §10.1 ---- */
 	const [helpOpen, setHelpOpen] = useState(false);
 
 	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+		// Scoped to this mount rather than the document, like every other
+		// shortcut here: an embedded explorer must not take ⌘K from its host.
+		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+			event.preventDefault();
+			setPaletteOpen((open) => !open);
+			return;
+		}
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
 		const target = event.target as HTMLElement | null;
 		const typing = !!target?.closest?.(
@@ -782,8 +953,29 @@ export default function UaightUI(props: UaightProps): ReactElement {
 			return;
 		}
 		if (typing) return;
+		// The tree owns arrows while focus is inside it — there they rove and
+		// expand — and it has already called preventDefault on the ones it took.
+		if (event.defaultPrevented) return;
 
 		switch (event.key) {
+			case "ArrowDown":
+				event.preventDefault();
+				step(1);
+				return;
+			case "ArrowUp":
+				event.preventDefault();
+				step(-1);
+				return;
+			case "ArrowRight":
+				if (!variants) return;
+				event.preventDefault();
+				stepVariant(1);
+				return;
+			case "ArrowLeft":
+				if (!variants) return;
+				event.preventDefault();
+				stepVariant(-1);
+				return;
 			case "/":
 				event.preventDefault();
 				rootRef.current?.querySelector<HTMLInputElement>(`[${SEARCH_ATTR}]`)?.focus();
@@ -835,6 +1027,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		EmptyState,
 		ErrorState,
 		InventoryList,
+		CommandPalette,
 	} = components;
 
 	const panelSlots = useMemo(
@@ -868,25 +1061,6 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		: selection
 			? fixtureLabel(selection)
 			: "";
-
-	/**
-	 * The fixtures of the selected file, listed in the toolbar rather than nested
-	 * in the sidebar. `null` means the selection has no siblings worth showing.
-	 */
-	const variants = useMemo(() => {
-		if (!selection) return null;
-		const find = (list: readonly TreeNode[]): TreeNode | null => {
-			for (const node of list) {
-				if (node.kind === "file" && node.fixture?.path === selection.path) return node;
-				const hit = node.children ? find(node.children) : null;
-				if (hit) return hit;
-			}
-			return null;
-		};
-		const file = find(fixtureNodes);
-		const children = file?.children?.filter((c) => c.fixture) ?? [];
-		return children.length > 1 && file?.fixture ? { all: file.fixture, children } : null;
-	}, [selection?.path, fixtureNodes]);
 
 	return (
 		<UaightChromeContext.Provider value={api}>
@@ -988,6 +1162,16 @@ export default function UaightUI(props: UaightProps): ReactElement {
 											</span>
 										) : null}
 										<div className="ml-auto flex shrink-0 items-center gap-2">
+											{shareState ? (
+												<button
+													type="button"
+													onClick={() => void copyText(window.location.href)}
+													title="Copy a link to this fixture, including the current control values"
+													className={QUIET_BUTTON}
+												>
+													Copy link
+												</button>
+											) : null}
 											{chrome.viewport ? (
 												<ViewportToolbar
 													current={effectiveViewport}
@@ -1011,7 +1195,51 @@ export default function UaightUI(props: UaightProps): ReactElement {
 								) : undefined
 							}
 							subToolbar={
-								chrome.toolbar && variants ? (
+								chrome.toolbar && selectedComponent && componentSites.length ? (
+									// §12's list of names, made selectable: each chip is a real
+									// usage of this component found in the project's own source.
+									<div
+										role="tablist"
+										aria-label={`Usages of ${selectedComponent.name}`}
+										className="flex items-center gap-1 overflow-x-auto px-3 py-1"
+									>
+										<VariantChip
+											label="No props"
+											selected={selectedSite === null}
+											onSelect={() => setSelectedSite(null)}
+										/>
+										<span className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]" />
+										{componentSites.map((site) => (
+											<VariantChip
+												key={`${site.globPath}:${site.line}:${site.column}`}
+												label={callSiteSummary(site)}
+												title={`${callSiteLabel(site)} — ${site.dynamic.length ? `${site.dynamic.length} prop(s) could not be read statically` : "all props read statically"}`}
+												selected={
+													selectedSite?.globPath === site.globPath &&
+													selectedSite?.line === site.line &&
+													selectedSite?.column === site.column
+												}
+												onSelect={() => setSelectedSite(site)}
+											/>
+										))}
+										<button
+											type="button"
+											onClick={() =>
+												void copyText(
+													formatFixtureModule(
+														selectedComponent.name,
+														selectedSite ? [selectedSite] : componentSites,
+														{ importFrom: `./${selectedComponent.path.split("/").pop() ?? ""}` },
+													),
+												)
+											}
+											title="Copy these usages as a fixture file. uaight never writes files itself (§1.4)."
+											className={cx(QUIET_BUTTON, "ml-auto shrink-0")}
+										>
+											Copy as fixture
+										</button>
+									</div>
+								) : chrome.toolbar && variants ? (
 									<div
 										role="tablist"
 										aria-label={`Fixtures in ${selection?.path ?? ""}`}
@@ -1077,6 +1305,15 @@ export default function UaightUI(props: UaightProps): ReactElement {
 						) : null}
 					</div>
 
+					<CommandPalette
+						open={paletteOpen}
+						items={rankedItems}
+						query={paletteQuery}
+						onQueryChange={setPaletteQuery}
+						onSelect={onPaletteSelect}
+						onClose={closePalette}
+					/>
+
 					{helpOpen ? (
 						<div className="absolute right-3 bottom-3 z-30 w-64 rounded-sm border border-[var(--u-line-strong)] bg-[var(--u-bg)] p-3">
 							<p className="mb-2 text-[12px] font-medium text-[var(--u-fg)]">Keyboard</p>
@@ -1106,6 +1343,39 @@ export default function UaightUI(props: UaightProps): ReactElement {
 }
 
 /* ------------------------------------------------------------------ *
+ * Clipboard
+ * ------------------------------------------------------------------ */
+
+/**
+ * `navigator.clipboard` needs a secure context, which a dev server on a LAN
+ * address is not. The textarea fallback is the only thing that works there, and
+ * "copy" silently doing nothing is a bad way to learn about origins.
+ */
+async function copyText(text: string): Promise<void> {
+	try {
+		if (navigator.clipboard?.writeText) {
+			await navigator.clipboard.writeText(text);
+			return;
+		}
+	} catch {
+		/* fall through to the legacy path */
+	}
+	try {
+		const area = document.createElement("textarea");
+		area.value = text;
+		area.setAttribute("readonly", "");
+		area.style.position = "fixed";
+		area.style.opacity = "0";
+		document.body.appendChild(area);
+		area.select();
+		document.execCommand("copy");
+		document.body.removeChild(area);
+	} catch (error) {
+		console.error("[uaight] could not copy to the clipboard.", error);
+	}
+}
+
+/* ------------------------------------------------------------------ *
  * Variant chips — the fixtures of the selected file, in the toolbar
  * ------------------------------------------------------------------ */
 
@@ -1113,6 +1383,7 @@ function VariantChip(props: {
 	label: string;
 	selected: boolean;
 	onSelect: () => void;
+	title?: string;
 }): ReactElement {
 	return (
 		<button
@@ -1120,7 +1391,7 @@ function VariantChip(props: {
 			role="tab"
 			aria-selected={props.selected}
 			onClick={props.onSelect}
-			title={props.label}
+			title={props.title ?? props.label}
 			className={cx(
 				"h-5 shrink-0 rounded-sm px-1.5 text-[11px] whitespace-nowrap",
 				props.selected

@@ -27,6 +27,7 @@ export const VIRTUAL_IDS = {
 	rendererUrl: "virtual:uaight/renderer-url",
 	renderer: "virtual:uaight/renderer",
 	preview: "virtual:uaight/preview-entry",
+	storybookPreview: "virtual:uaight/storybook-preview",
 	codecs: "virtual:uaight/codecs",
 	inventory: "virtual:uaight/inventory",
 	devEntry: "virtual:uaight/dev-entry",
@@ -84,12 +85,16 @@ export function buildRuntimeConfig(
 			? (storybookSupport as RuntimeConfig["storybook"])
 			: null,
 		storybookFileSuffix: fileSuffix,
+		hasStorybookPreview: Boolean(cfg.storybookPreview),
 		hasPreviewEntry: Boolean(cfg.previewEntry),
 		hasCodecs: Boolean(cfg.codecs),
 		route: cfg.route,
 		files: index.files,
 		decorators: index.decorators,
 		inventory: inventoryEnabled ? index.inventory : [],
+		// Call sites ride with the inventory: both are development-only, and a
+		// production build has no detected components to attach them to.
+		callSites: inventoryEnabled && cfg.callSites ? index.callSites : [],
 		problems: index.problems,
 	};
 }
@@ -165,13 +170,48 @@ export function generateRendererEntry(mode: PreambleMode): string {
 	return `${preambleSource(mode)}import { mountRenderer } from "uaight/runtime";
 import { config, fixtureModules, decoratorModules, inventoryModules } from "virtual:uaight/runtime";
 import * as preview from "virtual:uaight/preview-entry";
+import { storybookPreview } from "virtual:uaight/storybook-preview";
 import { codecs } from "virtual:uaight/codecs";
 
 mountRenderer({
 	root: document.getElementById("uaight-root"),
 	fixtureModules, decoratorModules, inventoryModules, config, codecs,
 	Providers: preview.Preview,
+	storybookPreview,
 });
+`;
+}
+
+/* ------------------------------------------------------------------ *
+ * `virtual:uaight/storybook-preview` — §13, the drop-in path
+ * ------------------------------------------------------------------ */
+
+/**
+ * The consumer's `.storybook/preview` module, loaded in the frame realm.
+ *
+ * §13 originally declined global decorators "by construction: `.storybook/preview`
+ * is never loaded". That reading is what stands between a declared subset and a
+ * drop-in replacement — nearly every real Storybook install puts its providers,
+ * theme and global styles in that file, so declining it renders a repo's whole
+ * corpus stripped of context and reads as uaight being broken.
+ *
+ * Both spellings are accepted, because Storybook accepts both: named exports
+ * (`export const decorators = […]`) and the CSF-style default export
+ * (`export default { decorators: […] } satisfies Preview`). A named export wins,
+ * matching Storybook's own precedence.
+ */
+export function generateStorybookPreview(cfg: ResolvedUaightConfig): string {
+	if (!cfg.storybookPreview) return `export const storybookPreview = null;\n`;
+	return `import * as mod from ${json(cfg.storybookPreview)};
+const preview = mod.default ?? {};
+export const storybookPreview = {
+	decorators: mod.decorators ?? preview.decorators ?? [],
+	parameters: mod.parameters ?? preview.parameters ?? {},
+	globalTypes: mod.globalTypes ?? preview.globalTypes ?? {},
+	initialGlobals: mod.initialGlobals ?? preview.initialGlobals ?? mod.globals ?? preview.globals ?? {},
+	args: mod.args ?? preview.args ?? {},
+	argTypes: mod.argTypes ?? preview.argTypes ?? {},
+};
 `;
 }
 

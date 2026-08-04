@@ -14,7 +14,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { ComponentType, ReactElement, ReactNode } from "react";
 import { RendererApp, createDirectTransportPair } from "../runtime/index.ts";
-import type { HostTransport } from "../runtime/index.ts";
+import type { HostTransport, StorybookPreview } from "../runtime/index.ts";
 import {
 	config,
 	decoratorModules,
@@ -36,6 +36,7 @@ export function InlineHost({ codecs, onTransport }: InlineHostProps): ReactEleme
 	const [providers, setProviders] = useState<{ value: Providers } | null>(
 		config.hasPreviewEntry ? null : { value: undefined },
 	);
+	const [storybookPreview, setStorybookPreview] = useState<StorybookPreview | null>(null);
 
 	useLayoutEffect(() => {
 		onTransport(pair.host);
@@ -65,6 +66,23 @@ export function InlineHost({ codecs, onTransport }: InlineHostProps): ReactEleme
 		};
 	}, []);
 
+	// §13 — the Storybook preview's decorators wrap every story, so an inline
+	// mount has to load it for the same reason the frame entry imports it.
+	useEffect(() => {
+		if (!config.hasStorybookPreview) return;
+		let live = true;
+		import("virtual:uaight/storybook-preview")
+			.then((mod) => {
+				if (live) setStorybookPreview(mod.storybookPreview);
+			})
+			.catch((error: unknown) => {
+				console.error("[uaight] the Storybook preview module failed to load.", error);
+			});
+		return () => {
+			live = false;
+		};
+	}, []);
+
 	return (
 		<div
 			ref={setRoot}
@@ -81,6 +99,7 @@ export function InlineHost({ codecs, onTransport }: InlineHostProps): ReactEleme
 					inventoryModules={inventoryModules}
 					codecs={codecs}
 					Providers={providers.value}
+					storybookPreview={storybookPreview}
 				/>
 			) : null}
 		</div>

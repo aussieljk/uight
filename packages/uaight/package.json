@@ -1,10 +1,30 @@
 {
 	"name": "uaight",
-	"version": "1.0.0",
+	"version": "0.0.1-canary.0",
 	"description": "A component explorer that runs inside your application's own Vite dev server.",
+	"keywords": [
+		"vite",
+		"vite-plugin",
+		"react",
+		"component-explorer",
+		"storybook",
+		"fixtures",
+		"design-system"
+	],
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/aussieljk/uaight.git",
+		"directory": "packages/uaight"
+	},
+	"bugs": "https://github.com/aussieljk/uaight/issues",
+	"homepage": "https://github.com/aussieljk/uaight#readme",
 	"type": "module",
-	"files": ["dist", "registry"],
+	"files": ["dist", "registry", "bin"],
+	"bin": {
+		"uaight": "./bin/uaight.mjs",
+		"uaight-mcp": "./bin/uaight-mcp.mjs"
+	},
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
@@ -22,6 +42,14 @@
 			"types": "./dist/chrome.d.ts",
 			"import": "./dist/chrome.js"
 		},
+		"./test": {
+			"types": "./dist/test.d.ts",
+			"import": "./dist/test.js"
+		},
+		"./mcp": {
+			"types": "./dist/mcp.d.ts",
+			"import": "./dist/mcp.js"
+		},
 		"./client": {
 			"types": "./dist/client.d.ts"
 		},
@@ -33,7 +61,12 @@
 		"build:css": "bun run scripts/build-css.ts",
 		"dev": "bun run build:css && tsdown --watch",
 		"registry": "bun run scripts/build-registry.ts",
-		"test": "vitest run"
+		"corpus": "bun run scripts/corpus.ts",
+		"test": "vitest run",
+		"prepublishOnly": "bun run version:check && bun run build && bun run test",
+		"version:bump": "bun run scripts/version.ts --bump",
+		"version:sync": "bun run scripts/version.ts --sync",
+		"version:check": "bun run scripts/version.ts --check"
 	},
 	"dependencies": {
 		"oxc-parser": "0.142.0",

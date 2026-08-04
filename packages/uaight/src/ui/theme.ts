@@ -6,6 +6,11 @@
  * a media query, so `theme="system"` resolves in one place and a host that
  * forces a theme is honoured without a cascade fight.
  *
+ * Every grey is a step of Tailwind's `neutral` ramp, verbatim; the accent is
+ * Tailwind `blue` and danger is Tailwind `red`. Keep these in step with
+ * `styles/uaight.css` and `styles/chrome-tokens.css`, which say the same thing
+ * for the packaged and the ejected build.
+ *
  * One font family, three sizes, two weights. No shadows.
  */
 
@@ -21,35 +26,35 @@ const FONT_STACK =
 const LIGHT: Record<string, string> = {
 	"--u-bg": "#ffffff",
 	"--u-bg-sunken": "#fafafa",
-	"--u-bg-hover": "#f4f4f5",
-	"--u-fg": "#18181b",
-	"--u-fg-muted": "#71717a",
-	"--u-fg-subtle": "#a1a1aa",
-	"--u-line": "#e8e8ea",
-	"--u-line-strong": "#d4d4d8",
+	"--u-bg-hover": "#f5f5f5",
+	"--u-fg": "#171717",
+	"--u-fg-muted": "#737373",
+	"--u-fg-subtle": "#a3a3a3",
+	"--u-line": "#e5e5e5",
+	"--u-line-strong": "#d4d4d4",
 	"--u-accent": "#2563eb",
 	"--u-accent-fg": "#ffffff",
-	"--u-accent-soft": "#eff4ff",
-	"--u-danger": "#c62828",
-	"--u-danger-soft": "#fdf2f2",
-	"--u-canvas": "#f4f4f5",
+	"--u-accent-soft": "#eff6ff",
+	"--u-danger": "#b91c1c",
+	"--u-danger-soft": "#fef2f2",
+	"--u-canvas": "#f5f5f5",
 };
 
 const DARK: Record<string, string> = {
-	"--u-bg": "#0c0c0e",
-	"--u-bg-sunken": "#121215",
-	"--u-bg-hover": "#1c1c21",
-	"--u-fg": "#f4f4f5",
-	"--u-fg-muted": "#a1a1aa",
-	"--u-fg-subtle": "#71717a",
-	"--u-line": "#26262b",
-	"--u-line-strong": "#3a3a42",
-	"--u-accent": "#6ea8fe",
-	"--u-accent-fg": "#0c0c0e",
-	"--u-accent-soft": "#17233a",
+	"--u-bg": "#0a0a0a",
+	"--u-bg-sunken": "#171717",
+	"--u-bg-hover": "#262626",
+	"--u-fg": "#f5f5f5",
+	"--u-fg-muted": "#a3a3a3",
+	"--u-fg-subtle": "#737373",
+	"--u-line": "#262626",
+	"--u-line-strong": "#404040",
+	"--u-accent": "#60a5fa",
+	"--u-accent-fg": "#0a0a0a",
+	"--u-accent-soft": "#172554",
 	"--u-danger": "#f87171",
-	"--u-danger-soft": "#2a1717",
-	"--u-canvas": "#08080a",
+	"--u-danger-soft": "#450a0a",
+	"--u-canvas": "#000000",
 };
 
 /**

@@ -115,6 +115,7 @@ export type {
 	CsfStoryContext,
 	CsfSupport,
 	PreparedStory,
+	StorybookPreview,
 } from "./csf.ts";
 
 /* ---------------- decorators and errors — §3.3 ---------------- */

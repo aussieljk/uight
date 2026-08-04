@@ -6,6 +6,8 @@ export default defineConfig({
 		vite: "src/vite/index.ts",
 		runtime: "src/runtime/index.ts",
 		chrome: "src/chrome/index.ts",
+		test: "src/test/index.ts",
+		mcp: "src/mcp/index.ts",
 	},
 	format: "esm",
 	platform: "neutral",
@@ -15,7 +17,10 @@ export default defineConfig({
 	// clean to what tsdown itself owns rather than emptying the directory.
 	clean: ["dist/*.js", "dist/*.js.map", "dist/*.d.ts"],
 	// `uaight/client` is hand-written ambient declarations, not compiler output.
-	copy: [{ from: "src/client.d.ts", to: "dist/client.d.ts" }],
+	// `to` names the destination DIRECTORY: spelling the filename here produced
+	// `dist/client.d.ts/client.d.ts`, so the `./client` export pointed at a
+	// directory and `"types": ["uaight/client"]` could not resolve at all.
+	copy: [{ from: "src/client.d.ts", to: "dist" }],
 	external: [
 		"react",
 		"react-dom",

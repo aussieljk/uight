@@ -14,11 +14,13 @@ export default defineConfig({ plugins: [react(), uaight()] });
 ```
 
 Then open `/uaight` alongside your app. With no config file and no fixtures, it finds your
-components and lists them. Write fixtures when you want states and controls; you never
-have to.
+components — **and the places your own code already uses them** — and lists both. Write
+fixtures when you want to name states; you never have to.
 
 That is the whole onboarding. No second process, no second port, no `uaight.config.json`,
 no HTML file in your repository, and no third step.
+
+Published as `0.0.1-canary.N` while the surface settles.
 
 ---
 
@@ -30,7 +32,7 @@ no HTML file in your repository, and no third step.
 | `ARCHITECTURE.md`      | The integration contract: which module owns which symbol             |
 | `NOTES.md`             | Findings from implementation, including answers to SPEC.md's Q1–Q14  |
 | `CHANGELOG.md`         | What shipped in each release, with divergences and known limitations |
-| `ROADMAP.md`           | What is left before 1.0 publishes, and what each release after holds |
+| `ROADMAP.md`           | What is left, and what each milestone after this canary holds        |
 | `packages/uaight`      | The published package                                                |
 | `examples/frosted-ui`  | Demo: the explorer showing Whop's frosted-ui design system           |
 
@@ -42,7 +44,17 @@ no HTML file in your repository, and no third step.
 | `uaight/vite`    | The plugin, config resolution, index builder        | Node        |
 | `uaight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
 | `uaight/chrome`  | `useUaightChrome`, chrome component types           | Browser     |
+| `uaight/test`    | Fixtures as test fixtures, for Vitest browser mode  | Browser     |
+| `uaight/mcp`     | MCP server over the dev server's read-only API      | Node        |
 | `uaight/client`  | Virtual module declarations                         | Types only  |
+
+## Command line
+
+```bash
+uaight build          # a deployable static explorer → dist-uaight/
+uaight storybook      # which CSF features would not survive the move
+uaight mcp            # MCP server over stdio, for a coding agent
+```
 
 ## Development
 
@@ -50,9 +62,14 @@ no HTML file in your repository, and no third step.
 bun install
 bun run build      # compile scoped CSS, then bundle with tsdown
 bun run demo       # the frosted-ui example on http://localhost:5173/uaight
-bun run typecheck
+bun run typecheck  # run AFTER build: uaight/client resolves types through dist
 bun run --cwd packages/uaight test
+bun run --cwd packages/uaight corpus -- --write   # refresh the golden corpus snapshot
 ```
+
+Releases are `0.0.1-canary.N`. `bun run --cwd packages/uaight version:bump` moves the
+counter and keeps `package.json` and `UAIGHT_VERSION` in lockstep — the runtime compares
+them at §16.2, so drift reaches users as a version-skew error.
 
 ## Fixtures
 

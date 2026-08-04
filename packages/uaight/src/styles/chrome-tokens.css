@@ -37,55 +37,55 @@
 :root {
 	--uaight-surface: var(--color-white, #ffffff);
 	--uaight-sunken: var(--color-neutral-50, #fafafa);
-	--uaight-hover: var(--color-neutral-100, #f4f4f5);
-	--uaight-canvas: var(--color-neutral-100, #f4f4f5);
-	--uaight-fg: var(--color-neutral-900, #18181b);
-	--uaight-muted: var(--color-neutral-500, #71717a);
-	--uaight-subtle: var(--color-neutral-400, #a1a1aa);
-	--uaight-line: var(--color-neutral-200, #e8e8ea);
-	--uaight-line-strong: var(--color-neutral-300, #d4d4d8);
+	--uaight-hover: var(--color-neutral-100, #f5f5f5);
+	--uaight-canvas: var(--color-neutral-100, #f5f5f5);
+	--uaight-fg: var(--color-neutral-900, #171717);
+	--uaight-muted: var(--color-neutral-500, #737373);
+	--uaight-subtle: var(--color-neutral-400, #a3a3a3);
+	--uaight-line: var(--color-neutral-200, #e5e5e5);
+	--uaight-line-strong: var(--color-neutral-300, #d4d4d4);
 	--uaight-accent: var(--color-blue-600, #2563eb);
 	--uaight-accent-fg: var(--color-white, #ffffff);
-	--uaight-accent-soft: var(--color-blue-50, #eff4ff);
-	--uaight-danger: var(--color-red-700, #c62828);
-	--uaight-danger-soft: var(--color-red-50, #fdf2f2);
+	--uaight-accent-soft: var(--color-blue-50, #eff6ff);
+	--uaight-danger: var(--color-red-700, #b91c1c);
+	--uaight-danger-soft: var(--color-red-50, #fef2f2);
 }
 
 /* Both of the conventions a Tailwind v4 host is likely to use for dark mode. */
 @media (prefers-color-scheme: dark) {
 	:root:not(.light) {
-		--uaight-surface: var(--color-neutral-950, #0c0c0e);
-		--uaight-sunken: var(--color-neutral-900, #121215);
-		--uaight-hover: var(--color-neutral-800, #1c1c21);
-		--uaight-canvas: var(--color-black, #08080a);
-		--uaight-fg: var(--color-neutral-100, #f4f4f5);
-		--uaight-muted: var(--color-neutral-400, #a1a1aa);
-		--uaight-subtle: var(--color-neutral-500, #71717a);
-		--uaight-line: var(--color-neutral-800, #26262b);
-		--uaight-line-strong: var(--color-neutral-700, #3a3a42);
-		--uaight-accent: var(--color-blue-400, #6ea8fe);
-		--uaight-accent-fg: var(--color-neutral-950, #0c0c0e);
-		--uaight-accent-soft: var(--color-blue-950, #17233a);
+		--uaight-surface: var(--color-neutral-950, #0a0a0a);
+		--uaight-sunken: var(--color-neutral-900, #171717);
+		--uaight-hover: var(--color-neutral-800, #262626);
+		--uaight-canvas: var(--color-black, #000000);
+		--uaight-fg: var(--color-neutral-100, #f5f5f5);
+		--uaight-muted: var(--color-neutral-400, #a3a3a3);
+		--uaight-subtle: var(--color-neutral-500, #737373);
+		--uaight-line: var(--color-neutral-800, #262626);
+		--uaight-line-strong: var(--color-neutral-700, #404040);
+		--uaight-accent: var(--color-blue-400, #60a5fa);
+		--uaight-accent-fg: var(--color-neutral-950, #0a0a0a);
+		--uaight-accent-soft: var(--color-blue-950, #172554);
 		--uaight-danger: var(--color-red-400, #f87171);
-		--uaight-danger-soft: var(--color-red-950, #2a1717);
+		--uaight-danger-soft: var(--color-red-950, #450a0a);
 	}
 }
 
 .dark,
 :root.dark,
 [data-theme="dark"] {
-	--uaight-surface: var(--color-neutral-950, #0c0c0e);
-	--uaight-sunken: var(--color-neutral-900, #121215);
-	--uaight-hover: var(--color-neutral-800, #1c1c21);
-	--uaight-canvas: var(--color-black, #08080a);
-	--uaight-fg: var(--color-neutral-100, #f4f4f5);
-	--uaight-muted: var(--color-neutral-400, #a1a1aa);
-	--uaight-subtle: var(--color-neutral-500, #71717a);
-	--uaight-line: var(--color-neutral-800, #26262b);
-	--uaight-line-strong: var(--color-neutral-700, #3a3a42);
-	--uaight-accent: var(--color-blue-400, #6ea8fe);
-	--uaight-accent-fg: var(--color-neutral-950, #0c0c0e);
-	--uaight-accent-soft: var(--color-blue-950, #17233a);
+	--uaight-surface: var(--color-neutral-950, #0a0a0a);
+	--uaight-sunken: var(--color-neutral-900, #171717);
+	--uaight-hover: var(--color-neutral-800, #262626);
+	--uaight-canvas: var(--color-black, #000000);
+	--uaight-fg: var(--color-neutral-100, #f5f5f5);
+	--uaight-muted: var(--color-neutral-400, #a3a3a3);
+	--uaight-subtle: var(--color-neutral-500, #737373);
+	--uaight-line: var(--color-neutral-800, #262626);
+	--uaight-line-strong: var(--color-neutral-700, #404040);
+	--uaight-accent: var(--color-blue-400, #60a5fa);
+	--uaight-accent-fg: var(--color-neutral-950, #0a0a0a);
+	--uaight-accent-soft: var(--color-blue-950, #172554);
 	--uaight-danger: var(--color-red-400, #f87171);
-	--uaight-danger-soft: var(--color-red-950, #2a1717);
+	--uaight-danger-soft: var(--color-red-950, #450a0a);
 }

@@ -1,7 +1,13 @@
 node_modules
 dist
 dist-probe
+dist-uaight
 registry
 .DS_Store
 *.tsbuildinfo
 .vite
+
+# `uaight build` writes these into the project root and removes them again;
+# they only survive a crashed build.
+uaight-explorer.html
+uaight-explorer.entry.js

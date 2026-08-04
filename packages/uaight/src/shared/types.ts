@@ -100,6 +100,16 @@ export interface FixtureIndex {
 	decorators: DecoratorFileIndex[];
 	/** Components detected without fixtures. §12 */
 	inventory: InventoryItem[];
+	/** Usages of those components found in the project's own source. */
+	callSites: CallSiteGroup[];
+	/**
+	 * Raw per-file call sites, keyed by glob path, before ranking and capping.
+	 *
+	 * Internal and Node-side only: both `serializeIndex` and the runtime config
+	 * drop it, so it never crosses to the browser. It exists so a one-file
+	 * rescan can re-rank against the whole corpus without re-reading it.
+	 */
+	callSiteSources?: Record<string, CallSite[]>;
 	/** Collision and confinement problems found during the scan. §4.4 */
 	problems: IndexProblem[];
 }
@@ -118,6 +128,47 @@ export interface InventoryItem {
 	name: string;
 	exportName: string;
 	kind: "function" | "memo" | "forwardRef" | "class";
+}
+
+/* ------------------------------------------------------------------ *
+ * Call sites — fixtures harvested from real usage
+ * ------------------------------------------------------------------ */
+
+/**
+ * One `<Component …>` usage found in the project's own source, with the props
+ * that are written down there.
+ *
+ * Syntax only, exactly like the inventory (§12 step 2): nothing is executed and
+ * no import is resolved to a module. A prop whose value is not statically
+ * readable is named in `dynamic` and left out of `props` — never guessed.
+ */
+export interface CallSite {
+	/** The component as written: `Button`, `Accordion.Item`. */
+	component: string;
+	/** Statically readable props. JSON-safe by construction. */
+	props: Record<string, unknown>;
+	/** Text children, when every child was static text. */
+	children?: string;
+	/** Display path of the file the usage was found in. */
+	path: string;
+	globPath: string;
+	line: number;
+	column: number;
+	/** Props that were present but not statically readable. `...` means a spread. */
+	dynamic: string[];
+	/** Import specifier the component name was bound from, as written. */
+	importedFrom?: string;
+	/** `importedFrom` resolved to a display path, when it was relative. */
+	resolvedFrom?: string;
+}
+
+export interface CallSiteGroup {
+	/** Component name the sites instantiate. */
+	component: string;
+	/** Most distinct first, deduplicated by prop signature. */
+	sites: CallSite[];
+	/** How many usages were found before ranking and capping. */
+	total: number;
 }
 
 /* ------------------------------------------------------------------ *
@@ -292,6 +343,7 @@ export interface UaightComponents {
 	EmptyState: React.ComponentType<EmptyStateProps>;
 	ErrorState: React.ComponentType<ErrorStateProps>;
 	InventoryList: React.ComponentType<InventoryListProps>;
+	CommandPalette: React.ComponentType<CommandPaletteProps>;
 }
 
 export interface PreviewShellProps {
@@ -345,6 +397,31 @@ export interface InventoryListProps {
 	onSelect: (item: InventoryItem) => void;
 }
 
+/**
+ * One row in the command palette. `kind` says which of the three optional
+ * payloads is set, so a replacement palette never has to guess.
+ */
+export interface CommandPaletteItem {
+	key: string;
+	label: string;
+	/** Secondary text: the path, or where a call site was found. */
+	hint?: string;
+	kind: "fixture" | "component" | "call-site";
+	fixture?: FixtureId;
+	component?: InventoryItem;
+	callSite?: CallSite;
+}
+
+export interface CommandPaletteProps {
+	open: boolean;
+	/** Already filtered and ranked against `query`. */
+	items: CommandPaletteItem[];
+	query: string;
+	onQueryChange: (query: string) => void;
+	onSelect: (item: CommandPaletteItem) => void;
+	onClose: () => void;
+}
+
 /* ------------------------------------------------------------------ *
  * Component props — §5.1
  * ------------------------------------------------------------------ */
@@ -363,6 +440,16 @@ export interface UaightProps {
 	router?: RouterAdapter | "history" | "hash" | "none";
 	urlParam?: string;
 	routerId?: string;
+
+	/**
+	 * Put control state in the URL, so a link reproduces what the sender saw
+	 * rather than just which fixture they were on. Requires a router; defaults to
+	 * on when one is active. Overlays are `EditableWire` by type, so a patch is
+	 * JSON by construction and nothing opaque can reach a link.
+	 */
+	shareState?: boolean;
+	/** Query parameter carrying the encoded overlay. Default `state`. */
+	stateParam?: string;
 
 	enabled?: boolean;
 	fallback?: React.ReactNode;
@@ -405,6 +492,19 @@ export interface StorybookSupport {
 	};
 	/** File suffix that marks a CSF module. Default 'stories'. */
 	fileSuffix?: string;
+	/**
+	 * Path to a Storybook `preview` module, relative to the Vite root.
+	 *
+	 * `true` (the default when Storybook support is on) discovers
+	 * `.storybook/preview.{ts,tsx,js,jsx}`. Loading it is what turns "a declared
+	 * subset" into "point uaight at the setup you already have": nearly every
+	 * real Storybook install puts its providers, theme and global styles there,
+	 * and without them the stories render stripped of their context.
+	 *
+	 * `false` keeps §13's original position — no preview is loaded and
+	 * `globalDecorators` stays declined.
+	 */
+	preview?: string | boolean;
 }
 
 export interface UaightPluginOptions {
@@ -421,6 +521,15 @@ export interface UaightPluginOptions {
 
 	/** Component inventory. Default true — this is the zero-config experience. */
 	inventory?: boolean | { include?: string[]; exclude?: string[] };
+
+	/**
+	 * Harvest component usages from the project's own source, so a codebase with
+	 * no fixtures still gets real states to look at. Default true, development
+	 * only, and syntax-only like the inventory it rides along with.
+	 *
+	 * `max` caps the sites kept per component after ranking. Default 8.
+	 */
+	callSites?: boolean | { max?: number };
 
 	previewEntry?: string;
 	previewHtmlPath?: string;
@@ -448,11 +557,14 @@ export interface RuntimeConfig {
 	inventoryEnabled: boolean;
 	storybook: Required<NonNullable<StorybookSupport["support"]>> | null;
 	storybookFileSuffix: string;
+	/** True when a `.storybook/preview` module is in play. §13 */
+	hasStorybookPreview: boolean;
 	hasPreviewEntry: boolean;
 	hasCodecs: boolean;
 	route: string | false;
 	files: FixtureFileIndex[];
 	decorators: DecoratorFileIndex[];
 	inventory: InventoryItem[];
+	callSites: CallSiteGroup[];
 	problems: IndexProblem[];
 }

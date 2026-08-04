@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # package.json and UAIGHT_VERSION are compared by the runtime at §16.2, so
+      # drift between them reaches users as "one of them is a stale build
+      # artefact". Cheapest possible check, so it runs first.
+      - name: Version lockstep
+        run: bun run --cwd packages/uaight version:check
+
+      # The build has to precede the type check: `virtual:uaight/*` is declared
+      # in `uaight/client`, which resolves its types through the package's own
+      # `dist`. Type-checking against a stale dist checks the wrong contract.
+      - name: Build
+        run: bun run build
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Typecheck the demo
+        run: bun run --cwd examples/frosted-ui typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      # NOTE: `oxfmt --check` is deliberately not a step yet. oxfmt 0.61 with no
+      # config disagrees with 205 of this repository's 209 files, so turning it
+      # on means one reformat commit touching everything. Worth doing — as its
+      # own change, with a committed config, not as a side effect of CI.
+
+      # Unit tests plus the golden corpus. The corpus suite is the one that
+      # catches integration defects — every part being correct on its own is
+      # exactly how the worst three defects in this project got in.
+      - name: Test
+        run: bun run --cwd packages/uaight test
+
+      # The registry is generated, and a stale one ships eight of ten items.
+      - name: Registry builds
+        run: bun run --cwd packages/uaight registry
+
+      - name: Stylesheet is fresh
+        run: bun run --cwd packages/uaight build:css --check

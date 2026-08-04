@@ -182,6 +182,27 @@ export function flattenSelectable(nodes: readonly TreeNode[]): TreeNode[] {
 	return out;
 }
 
+/**
+ * The rows the sidebar actually draws: `flattenSelectable`, except that a file
+ * is a leaf. Its fixtures are variants of that one row, reached with ←/→ rather
+ * than by stepping ↑/↓ past them.
+ */
+export function flattenRows(nodes: readonly TreeNode[]): TreeNode[] {
+	const out: TreeNode[] = [];
+	const walk = (list: readonly TreeNode[]) => {
+		for (const node of list) {
+			if (node.kind === "file" && node.fixture) {
+				out.push(node);
+				continue;
+			}
+			if (node.kind === "fixture" || node.kind === "component") out.push(node);
+			if (node.children) walk(node.children);
+		}
+	};
+	walk(nodes);
+	return out;
+}
+
 /** Case-insensitive substring search over labels and full paths. */
 export function searchTree(nodes: readonly TreeNode[], query: string): TreeNode[] {
 	const q = query.trim().toLowerCase();

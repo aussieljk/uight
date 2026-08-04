@@ -25,8 +25,13 @@ import { UAIGHT_VERSION } from "../shared/version.ts";
 import type { LoadedDecorator } from "./decorators.ts";
 import { composeDecorators, loadDecorators, selectDecorators } from "./decorators.ts";
 import { ErrorPanel, RendererErrorBoundary, toRendererError } from "./error-boundary.tsx";
+import type { StorybookPreview } from "./csf.ts";
 import type { FixtureRuntime } from "./fixture-context.tsx";
-import { FixtureRuntimeProvider, createViewportSource } from "./fixture-context.tsx";
+import {
+	FixtureRuntimeProvider,
+	createViewportSource,
+	useFixtureInput,
+} from "./fixture-context.tsx";
 import type { NormalizedFixture } from "./normalize.ts";
 import { normalizeModule, selectFixture } from "./normalize.ts";
 import { OverlayStore } from "./overlay.ts";
@@ -43,11 +48,18 @@ export interface MountRendererOptions {
 	inventoryModules: ModuleMap;
 	codecs?: FixtureCodec[];
 	Providers?: React.ComponentType<{ children: React.ReactNode }> | undefined;
+	/** The consumer's `.storybook/preview`, when one was found (§13). */
+	storybookPreview?: StorybookPreview | null;
 }
 
 export interface ComponentRef {
 	globPath: string;
 	exportName: string;
+	/** Props from a harvested call site, when one was selected. */
+	props?: Record<string, unknown> | null;
+	children?: string | null;
+	/** Where those props were written. */
+	origin?: string | null;
 }
 
 export interface RendererAppProps extends Omit<MountRendererOptions, "root"> {
@@ -119,7 +131,54 @@ function componentFixture(module: unknown, ref: ComponentRef): NormalizedFixture
 	if (typeof exported !== "function" && (typeof exported !== "object" || exported === null)) {
 		throw new Error(`${ref.globPath} has no component export named "${ref.exportName}"`);
 	}
-	return { name: ref.exportName, render: exported as React.ComponentType };
+
+	const component = exported as React.ComponentType<Record<string, unknown>>;
+	const props = ref.props;
+	if (!props) return { name: ref.exportName, render: component };
+
+	const fixture: NormalizedFixture = {
+		name: ref.exportName,
+		render: createCallSiteComponent(component, props, ref.children ?? undefined),
+	};
+	if (ref.origin) fixture.meta = { description: `as used in ${ref.origin}` };
+	return fixture;
+}
+
+/**
+ * A harvested call site, rendered with its props as editable inputs.
+ *
+ * Registering each prop through `useFixtureInput` is what makes a found fixture
+ * a real one: the control panel drives it, the overlay model backs it, and the
+ * values it starts from are the ones written at the call site rather than
+ * anything inferred. This does not conflict with D18 — nothing is derived from
+ * a prop's *name*; the initial value is code the user wrote, and no control
+ * metadata is invented for it.
+ *
+ * The key list is fixed when the component is created, and a different call
+ * site creates a different component type, so React remounts rather than
+ * running a changed hook order.
+ */
+function createCallSiteComponent(
+	component: React.ComponentType<Record<string, unknown>>,
+	props: Record<string, unknown>,
+	children: string | undefined,
+): React.ComponentType {
+	const keys = Object.keys(props);
+
+	function CallSiteFixture(): React.ReactNode {
+		const next: Record<string, unknown> = { ...props };
+		for (const key of keys) {
+			// eslint-disable-next-line react-hooks/rules-of-hooks -- fixed-length list
+			const [value] = useFixtureInput(key, props[key]);
+			next[key] = value;
+		}
+		return children === undefined
+			? React.createElement(component, next)
+			: React.createElement(component, next, children);
+	}
+
+	CallSiteFixture.displayName = "CallSiteFixture";
+	return CallSiteFixture;
 }
 
 function useLoadedFixture(
@@ -128,6 +187,12 @@ function useLoadedFixture(
 ): Loaded {
 	const { config, fixtureModules, decoratorModules, inventoryModules } = props;
 	const [state, setState] = React.useState<Loaded>(EMPTY);
+
+	// One identity for the whole component selection, so switching between two
+	// call sites of the same component reloads rather than reusing the first.
+	const componentKey = selection.component
+		? `${selection.component.globPath}#${selection.component.exportName}#${selection.component.origin ?? ""}`
+		: "";
 
 	React.useEffect(() => {
 		let cancelled = false;
@@ -184,7 +249,12 @@ function useLoadedFixture(
 					loadDecorators(selectDecorators(config.decorators, id.path), decoratorModules),
 				]);
 				if (cancelled) return;
-				const normalized = normalizeModule(module, file, config);
+				const normalized = normalizeModule(
+					module,
+					file,
+					config,
+					props.storybookPreview ?? null,
+				);
 
 				if (id.name === ALL_FIXTURES) {
 					const all = orderByIndex(normalized.fixtures, file.names);
@@ -219,8 +289,7 @@ function useLoadedFixture(
 	}, [
 		selection.fixture?.path,
 		selection.fixture?.name,
-		selection.component?.globPath,
-		selection.component?.exportName,
+		componentKey,
 		config,
 		fixtureModules,
 		decoratorModules,
@@ -242,13 +311,13 @@ function FixtureRender(props: { fixture: NormalizedFixture }): React.ReactNode {
 
 const noteStyle: React.CSSProperties = {
 	font: "12px/1.4 ui-sans-serif, system-ui, sans-serif",
-	color: "#6b7280",
+	color: "#737373",
 	padding: "6px 10px",
 };
 
 const emptyStyle: React.CSSProperties = {
 	font: "13px/1.5 ui-sans-serif, system-ui, sans-serif",
-	color: "#6b7280",
+	color: "#737373",
 	padding: 16,
 };
 
@@ -273,7 +342,7 @@ const overviewHeadingStyle: React.CSSProperties = {
 	margin: 0,
 	font: "500 12px/1.4 ui-sans-serif, system-ui, sans-serif",
 	letterSpacing: "0.01em",
-	color: "#6b7280",
+	color: "#737373",
 };
 
 const overviewFrameStyle: React.CSSProperties = {
@@ -367,7 +436,14 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 					store.clearForFixture();
 					setSelection({
 						fixture: message.fixture ?? null,
-						component: message.component ?? null,
+						component: message.component
+							? {
+									...message.component,
+									props: message.props ?? null,
+									children: message.children ?? null,
+									origin: message.origin ?? null,
+								}
+							: null,
 					});
 					break;
 				}
@@ -479,7 +555,8 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 	/* ---------------- the tree ---------------- */
 
 	const key = selection.component
-		? `component:${selection.component.globPath}#${selection.component.exportName}`
+		? `component:${selection.component.globPath}#${selection.component.exportName}` +
+			`#${selection.component.origin ?? ""}`
 		: selection.fixture
 			? serializeFixtureId(selection.fixture)
 			: "empty";

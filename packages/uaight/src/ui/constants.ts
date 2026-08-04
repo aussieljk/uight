@@ -60,11 +60,13 @@ export const INVENTORY_NOTICE_KEY = "uaight:inventory-notice";
  * ------------------------------------------------------------------ */
 
 export const KEYMAP: ReadonlyArray<{ keys: string; action: string }> = [
+	{ keys: "⌘K · Ctrl K", action: "Find any fixture, component or usage" },
 	{ keys: "/", action: "Focus search" },
 	{ keys: "Esc", action: "Clear search, return focus to the tree" },
-	{ keys: "j  ·  k", action: "Next / previous fixture" },
-	{ keys: "↓  ·  ↑", action: "Move through the tree" },
-	{ keys: "→  ·  ←", action: "Expand / collapse a group" },
+	{ keys: "↓  ·  ↑", action: "Load the next / previous fixture" },
+	{ keys: "→  ·  ←", action: "Next / previous variant of this file" },
+	{ keys: "j  ·  k", action: "Same as ↓ and ↑" },
+	{ keys: "Arrows in the tree", action: "Move focus, expand and collapse groups" },
 	{ keys: "Home · End", action: "First / last row" },
 	{ keys: "Enter · Space", action: "Select the focused row" },
 	{ keys: "r", action: "Reset all controls" },

@@ -10,6 +10,7 @@
  * | ------------------------- | ---------------------------------------------- |
  * | `/@uaight/index.json`     | Fixture index: paths, names, `null`s, hashes   |
  * | `/@uaight/inventory.json` | Detected components                            |
+ * | `/@uaight/callsites.json` | Component usages harvested from the source     |
  * | `/@uaight/config.json`    | Resolved config echo                           |
  * | `/@uaight/health`         | version, viteVersion, protocolVersion, …       |
  *
@@ -41,6 +42,8 @@ export function readOnlyApi(
 					return indexPayload(getIndex());
 				case "/inventory.json":
 					return { components: getIndex().inventory };
+				case "/callsites.json":
+					return callSitesPayload(getIndex());
 				case "/config.json":
 					return configPayload(getConfig(), server);
 				case "/health":
@@ -86,6 +89,21 @@ function indexPayload(index: FixtureIndex): unknown {
 }
 
 /**
+ * Component usages harvested from the project's own source.
+ *
+ * `callSiteSources` is deliberately not served: it is the Node-side working set
+ * the ranking derives from, and the ranked groups are what a client can act on.
+ */
+function callSitesPayload(index: FixtureIndex): unknown {
+	return {
+		version: UAIGHT_VERSION,
+		components: index.callSites.length,
+		sites: index.callSites.reduce((sum, group) => sum + group.sites.length, 0),
+		groups: index.callSites,
+	};
+}
+
+/**
  * "Answers *why is my fixture not found*" (§19.6), so it echoes both path
  * representations (§4.2) and the patterns actually used, not just the options
  * the user typed.
@@ -110,6 +128,8 @@ function configPayload(
 		exclude: cfg.exclude,
 		caseSensitive: cfg.caseSensitive,
 		inventory: cfg.inventory,
+		callSites: cfg.callSites,
+		storybookPreview: cfg.storybookPreview ?? null,
 		previewEntry: cfg.previewEntry ?? null,
 		previewHtmlPath: cfg.previewHtmlPath ?? null,
 		codecs: cfg.codecs ?? null,

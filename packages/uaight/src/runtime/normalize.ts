@@ -16,7 +16,7 @@ import type {
 	FixtureMeta,
 	RuntimeConfig,
 } from "../shared/types.ts";
-import type { CsfSupport } from "./csf.ts";
+import type { CsfSupport, StorybookPreview } from "./csf.ts";
 import { DEFAULT_CSF_SUPPORT, normalizeCsfModule } from "./csf.ts";
 
 export interface NormalizedFixture {
@@ -77,6 +77,7 @@ export function normalizeModule(
 	module: unknown,
 	file: FixtureFileIndex,
 	config: RuntimeConfig,
+	preview: StorybookPreview | null = null,
 ): NormalizedModule {
 	const dev = config.command === "serve";
 
@@ -86,7 +87,7 @@ export function normalizeModule(
 			return { fixtures: [] };
 		}
 		const support: CsfSupport = { ...DEFAULT_CSF_SUPPORT, ...config.storybook };
-		const csf = normalizeCsfModule(module, file, support);
+		const csf = normalizeCsfModule(module, file, support, preview);
 		const result: NormalizedModule = { fixtures: csf.fixtures };
 		if (csf.fileMeta) result.fileMeta = csf.fileMeta;
 		reconcile(file, result.fixtures, dev);

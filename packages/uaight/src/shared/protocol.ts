@@ -48,6 +48,19 @@ export interface SelectFixture {
 	fixture: FixtureId | null;
 	/** Render a detected component instead of a fixture. §12 */
 	component?: { globPath: string; exportName: string } | null;
+	/**
+	 * Props for a harvested call site, and its text children.
+	 *
+	 * JSON by construction: the harvester only records values it could read
+	 * statically, so nothing here can carry a function, an element or a
+	 * reference into the host realm. An added optional field rather than a new
+	 * message, because the renderer's reaction is the same one it already has —
+	 * render this component — with arguments.
+	 */
+	props?: Record<string, unknown> | null;
+	children?: string | null;
+	/** Where those props were written, for the toolbar and the error panel. */
+	origin?: string | null;
 }
 export interface InputRegistered {
 	type: "INPUT_REGISTERED";

@@ -68,8 +68,14 @@ describe("minorTag", () => {
 });
 
 describe("the ejectable set", () => {
-	it("is exactly §11.3's table", () => {
+	it("is §11.3's table, plus the palette", () => {
+		// `CommandPalette` is an addition beyond §11.3's list, admitted under the
+		// same rule the list is drawn by: "anything that renders chrome is
+		// ejectable; anything that defines fixture semantics or owns the realm is
+		// not." It renders chrome, it reads the facade, and it holds no fixture
+		// state — the ranking it displays is computed before it is handed the list.
 		expect(EJECTABLE.map((e) => e.component).sort()).toEqual([
+			"CommandPalette",
 			"ControlPanel",
 			"ControlPanelInputs",
 			"EmptyState",

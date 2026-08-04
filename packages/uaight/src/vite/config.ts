@@ -35,6 +35,24 @@ export const CODE_EXTENSIONS = ["js", "jsx", "ts", "tsx"] as const;
 
 const DEFAULT_EXCLUDE = ["**/node_modules/**"];
 
+/** Sites kept per component after ranking. Enough to show variety, few enough to scan. */
+export const DEFAULT_CALL_SITE_MAX = 8;
+
+/**
+ * Set by `buildStatic()` for the duration of a static explorer build, and the
+ * one thing that can override `production` from outside the config.
+ *
+ * A static build exists to ship the explorer, so `production: 'exclude'` — the
+ * right default for an application bundle — would produce an empty page. An
+ * inline plugin cannot reach into another plugin's options, and a second
+ * `uaight()` would mean two plugins claiming the same virtual modules, so the
+ * signal travels through the environment where both can see it.
+ */
+export const STATIC_ENV = "UAIGHT_STATIC";
+
+/** Where a Storybook config lives, in the order Storybook itself looks. */
+const STORYBOOK_DIRS = [".storybook", "storybook"];
+
 const DEFAULT_INVENTORY_INCLUDE = ["**/*.{jsx,tsx}"];
 const DEFAULT_INVENTORY_EXCLUDE = [
 	"**/node_modules/**",
@@ -87,6 +105,9 @@ export interface ResolvedUaightConfig {
 
 	inventory: false | { include: string[]; exclude: string[] };
 
+	/** Call-site harvesting, and how many sites to keep per component. */
+	callSites: false | { max: number };
+
 	/** Root-relative import specifier (`/src/uaight.preview.tsx`). §4.2 */
 	previewEntry?: string;
 	/** Absolute filesystem path — it becomes a Rollup HTML input. §6.6 */
@@ -102,6 +123,12 @@ export interface ResolvedUaightConfig {
 		| (Required<NonNullable<StorybookSupport["support"]>> & {
 				fileSuffix: string;
 		  });
+
+	/**
+	 * Root-relative import specifier for a Storybook `preview` module (§4.2), or
+	 * undefined when there is none to load.
+	 */
+	storybookPreview?: string;
 
 	docgen: boolean;
 
@@ -165,6 +192,10 @@ export function resolveUaightConfig(
 	const fixturesDir = o.fixturesDir ?? DEFAULT_FIXTURES_DIR;
 	const fixturesDirFsPath = path.resolve(root, fixturesDir);
 
+	// Discovery runs before support resolution: finding a preview module is what
+	// makes global decorators supportable, so it has to be known first.
+	const storybookPreview = resolveStorybookPreview(root, o.storybook);
+
 	return {
 		root,
 		command: opts.command,
@@ -186,6 +217,7 @@ export function resolveUaightConfig(
 		caseSensitive: o.caseSensitive ?? true,
 
 		inventory: resolveInventory(o.inventory),
+		callSites: resolveCallSites(o.callSites),
 
 		previewEntry: o.previewEntry
 			? toGlobPath(root, path.resolve(root, o.previewEntry))
@@ -196,14 +228,55 @@ export function resolveUaightConfig(
 		codecs: o.codecs ? toGlobPath(root, path.resolve(root, o.codecs)) : undefined,
 
 		index: o.index ?? "warm",
-		production: o.production ?? "exclude",
+		production:
+			process.env[STATIC_ENV] === "1" ? "include" : (o.production ?? "exclude"),
 
-		storybook: resolveStorybook(o.storybook),
+		storybook: resolveStorybook(o.storybook, Boolean(storybookPreview)),
+		storybookPreview,
 
 		docgen: o.docgen ?? false,
 
 		configFile,
 	};
+}
+
+function resolveCallSites(
+	value: UaightPluginOptions["callSites"],
+): false | { max: number } {
+	if (value === false) return false;
+	if (value === true || value === undefined) return { max: DEFAULT_CALL_SITE_MAX };
+	return { max: Math.max(1, value.max ?? DEFAULT_CALL_SITE_MAX) };
+}
+
+/**
+ * Find the Storybook preview module. `.storybook/preview.{ts,tsx,js,jsx}` is
+ * the convention every Storybook install follows, so discovery needs no
+ * configuration in the common case — which is the point: the drop-in story is
+ * "point uaight at the repo you have".
+ *
+ * Returns a root-relative specifier (§4.2's glob-path form) so the virtual
+ * module can import it, or undefined when there is nothing to load.
+ */
+function resolveStorybookPreview(
+	root: string,
+	value: UaightPluginOptions["storybook"],
+): string | undefined {
+	if (!value) return undefined;
+	const declared = value === true ? undefined : value.preview;
+	if (declared === false) return undefined;
+
+	if (typeof declared === "string") {
+		const file = path.resolve(root, declared);
+		return fs.existsSync(file) ? toGlobPath(root, file) : undefined;
+	}
+
+	for (const dir of STORYBOOK_DIRS) {
+		for (const ext of CODE_EXTENSIONS) {
+			const candidate = path.join(root, dir, `preview.${ext}`);
+			if (fs.existsSync(candidate)) return toGlobPath(root, candidate);
+		}
+	}
+	return undefined;
 }
 
 function resolveInventory(
@@ -223,18 +296,29 @@ function resolveInventory(
 	};
 }
 
+/**
+ * `hasPreview` flips `globalDecorators` on by default.
+ *
+ * §13 declined them "by construction: `.storybook/preview` is never loaded".
+ * Once it *is* loaded the construction no longer holds, and continuing to
+ * decline them would badge every story in a repository for a feature that now
+ * works. An explicit `support.globalDecorators` still wins in both directions.
+ */
 function resolveStorybook(
 	value: UaightPluginOptions["storybook"],
+	hasPreview: boolean,
 ): ResolvedUaightConfig["storybook"] {
 	if (!value) return false;
 	if (value === true) {
 		return {
 			...STORYBOOK_SUPPORT_DEFAULTS,
+			globalDecorators: hasPreview,
 			fileSuffix: DEFAULT_STORYBOOK_FILE_SUFFIX,
 		};
 	}
 	return {
 		...STORYBOOK_SUPPORT_DEFAULTS,
+		globalDecorators: hasPreview,
 		...value.support,
 		fileSuffix: (value.fileSuffix ?? DEFAULT_STORYBOOK_FILE_SUFFIX)
 			.replace(/^\.+/, "")
@@ -384,8 +468,10 @@ const STRUCTURAL_FIELDS = [
 	"exclude",
 	"caseSensitive",
 	"inventory",
+	"callSites",
 	"previewEntry",
 	"previewHtmlPath",
+	"storybookPreview",
 	"codecs",
 	"configFile",
 ] as const satisfies ReadonlyArray<keyof ResolvedUaightConfig>;

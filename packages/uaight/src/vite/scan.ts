@@ -21,12 +21,14 @@ import path from "node:path";
 import { glob } from "tinyglobby";
 import { globToRegExp } from "../shared/filter.ts";
 import type {
+	CallSite,
 	DecoratorFileIndex,
 	FixtureFileIndex,
 	FixtureIndex,
 	IndexProblem,
 	InventoryItem,
 } from "../shared/types.ts";
+import { groupCallSites, parseCallSites } from "./callsites.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
 import { CODE_EXTENSIONS, FIXTURE_EXTENSIONS, escapesRoot, joinGlob, toGlobPath } from "./config.ts";
 import { parseInventoryFile, toInventoryItems } from "./inventory.ts";
@@ -259,11 +261,11 @@ export async function scanFixtures(
 				`Use a resolve.alias, a different Vite root, or move the directory.`,
 			files: [cfg.fixturesDirFsPath],
 		});
-		return { files: [], decorators: [], inventory: [], problems };
+		return { files: [], decorators: [], inventory: [], callSites: [], problems };
 	}
 
 	if (!fs.existsSync(cfg.fixturesDirFsPath)) {
-		return { files: [], decorators: [], inventory: [], problems };
+		return { files: [], decorators: [], inventory: [], callSites: [], problems };
 	}
 
 	const [fixturePaths, decoratorPaths, inventoryPaths] = await Promise.all([
@@ -282,20 +284,37 @@ export async function scanFixtures(
 	}
 
 	const inventory: InventoryItem[] = [];
-	for (const items of await Promise.all(
+	const callSiteSources: Record<string, CallSite[]> = {};
+	for (const indexed of await Promise.all(
 		inventoryPaths.map((file) => indexInventoryFile(file, cfg)),
 	)) {
-		inventory.push(...items);
+		inventory.push(...indexed.items);
+		for (const site of indexed.sites) {
+			(callSiteSources[site.globPath] ??= []).push(site);
+		}
 	}
 
 	const index: FixtureIndex = {
 		files: sortByGlobPath(files),
 		decorators: sortDecorators(decoratorPaths.map((file) => indexDecorator(file, cfg))),
 		inventory,
+		callSites: regroup(callSiteSources, cfg),
+		callSiteSources,
 		problems,
 	};
 	index.problems = [...problems, ...detectCollisions(index.files)];
 	return index;
+}
+
+/** Every retained site, re-ranked as one corpus. */
+function regroup(
+	sources: Record<string, CallSite[]>,
+	cfg: ResolvedUaightConfig,
+): FixtureIndex["callSites"] {
+	if (!cfg.callSites) return [];
+	const all: CallSite[] = [];
+	for (const sites of Object.values(sources)) all.push(...sites);
+	return groupCallSites(all, { max: cfg.callSites.max });
 }
 
 /** §19.4 — the standalone scan. Measures parse coverage (§3.5). */
@@ -401,21 +420,59 @@ async function indexFixtureFile(
 	};
 }
 
+interface IndexedInventoryFile {
+	items: InventoryItem[];
+	sites: CallSite[];
+}
+
+const NO_INVENTORY: IndexedInventoryFile = { items: [], sites: [] };
+
 async function indexInventoryFile(
 	file: string,
 	cfg: ResolvedUaightConfig,
-): Promise<InventoryItem[]> {
+): Promise<IndexedInventoryFile> {
 	let source: string;
 	try {
 		source = await fsp.readFile(file, "utf8");
 	} catch {
-		return [];
+		return NO_INVENTORY;
 	}
 	const globPath = toGlobPath(cfg.root, file);
 	// The inventory's display path keeps its extension-free form but has no
 	// fixture suffix to strip.
 	const display = displayPathOf(globPath, cfg, "");
-	return toInventoryItems(parseInventoryFile(source, file), display, globPath);
+
+	const items = toInventoryItems(parseInventoryFile(source, file), display, globPath);
+	const sites = cfg.callSites
+		? parseCallSites(source, file, {
+				path: display,
+				globPath,
+				resolve: (specifier) => resolveSpecifier(specifier, file, cfg),
+			})
+		: [];
+
+	return { items, sites };
+}
+
+/**
+ * A relative import specifier → the display path it names, so a `Button` used
+ * here can be told from a `Button` of the same name elsewhere.
+ *
+ * Only relative specifiers are resolved. A bare specifier is a package, and an
+ * aliased one (`@/components/Button`) needs Vite's resolver — which would mean
+ * running the plugin container during a scan that is meant to be one cheap
+ * pass. Both return null, and the caller falls back to matching by name.
+ */
+function resolveSpecifier(
+	specifier: string,
+	fromFile: string,
+	cfg: ResolvedUaightConfig,
+): string | null {
+	if (!specifier.startsWith(".")) return null;
+	const absolute = path.resolve(path.dirname(fromFile), specifier);
+	const globPath = toGlobPath(cfg.root, absolute);
+	if (escapesRoot(globPath)) return null;
+	return displayPathOf(globPath, cfg, "");
 }
 
 function indexDecorator(
@@ -489,6 +546,8 @@ export async function rescanIncremental(
 	let files = index.files;
 	let decorators = index.decorators;
 	let inventory = index.inventory;
+	let callSites = index.callSites;
+	let callSiteSources = index.callSiteSources;
 
 	if (isFixtureFile(absolute, cfg)) {
 		files = files.filter((f) => f.globPath !== globPath);
@@ -507,15 +566,35 @@ export async function rescanIncremental(
 
 	if (cfg.command === "serve" && isInventoryFile(absolute, cfg)) {
 		inventory = inventory.filter((i) => i.globPath !== globPath);
+		const sources = { ...callSiteSources };
+		delete sources[globPath];
+
 		if (exists) {
-			inventory = [...inventory, ...(await indexInventoryFile(absolute, cfg))];
+			const indexed = await indexInventoryFile(absolute, cfg);
+			inventory = [...inventory, ...indexed.items];
+			if (indexed.sites.length) sources[globPath] = indexed.sites;
 		}
+
+		// Re-rank against the whole retained corpus rather than patching one
+		// group: a site's rank is relative to its siblings, so a file that just
+		// gained the most distinct usage of a component has to be able to
+		// displace one that was already there.
+		callSiteSources = sources;
+		callSites = regroup(sources, cfg);
 	}
 
 	const carried = index.problems.filter(
 		(p) => p.kind !== "collision" && !p.files.includes(absolute),
 	);
-	return { files, decorators, inventory, problems: [...carried, ...detectCollisions(files)] };
+	const next: FixtureIndex = {
+		files,
+		decorators,
+		inventory,
+		callSites,
+		problems: [...carried, ...detectCollisions(files)],
+	};
+	if (callSiteSources) next.callSiteSources = callSiteSources;
+	return next;
 }
 
 /* ------------------------------------------------------------------ *
@@ -573,15 +652,18 @@ export function applyParse(
 		...index.files.filter((f) => f.globPath !== globPath),
 		entry,
 	]);
-	return {
+	const next: FixtureIndex = {
 		files,
 		decorators: index.decorators,
 		inventory: index.inventory,
+		callSites: index.callSites,
 		problems: [
 			...index.problems.filter((p) => p.kind !== "collision"),
 			...detectCollisions(files),
 		],
 	};
+	if (index.callSiteSources) next.callSiteSources = index.callSiteSources;
+	return next;
 }
 
 /* ------------------------------------------------------------------ *
@@ -594,10 +676,14 @@ export function applyParse(
  * namespaced custom event. This is that payload.
  */
 export function serializeIndex(index: FixtureIndex): FixtureIndex {
+	// `callSiteSources` is deliberately absent: it is the Node-side working set
+	// the ranking is derived from, and sending it would put the whole corpus's
+	// raw usages on the wire on every topology change.
 	return {
 		files: index.files,
 		decorators: index.decorators,
 		inventory: index.inventory,
+		callSites: index.callSites,
 		problems: index.problems,
 	};
 }

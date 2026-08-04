@@ -141,6 +141,14 @@ export const EJECTABLE: readonly Ejectable[] = [
 			"Components detected without fixtures (§12). Selecting one renders its real code in frame isolation; the first-run safety notice is part of this component and its wording is specified.",
 		registryDependencies: [],
 	},
+	{
+		name: "command-palette",
+		component: "CommandPalette",
+		title: "Command Palette",
+		description:
+			"⌘K over every fixture, detected component and harvested call site. Receives a list that is already filtered and ranked, so a replacement never has to reimplement the matcher.",
+		registryDependencies: [],
+	},
 ];
 
 /* ------------------------------------------------------------------ *

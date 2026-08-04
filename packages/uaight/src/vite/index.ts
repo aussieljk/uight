@@ -65,6 +65,7 @@ import {
 	generateRendererEntry,
 	generateRendererUrl,
 	generateRuntime,
+	generateStorybookPreview,
 	resolvedId,
 } from "./virtual.ts";
 
@@ -77,6 +78,11 @@ export type { ResolvedUaightConfig } from "./config.ts";
 export { parseFixtureFile } from "./parse.ts";
 export type { ParsedFixtureFile, NameSource } from "./parse.ts";
 export { buildFixtureIndex, validateFixtures } from "./scan.ts";
+export { groupCallSites, parseCallSites } from "./callsites.ts";
+export { formatStorybookReport, storybookReport } from "./storybook-report.ts";
+export type { StorybookReport, StorybookFileReport } from "./storybook-report.ts";
+export { buildStatic } from "./static.ts";
+export type { BuildStaticOptions, BuildStaticResult } from "./static.ts";
 export { DEV_RENDERER_URL, DEV_ENTRY_URL };
 
 const V = VIRTUAL_IDS;
@@ -89,6 +95,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 		files: [],
 		decorators: [],
 		inventory: [],
+		callSites: [],
 		problems: [],
 	};
 	let rendererRef: string | undefined;
@@ -269,6 +276,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 				return generateRendererEntry(await detectPreamble(this, cfg));
 			}
 			if (id === resolvedId(V.preview)) return generatePreviewEntry(cfg);
+			if (id === resolvedId(V.storybookPreview)) return generateStorybookPreview(cfg);
 			if (id === resolvedId(V.codecs)) return generateCodecs(cfg);
 			if (id === resolvedId(V.inventory)) return generateInventory(cfg, index);
 			if (id === resolvedId(V.devEntry)) return generateDevEntry();

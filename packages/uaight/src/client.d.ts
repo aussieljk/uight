@@ -23,6 +23,12 @@ declare module "virtual:uaight/preview-entry" {
 		| undefined;
 }
 
+declare module "virtual:uaight/storybook-preview" {
+	import type { StorybookPreview } from "uaight/runtime";
+	/** Null when no `.storybook/preview` module was found. */
+	export const storybookPreview: StorybookPreview | null;
+}
+
 declare module "virtual:uaight/codecs" {
 	import type { FixtureCodec } from "uaight";
 	export const codecs: FixtureCodec[];

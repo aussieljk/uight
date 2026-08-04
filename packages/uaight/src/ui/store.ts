@@ -48,6 +48,16 @@ export interface OverlayStore {
 	resync(msg: { name: string; revision: number; wire: Wire; dropped: number }): InputOverlay | null;
 	/** A patch the renderer produced itself, by the fixture calling its setter. */
 	adopt(msg: { name: string; revision: number; patches: Patch[] }): void;
+	/**
+	 * Patches from a shared link, held until the inputs they name register.
+	 *
+	 * A link carries no revision — a revision numbers *this* renderer's
+	 * registration and means nothing in another tab — so seeded patches adopt
+	 * whatever revision their input registers with and are pruned against its
+	 * wire by the same rule as any other patch (§7.3). A patch naming a shape
+	 * that no longer exists is dropped, not applied blindly.
+	 */
+	seed(overlays: readonly InputOverlay[]): void;
 	set(name: string, path: PathSegment[], value: EditableWire): InputOverlay | null;
 	reset(name?: string | undefined): InputOverlay[];
 	/** Overlays are dropped on fixture change (§7.3). */
@@ -71,6 +81,8 @@ export function createOverlayStore(): OverlayStore {
 	/** Overlays live in a Map keyed by name so a name that returns finds its patches. */
 	const overlays = new Map<string, InputOverlay>();
 	const registered = new Map<string, RegisteredInput>();
+	/** Patches from a shared link, waiting for their input to register. */
+	const seeded = new Map<string, Patch[]>();
 	const order: string[] = [];
 	/** Dropped counts are reported once per input per revision. */
 	const reported = new Map<string, number>();
@@ -124,9 +136,29 @@ export function createOverlayStore(): OverlayStore {
 				options: msg.options,
 				active: true,
 			});
+
+			// A shared link's patches wait here until the input they name shows up.
+			// An edit made before that point is the user's, and wins.
+			const pending = seeded.get(msg.name);
+			if (pending && !overlays.has(msg.name)) {
+				overlays.set(msg.name, {
+					input: msg.name,
+					revision: msg.revision,
+					patches: pending,
+				});
+			}
+			seeded.delete(msg.name);
+
 			const overlay = rebase(msg.name, msg.revision, msg.wire);
 			commit();
 			return overlay;
+		},
+
+		seed(next) {
+			seeded.clear();
+			for (const overlay of next) {
+				if (overlay.patches.length) seeded.set(overlay.input, [...overlay.patches]);
+			}
 		},
 
 		settle(names) {
@@ -204,6 +236,7 @@ export function createOverlayStore(): OverlayStore {
 			overlays.clear();
 			registered.clear();
 			reported.clear();
+			seeded.clear();
 			order.length = 0;
 			dropped = 0;
 			commit();
