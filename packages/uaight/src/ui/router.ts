@@ -21,58 +21,110 @@ export type RouterSpec = RouterAdapter | "history" | "hash" | "none";
 const isDev = process.env.NODE_ENV !== "production";
 
 /* ------------------------------------------------------------------ *
- * Ownership — refcounted, module-scoped
+ * Ownership — one owner per key, arbitrated by arrival order
  * ------------------------------------------------------------------ */
 
-const claims = new Map<string, number>();
+const claims = new Map<string, Set<Claimant>>();
+
+/**
+ * A hook instance that wants a key. `seq` is assigned once, when the component
+ * first renders, and never moves.
+ *
+ * That is the whole fix for §5.4 under StrictMode. Ownership used to be a
+ * refcount, and a count cannot say WHO: StrictMode remounts effects one fiber
+ * at a time, so with two mounts the real order is
+ *
+ *     A.setup(1, owner) B.setup(2, denied)
+ *     A.cleanup(1) A.setup(2, DENIED) B.cleanup(1) B.setup(2, DENIED)
+ *
+ * — the count never returns to 0 while A re-claims, so A was denied its own
+ * key and nobody owned the parameter. Both mounts then ignored the deep link
+ * in the URL and rendered the empty state, in the configuration React makes the
+ * default. Ordering by a per-instance sequence is stable across that churn: A's
+ * `seq` is lower than B's however many times either re-claims.
+ */
+interface Claimant {
+	seq: number;
+	/** Recompute this claimant's ownership. Set only while it is claiming. */
+	notify: () => void;
+	/** §5.4's development error is stated once per denied mount, not per claim. */
+	warned: boolean;
+}
+
+let nextSeq = 0;
 
 export function resolveRouterKey(urlParam: string, routerId?: string | undefined): string {
 	return routerId ? `${urlParam}.${routerId}` : urlParam;
 }
 
-/** Returns true when this claimant took the key from 0 → 1. */
-function claim(key: string): boolean {
-	const next = (claims.get(key) ?? 0) + 1;
-	claims.set(key, next);
-	return next === 1;
+/** The live claimant that arrived first, which is the one that owns the key. */
+function ownerOf(key: string): Claimant | null {
+	let best: Claimant | null = null;
+	for (const claimant of claims.get(key) ?? []) {
+		if (!best || claimant.seq < best.seq) best = claimant;
+	}
+	return best;
 }
 
-function release(key: string): void {
-	const next = (claims.get(key) ?? 1) - 1;
-	if (next <= 0) claims.delete(key);
-	else claims.set(key, next);
+function announce(key: string): void {
+	for (const claimant of [...(claims.get(key) ?? [])]) claimant.notify();
+}
+
+function claim(key: string, claimant: Claimant): void {
+	const set = claims.get(key) ?? new Set<Claimant>();
+	set.add(claimant);
+	claims.set(key, set);
+	announce(key);
+}
+
+function release(key: string, claimant: Claimant): void {
+	const set = claims.get(key);
+	if (!set) return;
+	set.delete(claimant);
+	if (set.size === 0) claims.delete(key);
+	// Whoever is left may now own it — the second mount takes over when the
+	// first unmounts, rather than the key staying orphaned.
+	announce(key);
 }
 
 export type Ownership = "pending" | "owner" | "denied";
 
 /**
- * Claiming happens in a layout effect, so it runs before paint (nothing is
- * ever shown with a value the mount does not own) and so StrictMode's
- * mount → cleanup → mount cycle nets out to a single claim.
+ * Claiming happens in a layout effect, so it runs before paint and nothing is
+ * ever shown with a value the mount does not own.
  */
 export function useRouterOwnership(key: string, active: boolean): Ownership {
 	const [state, setState] = useState<Ownership>("pending");
+	// Lazily, so the sequence is this component's and follows tree order. The
+	// initializer may run twice under StrictMode; only the number it kept is
+	// ever used, and both are below whatever the next component allocates.
+	const [claimant] = useState<Claimant>(() => ({ seq: nextSeq++, notify: () => {}, warned: false }));
 
 	useLayoutEffect(() => {
 		if (!active) {
 			setState("pending");
 			return;
 		}
-		const owner = claim(key);
-		setState(owner ? "owner" : "denied");
-		if (!owner && isDev) {
-			console.error(
-				`[uaight] two mounts asked to own the URL parameter "${key}". The second ` +
-					`falls back to local selection state. Give one of them a distinct ` +
-					`routerId (or urlParam), or drive selection with the \`selected\`/` +
-					`\`onSelect\` props.`,
-			);
-		}
+		claimant.notify = () => {
+			const owner = ownerOf(key) === claimant;
+			setState(owner ? "owner" : "denied");
+			if (!owner && !claimant.warned && isDev) {
+				claimant.warned = true;
+				console.error(
+					`[uaight] two mounts asked to own the URL parameter "${key}". The second ` +
+						`falls back to local selection state. Give one of them a distinct ` +
+						`routerId (or urlParam), or drive selection with the \`selected\`/` +
+						`\`onSelect\` props.`,
+				);
+			}
+		};
+		claim(key, claimant);
 		return () => {
-			release(key);
+			claimant.notify = () => {};
+			release(key, claimant);
 			setState("pending");
 		};
-	}, [key, active]);
+	}, [key, active, claimant]);
 
 	return active ? state : "pending";
 }

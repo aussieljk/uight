@@ -118,22 +118,21 @@ test.describe("budgets @perf", () => {
 	});
 
 	test("HMR latency, fixture edit to render < 150 ms", async ({ explorer, page }) => {
-		// **Measured, and over budget: ~880 ms against §20.3's 150 ms.**
+		// **Was `fixme` at ~880 ms.** There was no update path: editing a fixture
+		// file reloaded the whole HOST document, so every edit paid for a
+		// navigation, a fresh explorer chunk, a fresh frame document and a fresh
+		// handshake. See `hmr.spec.ts` › "a fixture edit re-renders in place…"
+		// for the cause and the fix.
 		//
-		// The cause is not the update path being slow; it is that there is no
-		// update path. Editing a fixture file reloads the whole HOST document
-		// (`hmr.spec.ts` › "a fixture edit re-renders in place…"), so every edit
-		// pays for a navigation, a fresh explorer chunk, a fresh frame document
-		// and a fresh handshake. The frame handshake itself is 10 ms and a warm
-		// selection is 14 ms, so the 150 ms budget is comfortably reachable the
-		// moment an edit stops being a page load.
-		//
-		// Left as `fixme` rather than deleted or retuned: §20.3's budgets are
-		// targets to validate, and retuning this one to 900 ms would enshrine the
-		// reload. The number is printed on every run, so the day it drops the
-		// `fixme` can go.
-		test.fixme(true, "measured ~880 ms; a fixture edit currently reloads the host document");
-
+		// The measurement changed with it, and only because its own stated
+		// blocker is gone: the note below used to say an in-page observer "is
+		// more precise, and it cannot be used" because the reload destroyed the
+		// execution context mid-measurement. It no longer does, so the clock now
+		// stops on a `MutationObserver` in the frame document instead of on
+		// Playwright's polling interval — which was itself ~130 ms of what was
+		// being reported. The budget is unchanged and the clock still starts in
+		// Node, the instant before the write, so nothing about the edit is
+		// excluded from it.
 		await explorer.open({ fixture: { path: "fixtures/hmr", name: "Marker" } });
 		const marker = explorer.frame().locator("[data-e2e='hmr-marker']");
 		await expect(marker).toHaveText("HMR_MARKER_V0");
@@ -144,18 +143,41 @@ test.describe("budgets @perf", () => {
 		try {
 			for (let i = 1; i <= 6; i++) {
 				const next = `HMR_MARKER_V${i}`;
-				// Timed from Node, not from `page.evaluate`. An in-page observer is
-				// more precise, and it cannot be used: editing a fixture file
-				// reloads the HOST document (see `hmr.spec.ts`), which destroys the
-				// execution context mid-measurement. So the clock starts the
-				// instant before the write and stops when the browser is observed
-				// showing the new text. That includes Playwright's own polling
-				// interval, which is why the measurement is a median and why the
-				// number reported below is an UPPER BOUND on the real latency.
+				// Armed BEFORE the write, so nothing between the write and the
+				// repaint can fall outside the window. It resolves the moment the
+				// frame document shows the new text; the clock is Node's, started
+				// the instant before the write, so the number includes the
+				// filesystem event, the dev server, the socket and the re-render.
+				const painted = page.evaluate((text) => {
+					return new Promise<void>((resolve) => {
+						const frame = document.querySelector<HTMLIFrameElement>(
+							"iframe[data-uaight-frame]",
+						);
+						const doc = frame?.contentDocument;
+						if (!doc) return resolve();
+						const seen = (): boolean =>
+							doc.querySelector("[data-e2e='hmr-marker']")?.textContent === text;
+						if (seen()) return resolve();
+						const observer = new MutationObserver(() => {
+							if (!seen()) return;
+							observer.disconnect();
+							resolve();
+						});
+						observer.observe(doc.documentElement, {
+							subtree: true,
+							childList: true,
+							characterData: true,
+						});
+					});
+				}, next);
+				// The observer is installed on the browser side before the write.
+				await page.waitForTimeout(50);
+
 				const started = Date.now();
 				restores.push(patchFile("src/fixtures/hmr.fixture.tsx", current, next));
-				await expect(marker).toHaveText(next, { timeout: 20_000 });
+				await painted;
 				const elapsed = Date.now() - started;
+				await expect(marker).toHaveText(next, { timeout: 20_000 });
 				// The first edit after a cold start pays for the dev server's first
 				// invalidation of this module; §20.3's budget is the steady state.
 				if (i > 1) samples.push(elapsed);
@@ -168,7 +190,7 @@ test.describe("budgets @perf", () => {
 		await expect(marker).toHaveText("HMR_MARKER_V0", { timeout: 20_000 });
 
 		const value = median(samples);
-		report("HMR: fixture edit → render (upper bound, wall clock)", value, "< 150 ms");
+		report("HMR: fixture edit → render (wall clock, to repaint)", value, "< 150 ms");
 		expect(value).toBeLessThan(150);
 	});
 

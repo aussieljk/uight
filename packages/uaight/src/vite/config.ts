@@ -26,6 +26,7 @@ export const DEFAULT_FIXTURES_DIR = "src";
 export const DEFAULT_FIXTURE_FILE_SUFFIX = "fixture";
 export const DEFAULT_DECORATOR_FILE_SUFFIX = "cosmos.decorator|uaight.decorator";
 export const DEFAULT_STORYBOOK_FILE_SUFFIX = "stories";
+export const DEFAULT_DOCS_FILE_SUFFIX = "docs";
 export const DEFAULT_CONFIG_FILE = "uaight.config.json";
 
 /** Module extensions a fixture file may use. §4.4 */
@@ -143,6 +144,14 @@ export interface ResolvedUaightConfig {
 	storybookPreview?: string;
 
 	docgen: boolean;
+
+	/**
+	 * MDX documentation pages (§14) — `**\/*.docs.mdx` by default.
+	 *
+	 * `false` turns them off entirely, which is what a project that writes its
+	 * docs somewhere else wants: the pattern is one more glob on every scan.
+	 */
+	docs: false | { fileSuffix: string };
 
 	/** Absolute path to `uaight.config.json`, when one is in play. */
 	configFile?: string;
@@ -295,6 +304,7 @@ export function resolveUaightConfig(
 		storybookPreview,
 
 		docgen: o.docgen ?? false,
+		docs: resolveDocs(o.docs),
 
 		configFile,
 	};
@@ -337,6 +347,17 @@ function resolveStorybookPreview(
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Docs pages are on by default and cost nothing when a project has none: the
+ * glob simply matches no files. Off is for a project that keeps `.docs.mdx`
+ * files it does not want the explorer listing.
+ */
+function resolveDocs(value: UaightPluginOptions["docs"]): ResolvedUaightConfig["docs"] {
+	if (value === false) return false;
+	const suffix = value === true || value === undefined ? undefined : value.fileSuffix;
+	return { fileSuffix: (suffix ?? DEFAULT_DOCS_FILE_SUFFIX).replace(/^\.+/, "").trim() };
 }
 
 function resolveInventory(

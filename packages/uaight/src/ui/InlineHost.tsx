@@ -53,13 +53,25 @@ export function InlineHost({ codecs, theme, onTransport }: InlineHostProps): Rea
 		// away would flip that tree to light for as long as it outlives us.
 	}, [theme]);
 
+	/**
+	 * Publish the host end, and — deliberately — do NOT dispose the pair here.
+	 *
+	 * The cleanup used to dispose both ends, which is correct for a resource an
+	 * effect acquired and wrong for one `useMemo` produced: StrictMode runs
+	 * setup, cleanup, setup against the *same* memoized pair, so the second
+	 * setup published a transport that had already latched `disposed` and could
+	 * never deliver again. Inline isolation was dead under StrictMode — which is
+	 * React's default — and that is what "No fixture selected. for every
+	 * selection" was.
+	 *
+	 * Nothing is leaked by leaving it: unlike the frame transport, a direct pair
+	 * owns no window listener and no timer. Its ends stop delivering when their
+	 * subscribers unsubscribe, which React does on unmount, and the pair is then
+	 * garbage with the component that memoized it.
+	 */
 	useLayoutEffect(() => {
 		onTransport(pair.host);
-		return () => {
-			onTransport(null);
-			pair.host.dispose();
-			pair.renderer.dispose();
-		};
+		return () => onTransport(null);
 		// `pair` is created once; `onTransport` is stable in UaightUI.
 	}, [pair, onTransport]);
 

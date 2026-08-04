@@ -17,7 +17,59 @@ Section numbers refer to `SPEC.md`; the findings behind most entries are recorde
 
 ## [Unreleased]
 
-Nothing yet.
+### Added — `uaight init`, one command from a Storybook repository
+
+`uaight init` (also `uaight migrate`) adds `uaight` to `devDependencies`, adds
+`uaight({ storybook: true })` to the Vite config's `plugins` array, and prints the §13
+compatibility report so the move is quantified before it is committed to. The config edit
+is made against the parsed config — the import goes after the last existing one, the
+plugin is prepended to the `plugins` array the parser found — and a config with no
+`plugins` array, or one that does not parse, is **declined with the line to paste** rather
+than half-edited. `--dry-run` computes every change and writes none; re-running skips what
+is already done. Nothing is installed and no package manager is run: the install command
+is printed. Exported as `migrateFromStorybook()` from `uaight/vite` for CI.
+
+### Added — MDX documentation pages (§14)
+
+`**/*.docs.mdx` under the fixtures directory is a documentation page: prose that lives
+beside the components it describes. Mechanically it is a fixture — the same glob map, the
+same index entry, the same selection, the same frame realm, one page per module — and the
+suffix buys only the ability to say which it is, so the tree marks the row "Doc". No
+second pipeline, no router, no authored navigation: §1.4's "becoming an MDX documentation
+framework" is still a non-goal, and this is the version of the feature that does not
+become one. `docs: false` turns the pattern off; `docs: { fileSuffix }` renames it. The
+startup advice for a missing MDX plugin now names pages and fixtures separately, because
+a project with docs pages and no plugin has a broken docs page, not a broken fixture.
+
+### Added — grid mode
+
+<kbd>g</kbd>, or **Grid** in the toolbar: every fixture in the tree at once, as a contact
+sheet, with search narrowing it exactly as it narrows the tree. Clicking a tile selects
+that fixture and returns to the single view. Each tile is its own frame, because forty
+fixtures sharing one document would share global listeners, `document.body` and any CSS
+one of them injects. Frames are not free, so a tile mounts when it scrolls near the
+viewport, at most 30 hold a live frame at once, and past that a tile waits on a button —
+pressing <kbd>g</kbd> on a 600-fixture corpus gives a readable list rather than a stalled
+tab. Nothing renders in bulk without being asked, which is §12's rule unchanged.
+
+### Added — the documentation site
+
+`docs/` is uaight.dev: a VitePress site with the guide and reference pages, built by
+`bun run docs:build`. `docs/scripts/sync.ts` copies `SPEC.md`, `ARCHITECTURE.md`,
+`ROADMAP.md` and `CHANGELOG.md` in under Reference — one source of truth each, never a
+second copy to maintain — and copies the built registry into `public/r/`, which is what
+makes the `https://uaight.dev/r/…` URLs the registry items already point at real.
+
+VitePress rather than uaight's own MDX pages, deliberately: a project whose documentation
+site is its own unshipped feature cannot publish a page about a bug in that feature.
+
+### Removed — the first-run safety notice
+
+The §12 banner is gone. What it said is true and is now in the docs and in `SPEC.md`
+§12 — rendering a detected component runs its real code, and frame isolation contains DOM,
+CSS and global listeners but not network, storage, cookies or backend effects. What it did
+was interrupt the first render of every session to say it. Selection is still explicit,
+still never on hover or in bulk, and that is the part that was doing the work.
 
 ---
 

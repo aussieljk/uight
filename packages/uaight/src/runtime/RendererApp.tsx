@@ -13,6 +13,7 @@ import type { MountedMessage } from "../shared/protocol.ts";
 import { PROTOCOL_VERSION } from "../shared/protocol.ts";
 import { ALL_FIXTURES } from "../shared/types.ts";
 import type {
+	DecoratorFileIndex,
 	FixtureCodec,
 	FixtureFileIndex,
 	FixtureId,
@@ -26,6 +27,12 @@ import type { LoadedDecorator } from "./decorators.ts";
 import { composeDecorators, loadDecorators, selectDecorators } from "./decorators.ts";
 import { ErrorPanel, RendererErrorBoundary, toRendererError } from "./error-boundary.tsx";
 import type { StorybookPreview } from "./csf.ts";
+import {
+	fixtureHotRegistry,
+	liveModuleMap,
+	liveRuntimeConfig,
+	loadFixtureModule,
+} from "./hot.ts";
 import type { FixtureRuntime } from "./fixture-context.tsx";
 import {
 	FixtureRuntimeProvider,
@@ -181,12 +188,45 @@ function createCallSiteComponent(
 	return CallSiteFixture;
 }
 
+/** This realm's hot registry, published before any update can arrive (§4.5). */
+fixtureHotRegistry();
+
+interface HostIndex {
+	files: FixtureFileIndex[];
+	decorators: DecoratorFileIndex[];
+}
+
 function useLoadedFixture(
 	selection: Selection,
 	props: RendererAppProps,
+	hostIndex: HostIndex | null,
 ): Loaded {
-	const { config, fixtureModules, decoratorModules, inventoryModules } = props;
+	const { fixtureModules, decoratorModules, inventoryModules } = props;
+	// The index the RENDERER resolves ids against, in precedence order: what the
+	// host is showing (§4.5), then a hot-updated module, then the one that came
+	// with the mount.
+	const booted = liveRuntimeConfig(props.config);
+	const config = React.useMemo(
+		() =>
+			hostIndex
+				? { ...booted, files: hostIndex.files, decorators: hostIndex.decorators }
+				: booted,
+		[booted, hostIndex],
+	);
 	const [state, setState] = React.useState<Loaded>(EMPTY);
+
+	/**
+	 * §4.5 — a fixture module that was hot-updated is re-read here rather than
+	 * arriving as a page load. `hot.ts` says why the glob cannot do this itself;
+	 * the version is a dependency of the load effect below, so an edit re-runs
+	 * exactly the work a selection does and nothing more.
+	 */
+	const hot = React.useMemo(() => fixtureHotRegistry(), []);
+	const hotVersion = React.useSyncExternalStore(
+		hot.subscribe,
+		() => hot.version,
+		() => 0,
+	);
 
 	// One identity for the whole component selection, so switching between two
 	// call sites of the same component reloads rather than reusing the first.
@@ -209,7 +249,7 @@ function useLoadedFixture(
 		async function run(): Promise<void> {
 			if (selection.component) {
 				const ref = selection.component;
-				const load = inventoryModules[ref.globPath];
+				const load = liveModuleMap("inventoryModules", inventoryModules)[ref.globPath];
 				if (!load) return fail(new Error(`no module for ${ref.globPath}`), ref.globPath);
 				setState((prev) => ({ ...prev, status: "loading", error: null }));
 				try {
@@ -237,7 +277,7 @@ function useLoadedFixture(
 			if (!file) {
 				return fail(new Error(`no fixture file indexed at "${id.path}"`), id.path);
 			}
-			const load = fixtureModules[file.globPath];
+			const load = loadFixtureModule(fixtureModules, file.globPath);
 			if (!load) {
 				return fail(new Error(`no module registered for ${file.globPath}`), file.globPath);
 			}
@@ -245,8 +285,11 @@ function useLoadedFixture(
 			setState((prev) => ({ ...prev, status: "loading", error: null }));
 			try {
 				const [module, decorators] = await Promise.all([
-					load(),
-					loadDecorators(selectDecorators(config.decorators, id.path), decoratorModules),
+					load,
+					loadDecorators(
+						selectDecorators(config.decorators, id.path),
+						liveModuleMap("decoratorModules", decoratorModules),
+					),
 				]);
 				if (cancelled) return;
 				const normalized = normalizeModule(
@@ -290,6 +333,7 @@ function useLoadedFixture(
 		selection.fixture?.path,
 		selection.fixture?.name,
 		componentKey,
+		hotVersion,
 		config,
 		fixtureModules,
 		decoratorModules,
@@ -415,6 +459,14 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 		[serializer, send, dev],
 	);
 
+	/**
+	 * The index the host is showing, when it has told us (§4.5). A frame that
+	 * booted before a file existed cannot resolve an id the tree already offers,
+	 * and no amount of module re-importing fixes that race — the host is the one
+	 * that knows.
+	 */
+	const [hostIndex, setHostIndex] = React.useState<HostIndex | null>(null);
+
 	const [selection, setSelection] = React.useState<Selection>(() => ({
 		fixture: props.initialFixture ?? null,
 		component: props.initialComponent ?? null,
@@ -447,6 +499,10 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 					});
 					break;
 				}
+				case "SET_INDEX":
+					// §4.5 — the host's index outranks the one this realm booted with.
+					setHostIndex({ files: message.files, decorators: message.decorators });
+					break;
 				case "SET_OVERLAYS":
 					store.setOverlays(message.overlays);
 					break;
@@ -499,7 +555,7 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 		[send],
 	);
 
-	const loaded = useLoadedFixture(selection, props);
+	const loaded = useLoadedFixture(selection, props, hostIndex);
 
 	React.useEffect(() => {
 		if (loaded.status === "error" && loaded.error) send({ type: "RENDERER_ERROR", error: loaded.error });

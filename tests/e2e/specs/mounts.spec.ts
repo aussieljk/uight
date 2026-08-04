@@ -8,15 +8,15 @@
  * outcome the rule exists to prevent, and only a browser can check that both
  * mounts really are independently usable.
  *
- * **Finding.** With React StrictMode on — which is the default in this host app
- * and in most real ones — a second mount leaves NEITHER mount owning the
- * parameter, so the deep link in the URL is honoured by nobody and both render
- * the empty state. With StrictMode off the specified behaviour is exactly
- * right: the first mount renders the deep-linked fixture, the second falls back
- * to local state and logs the §5.4 error. `router.ts` says the claim is taken
- * in a layout effect "so StrictMode's mount → cleanup → mount cycle nets out to
- * a single claim"; with two claimants it does not. The StrictMode test below is
- * `fixme` and states this; the StrictMode-off test passes and pins the rule.
+ * **Was `fixme`.** With React StrictMode on — the default here and in most real
+ * apps — NEITHER mount ended up owning the parameter, so the deep link in the
+ * URL was honoured by nobody and both rendered the empty state. `router.ts`
+ * claimed in a layout effect "so StrictMode's mount → cleanup → mount cycle
+ * nets out to a single claim", which holds for one claimant and not for two:
+ * React remounts effects a fiber at a time, so the refcount never returned to
+ * zero while the first mount re-claimed and it denied itself. Ownership is
+ * arbitrated by a stable per-instance sequence now, not by a count. Both tests
+ * below run, and the StrictMode-off one still pins the rule independently.
  */
 
 import { collectConsoleErrors, expect, test } from "../support/harness.ts";
@@ -28,10 +28,6 @@ test.describe("two mounts", () => {
 		explorer,
 		page,
 	}) => {
-		test.fixme(
-			true,
-			"under StrictMode neither mount ends up owning the parameter, so both render the empty state — see this file's header",
-		);
 		const errors = collectConsoleErrors(page);
 		await explorer.open({ mode: "two", fixture: ALPHA });
 		await explorer.waitForFrame(1);

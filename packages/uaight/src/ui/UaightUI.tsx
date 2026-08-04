@@ -53,6 +53,7 @@ import type {
 	ViewportPreset,
 } from "../shared/types.ts";
 import type { HostTransport } from "../runtime/index.ts";
+import { fixtureHotRegistry, loadFixtureModule } from "../runtime/hot.ts";
 
 import { ChipStrip } from "./ChipStrip.tsx";
 import type { Chip } from "./ChipStrip.tsx";
@@ -62,8 +63,8 @@ import { ControlPanelSlots } from "./chrome/ControlPanel.tsx";
 import { resolveComponents } from "./chrome/defaults.ts";
 import {
 	CONTROL_PANEL_WIDTH,
-	INVENTORY_NOTICE_KEY,
-	INVENTORY_SAFETY_NOTICE,
+	GRID_RENDER_BUDGET,
+	GRID_TILE_HEIGHT,
 	PANE_MAX_WIDTH,
 	PANE_MIN_WIDTH,
 	SEARCH_ATTR,
@@ -73,7 +74,8 @@ import {
 	VIEWPORT_PRESETS,
 } from "./constants.ts";
 import { FOCUS_RING, MOTION, QUIET_BUTTON, SECTION_LABEL, cx } from "./cx.ts";
-import { FrameHost } from "./FrameHost.tsx";
+import { CSP_BLOCKED_PREFIX, FrameHost } from "./FrameHost.tsx";
+import { GridView } from "./chrome/GridView.tsx";
 import { HelpDialog } from "./HelpDialog.tsx";
 import { openInEditor } from "./open-in-editor.ts";
 import { PaneResizer } from "./PaneResizer.tsx";
@@ -107,6 +109,15 @@ const SINGLE_FIXTURE: IndexedNames = [null];
 /** Cached by content hash, so a remount does not reload every undecidable module. */
 const nameCache = new Map<string, IndexedNames>();
 
+/**
+ * Publish this realm's hot registry as soon as the explorer is loaded (§4.5).
+ *
+ * The code the plugin injects into `virtual:uaight/runtime` and into every
+ * fixture module reaches for it through `globalThis` and skips silently when it
+ * is absent — so it has to exist before the first edit, not on first use.
+ */
+fixtureHotRegistry();
+
 function readNames(mod: unknown): IndexedNames {
 	const record = (mod ?? {}) as Record<string, unknown>;
 	const declared = record.fixtureNames;
@@ -132,6 +143,7 @@ function sameNames(a: readonly (string | null)[], b: readonly (string | null)[])
 interface HotLike {
 	on(event: string, cb: (data: unknown) => void): void;
 	off?(event: string, cb: (data: unknown) => void): void;
+	send?(event: string, data?: unknown): void;
 }
 
 function viteHot(): HotLike | undefined {
@@ -324,6 +336,13 @@ export default function UaightUI(props: UaightProps): ReactElement {
 			});
 		};
 		hot.on("uaight:index", handler);
+		// §4.5 — ask for the current index rather than only listening for the next
+		// change. A custom event is delivered to the clients connected when it is
+		// sent, and a mount whose page was loading while a file was added missed
+		// it: its `config.files` came from a module generated before the rescan,
+		// and nothing would ever correct it. It used to be corrected by accident,
+		// because a topology change reloaded the page.
+		hot.send?.("uaight:hello");
 		return () => hot.off?.("uaight:index", handler);
 	}, []);
 
@@ -338,10 +357,11 @@ export default function UaightUI(props: UaightProps): ReactElement {
 			setDiscovered((prev) => new Map(prev).set(file.path, cached));
 			return;
 		}
-		const load = fixtureModules[file.globPath];
+		// The hot map, so a file added since load is loadable without a reload (§4.5).
+		const load = loadFixtureModule(fixtureModules, file.globPath);
 		if (!load) return;
 		try {
-			const names = readNames(await load());
+			const names = readNames(await load);
 			nameCache.set(file.hash, names);
 			// §3.4 reconciliation — name the file and both lists.
 			if (isDev && file.names && !sameNames(file.names, names)) {
@@ -704,15 +724,34 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		if (!next) setStatus("connecting");
 	}, []);
 
+	/**
+	 * §6.7 step 5 — a message that names the violated directive is the answer;
+	 * "the preview did not report READY" is the symptom.
+	 *
+	 * Three things notice a blocked renderer and the vaguest of them, the
+	 * handshake timeout, always speaks last. Last-write-wins therefore threw away
+	 * the only message the spec actually asks for, so a named directive is sticky
+	 * until something clears the error outright (a fixture change, a reload).
+	 */
+	const reportError = useCallback((next: RendererError | null) => {
+		setError((current) => {
+			if (!next) return null;
+			if (current?.message.startsWith(CSP_BLOCKED_PREFIX)) {
+				return next.message.startsWith(CSP_BLOCKED_PREFIX) ? next : current;
+			}
+			return next;
+		});
+	}, []);
+
 	useEffect(() => {
 		if (!transport) return;
 		setStatus(transport.status);
-		setError(transport.error);
+		reportError(transport.error);
 		return transport.onStatusChange(() => {
 			setStatus(transport.status);
-			if (transport.error) setError(transport.error);
+			if (transport.error) reportError(transport.error);
 		});
-	}, [transport]);
+	}, [transport, reportError]);
 
 	useEffect(() => {
 		if (!transport) return;
@@ -792,13 +831,42 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		[targetKey, componentKey, selectedComponent, selectedSite],
 	);
 
+	/** A shared link's patches, kept so `store.clear()` cannot outrun them. */
+	const seededOverlays = useRef<{ key: string; overlays: InputOverlay[] }>({
+		key: "",
+		overlays: [],
+	});
+
 	useEffect(() => {
 		if (!transport) return;
-		// Overlays are dropped on fixture change (§7.3).
+		// Overlays are dropped on fixture change (§7.3) — but a link's patches are
+		// not an overlay yet, they are waiting for the inputs they name, and they
+		// belong to the fixture we are switching TO when the key matches.
 		store.clear();
+		const held = seededOverlays.current;
+		if (held.key === targetKey && held.overlays.length) store.seed(held.overlays);
 		setError(null);
 		transport.send(selectMessage);
-	}, [transport, selectMessage, store]);
+	}, [transport, selectMessage, store, targetKey]);
+
+	/**
+	 * §4.5 — hand the renderer the index we are showing.
+	 *
+	 * The renderer resolves a fixture id against its own `config.files`, which is
+	 * whatever its realm booted with. Adding or renaming a file leaves it unable
+	 * to resolve an id the tree is already offering, and the dev server cannot
+	 * close that race on its own: Vite re-globs the moment the file lands, which
+	 * is before the plugin's debounced rescan has produced the index that goes
+	 * with it. The host has the reconciled one, so it says so.
+	 */
+	useEffect(() => {
+		if (!transport || status !== "ready") return;
+		transport.send({
+			type: "SET_INDEX",
+			files: index.files,
+			decorators: config.decorators,
+		});
+	}, [transport, status, index.files]);
 
 	// A frame reload re-runs the handshake; replay the current selection onto it.
 	const selectMessageRef = useRef(selectMessage);
@@ -827,13 +895,44 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	// they name register, and are pruned against the current shape like any
 	// other patch (§7.3). Re-seeding on our own writes would be a loop, so the
 	// guard is the fixture, not the parameter.
+	//
+	// Two things this has to get right, and neither is obvious:
+	//
+	//  - a token we wrote ourselves belongs to the fixture we wrote it FOR. On a
+	//    fixture change the parameter is still in the URL for the commit or two
+	//    before the effect below clears it, and seeding from it there would
+	//    re-apply the previous fixture's edits to the next one — §7.3 says
+	//    overlays are dropped on fixture change, so that is exactly wrong. A
+	//    token identical to our last write is therefore never seeded; a token in
+	//    the URL of a page we did not write is, which is the shared-link case;
+	//  - `seed` is called unconditionally, including with nothing. Patches wait
+	//    in the store until the input they name registers, so an empty seed is
+	//    the only thing that discards ones that never found their input — and
+	//    without it they lie in wait for a *later* fixture that happens to use
+	//    the same input name.
+	//
+	// The guard is the fixture AND the token, not the fixture alone. Ownership
+	// is arbitrated in a layout effect while the parameter is read through
+	// `useSyncExternalStore`, so there is one commit — reliably reachable under
+	// React 18 — where this mount owns the key and the snapshot is still the
+	// `null` it returned while ownership was pending. Keying on the fixture
+	// alone burned the one seed on that commit and the link's own patches, which
+	// arrive on the next one, were never seeded at all.
 	const seededFor = useRef<string | null>(null);
 	useEffect(() => {
 		if (!shareState || !stateOwned) return;
-		if (seededFor.current === targetKey) return;
-		seededFor.current = targetKey;
-		const seeded = decodeOverlays(stateValue);
-		if (seeded.length) store.seed(seeded);
+		const key = `${targetKey}\u0000${stateValue ?? ""}`;
+		if (seededFor.current === key) return;
+		seededFor.current = key;
+		const ours = lastWrittenState.current !== null && stateValue === lastWrittenState.current;
+		const seeded = ours ? [] : decodeOverlays(stateValue);
+		// Held as well as seeded: the effect that drops overlays on fixture change
+		// runs once more when the transport arrives, which is a commit LATER than
+		// this one, and its `store.clear()` would otherwise take the link's
+		// patches with it. Under React 19 the two happened to land together;
+		// under React 18 they reliably did not, and the link silently did nothing.
+		seededOverlays.current = { key: targetKey, overlays: seeded };
+		store.seed(seeded);
 	}, [shareState, stateOwned, stateValue, targetKey, store]);
 
 	const lastWrittenState = useRef<string | null>(null);
@@ -896,7 +995,6 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	const setInput = useCallback(
 		(name: string, path: PathSegment[], value: EditableWire) => {
 			const overlay = store.set(name, path, value);
-			console.log("[dbg] setInput", name, JSON.stringify(path), JSON.stringify(overlay), "transport?", !!transport);
 			if (overlay && transport) {
 				transport.send({
 					type: "OVERLAY",
@@ -1107,37 +1205,6 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		[defaults.codecs, loadedCodecs],
 	);
 
-	/**
-	 * The §12 safety notice — once per SESSION, at the moment it describes.
-	 *
-	 * It was dismissed forever per browser, which is the wrong lifetime for what
-	 * it says: rendering a detected component runs the component's real code, and
-	 * frame isolation contains DOM, CSS and global listeners but not network,
-	 * storage, cookies or backend effects. A permanent dismissal means the second
-	 * project, the second corpus and the next person at the keyboard never see it.
-	 * It also showed as soon as an inventory existed — a banner above an explorer
-	 * where nothing had been clicked — rather than on the first component actually
-	 * rendered, which is when the warning is about something.
-	 *
-	 * The text is used VERBATIM (§12) and is not re-worded here.
-	 */
-	const [noticeSeen, setNoticeSeen] = useState(() => {
-		try {
-			return window.sessionStorage.getItem(INVENTORY_NOTICE_KEY) === "seen";
-		} catch {
-			return false;
-		}
-	});
-	const showNotice = inventoryEnabled && !noticeSeen && selectedComponent !== null;
-	const dismissNotice = () => {
-		setNoticeSeen(true);
-		try {
-			window.sessionStorage.setItem(INVENTORY_NOTICE_KEY, "seen");
-		} catch {
-			/* private mode; the notice simply reappears */
-		}
-	};
-
 	/* ---- command palette — ⌘K ---- */
 
 	const [paletteOpen, setPaletteOpen] = useState(false);
@@ -1268,6 +1335,40 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		],
 	);
 
+	/* ---- grid mode ---- */
+
+	/**
+	 * Every fixture at once, instead of one.
+	 *
+	 * Local state rather than a route: the grid is a way of *looking* at the
+	 * corpus, and a shared link is about a fixture. It is also off by default
+	 * everywhere — a grid is many frames, and nobody should pay for one by
+	 * opening the explorer.
+	 */
+	const [gridOpen, setGridOpen] = useState(false);
+
+	/**
+	 * What the grid shows: the same rows the sidebar is showing, so a search
+	 * narrows the grid exactly as it narrows the tree. Detected components are
+	 * left out — §12 renders one only on explicit selection, and forty tiles is
+	 * not that.
+	 */
+	const gridTiles = useMemo(
+		() =>
+			selectable
+				.filter((node) => node.fixture && node.kind !== "component")
+				.map((node) => ({
+					fixture: node.fixture!,
+					label: node.label,
+					path: node.fixture!.path,
+				})),
+		[selectable],
+	);
+
+	// Frame isolation is what a tile is; inline mode has one realm by definition.
+	const gridSupported = isolation === "frame";
+	const gridActive = gridOpen && gridSupported;
+
 	/* ---- keyboard — §10.1 ---- */
 	const [helpOpen, setHelpOpen] = useState(false);
 
@@ -1336,6 +1437,11 @@ export default function UaightUI(props: UaightProps): ReactElement {
 					resetInput();
 				}
 				return;
+			case "g":
+				if (!gridSupported) return;
+				event.preventDefault();
+				setGridOpen((v) => !v);
+				return;
 			default:
 				return;
 		}
@@ -1391,7 +1497,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 				theme={theme}
 				onTransport={handleTransport}
 				onContentHeight={autoHeight ? setContentHeight : undefined}
-				onBootstrapError={setError}
+				onBootstrapError={reportError}
 			/>
 		);
 
@@ -1476,21 +1582,6 @@ export default function UaightUI(props: UaightProps): ReactElement {
 						...props.style,
 					}}
 				>
-					{showNotice ? (
-						<div
-							role="note"
-							className="flex shrink-0 items-start gap-3 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-2"
-						>
-							{/* §12 — verbatim. */}
-							<p className="min-w-0 flex-1 text-xs leading-4 text-[var(--u-fg-muted)]">
-								{INVENTORY_SAFETY_NOTICE}
-							</p>
-							<button type="button" onClick={dismissNotice} className={QUIET_BUTTON}>
-								Got it
-							</button>
-						</div>
-					) : null}
-
 					<div className="flex min-h-0 w-full flex-1">
 						{showTree ? (
 							<>
@@ -1607,6 +1698,20 @@ export default function UaightUI(props: UaightProps): ReactElement {
 											</span>
 										) : null}
 										<div className="ml-auto flex shrink-0 items-center gap-2">
+											{gridSupported && gridTiles.length > 1 ? (
+												<button
+													type="button"
+													onClick={() => setGridOpen((v) => !v)}
+													aria-pressed={gridActive}
+													title={`Show all ${gridTiles.length} fixtures at once (g)`}
+													className={cx(
+														QUIET_BUTTON,
+														gridActive ? "text-[var(--u-accent)]" : "",
+													)}
+												>
+													{gridActive ? "Single" : "Grid"}
+												</button>
+											) : null}
 											{shareState ? (
 												<button
 													type="button"
@@ -1722,7 +1827,29 @@ export default function UaightUI(props: UaightProps): ReactElement {
 								) : null}
 
 								<div className="relative min-h-0 flex-1">
-									{host}
+									{/*
+									 * The single host stays mounted underneath the grid. Leaving grid
+									 * mode must not cost a fresh document, a fresh renderer and the
+									 * fixture's own state, and hiding is the difference between the two.
+									 */}
+									<div className={gridActive ? "hidden" : "contents"}>{host}</div>
+
+									{gridActive ? (
+										<div className="absolute inset-0 z-10 bg-[var(--u-canvas)]">
+											<GridView
+												tiles={gridTiles}
+												selected={selection}
+												rendererEntryUrl={rendererEntryUrl}
+												dev={config.command === "serve"}
+												previewDocumentUrl={props.previewDocumentUrl}
+												theme={theme}
+												tileHeight={GRID_TILE_HEIGHT}
+												budget={GRID_RENDER_BUDGET}
+												onSelect={select}
+												onOpen={() => setGridOpen(false)}
+											/>
+										</div>
+									) : null}
 
 									{error ? (
 										<div className="absolute inset-0 z-20 overflow-auto bg-[var(--u-bg)]">

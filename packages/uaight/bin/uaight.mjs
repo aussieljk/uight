@@ -37,6 +37,11 @@ function usage() {
     --root <dir>              Project root (default: cwd)
     --config <file>           Vite config file
 
+  uaight init                 Wire uaight into this project — one command from Storybook
+    --root <dir>              Project root (default: cwd)
+    --dry-run                 Print every change and write nothing
+    --version-range <range>   Version written to devDependencies (default: latest)
+
   uaight doctor               Why is my component missing: config, index, problems
     --root <dir>              Project root (default: cwd)
     --json                    Print the full report as JSON
@@ -73,6 +78,18 @@ async function main() {
 				: {}),
 		});
 		console.log(`\nuaight → ${path.relative(process.cwd(), result.outDir)} (${result.files} files)`);
+		return;
+	}
+
+	if (command === "init" || command === "migrate") {
+		const { migrateFromStorybook, formatMigration } = await import("../dist/vite.js");
+		const range = flag("version-range", undefined);
+		const result = await migrateFromStorybook({
+			root: path.resolve(String(flag("root", process.cwd()))),
+			dryRun: flag("dry-run", false) === true,
+			...(typeof range === "string" ? { version: range } : {}),
+		});
+		console.log(formatMigration(result));
 		return;
 	}
 

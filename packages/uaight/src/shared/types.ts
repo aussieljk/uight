@@ -85,6 +85,8 @@ export interface FixtureFileIndex {
 	hash: string;
 	/** True when the file is a Storybook CSF module rather than a fixture module. §13 */
 	csf?: boolean;
+	/** True when the file is an MDX documentation page rather than a fixture. §14 */
+	docsPage?: boolean;
 	/**
 	 * The `fileMeta` and `fixtureMeta` named exports (§3.1), when the parser
 	 * could read them as static object literals.
@@ -280,6 +282,8 @@ export interface TreeNode {
 	component?: InventoryItem;
 	/** True when the file's names could not be statically determined. §3.5 */
 	undecidable?: boolean;
+	/** True for an MDX documentation page rather than a fixture. §14 */
+	docsPage?: boolean;
 	children?: TreeNode[];
 	meta?: FixtureMeta;
 }
@@ -687,6 +691,15 @@ export interface UaightPluginOptions {
 
 	storybook?: boolean | StorybookSupport;
 	docgen?: boolean;
+	/**
+	 * MDX documentation pages: `**\/*.docs.mdx`, one page per file (§14).
+	 *
+	 * A page is a fixture in every mechanical sense — it is globbed, indexed,
+	 * selected and rendered in the frame like any other — and differs only in
+	 * what it is *for*, which is why it carries its own suffix and its own badge
+	 * rather than a second pipeline. `false` turns the pattern off.
+	 */
+	docs?: boolean | { fileSuffix?: string };
 }
 
 /* ------------------------------------------------------------------ *

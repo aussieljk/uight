@@ -142,18 +142,13 @@ test.describe("inline isolation", () => {
 	test("renders in the host realm with no frame", async ({ explorer, page }) => {
 		// §5.2: one realm, two ends, no postMessage.
 		//
-		// FIXME — this fails against the current `dist`, and the assertion is
-		// correct as written. Inline isolation mounts (`data-uaight-inline` is
-		// present, the preview entry runs, the toolbar reports `inline`) but the
-		// renderer shows "No fixture selected." for EVERY selection: the initial
-		// deep link, a tree click, and later `pushState` navigations alike.
-		// Reproduced with and without a `previewEntry`, so it is not the deferred
-		// `RendererApp` mount in `InlineHost.tsx`. `createDirectTransportPair`
-		// reports `status: "ready"` from the first read, so the host has nothing
-		// to wait for and delivers `SELECT_FIXTURE` through a scheduled microtask
-		// that appears to land before the renderer subscribes. Frame isolation is
-		// unaffected. Delete this `fixme` once the inline path delivers.
-		test.fixme(true, "inline isolation never receives SELECT_FIXTURE — see the comment above");
+		// Was `fixme`: inline isolation showed "No fixture selected." for every
+		// selection. `createDirectTransportPair` delivered into whatever set of
+		// subscribers existed at send time, and the renderer end of a direct pair
+		// subscribes long after the host end does — so the first SELECT_FIXTURE
+		// was dropped, and a pair that is `ready` from its first read never
+		// replayed it. The pair now queues per direction while that direction has
+		// no subscriber, which is the frame path's INIT queue by another name.
 		await explorer.open({
 			mode: "inline",
 			fixture: { path: "fixtures/basic", name: "Alpha" },

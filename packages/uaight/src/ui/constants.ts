@@ -67,23 +67,23 @@ export const VIEWPORT_INLINE_REASON =
  * Inventory — §12
  * ------------------------------------------------------------------ */
 
-/** Used VERBATIM in the UI. Do not paraphrase, shorten or re-wrap the meaning. */
-export const INVENTORY_SAFETY_NOTICE =
-	"Rendering runs your component's real code. Frame isolation contains DOM, CSS and global listeners. It does not contain network requests, storage, cookies or backend effects.";
+/* ------------------------------------------------------------------ *
+ * Grid mode
+ * ------------------------------------------------------------------ */
+
+/** Height of one grid tile, in pixels. Tall enough for a card, short enough to see six. */
+export const GRID_TILE_HEIGHT = 180;
 
 /**
- * Where the acknowledgement of that notice is remembered.
+ * How many grid tiles may hold a live frame at once.
  *
- * It used to be `localStorage`, so the notice appeared once per browser and
- * then never again — and what it warns about is that rendering a detected
- * component executes real code with real network, storage and backend effects.
- * That is not a "got it" you make permanently on someone's behalf: the second
- * time is a different project, a different corpus and, months later, a
- * different person at the keyboard. It is now per TAB and shown on the first
- * detected component actually rendered, which is the moment it describes rather
- * than a banner at the top of an explorer nobody has clicked anything in yet.
+ * A frame is a document, a renderer and a handshake, and the demo corpus alone
+ * is 591 fixtures. Thirty is roughly two screens of tiles on a large display —
+ * enough that scrolling feels continuous, few enough that the tab survives
+ * someone pressing `g` on a corpus nobody profiled first. Past it, tiles wait on
+ * a button rather than silently never rendering.
  */
-export const INVENTORY_NOTICE_KEY = "uaight:inventory-notice";
+export const GRID_RENDER_BUDGET = 30;
 
 /* ------------------------------------------------------------------ *
  * Keyboard map — §10.1. Keyboard-first, no hover-only affordances.
@@ -100,5 +100,6 @@ export const KEYMAP: ReadonlyArray<{ keys: string; action: string }> = [
 	{ keys: "Home · End", action: "First / last row" },
 	{ keys: "Enter · Space", action: "Select the focused row" },
 	{ keys: "r", action: "Reset all controls — undoable from the status bar" },
+	{ keys: "g", action: "Grid — every fixture at once; click one to open it" },
 	{ keys: "?", action: "Toggle this list" },
 ];

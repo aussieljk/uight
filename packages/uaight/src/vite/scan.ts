@@ -59,6 +59,17 @@ export function decoratorPatterns(cfg: ResolvedUaightConfig): string[] {
 	);
 }
 
+/**
+ * `**\/*.docs.mdx` — MDX only.
+ *
+ * A `.docs.tsx` would be a component file with a confusing name; prose is the
+ * whole reason this suffix exists, and MDX is how §14 spells prose.
+ */
+export function docsPatterns(cfg: ResolvedUaightConfig): string[] {
+	if (!cfg.docs) return [];
+	return [`**/*.${cfg.docs.fileSuffix}.mdx`];
+}
+
 /** `**\/*.stories.{js,jsx,ts,tsx}` — only when Storybook support is on (§13). */
 export function storybookPatterns(cfg: ResolvedUaightConfig): string[] {
 	if (!cfg.storybook) return [];
@@ -87,6 +98,7 @@ export function inventoryIgnore(cfg: ResolvedUaightConfig): string[] {
 		...fixturePatterns(cfg),
 		...decoratorPatterns(cfg),
 		...storybookPatterns(cfg),
+		...docsPatterns(cfg),
 	];
 }
 
@@ -114,7 +126,7 @@ function insideFixturesDir(
 export function fixtureGlobPatterns(cfg: ResolvedUaightConfig): string[] {
 	return toRootRelative(
 		cfg,
-		[...fixturePatterns(cfg), ...storybookPatterns(cfg)],
+		[...fixturePatterns(cfg), ...storybookPatterns(cfg), ...docsPatterns(cfg)],
 		cfg.exclude,
 	);
 }
@@ -151,7 +163,13 @@ function toRootRelative(
 export function isFixtureFile(file: string, cfg: ResolvedUaightConfig): boolean {
 	const rel = relativeToFixturesDir(file, cfg);
 	if (rel === null) return false;
-	if (!matchesAny(rel, [...fixturePatterns(cfg), ...storybookPatterns(cfg)], cfg)) {
+	if (
+		!matchesAny(
+			rel,
+			[...fixturePatterns(cfg), ...storybookPatterns(cfg), ...docsPatterns(cfg)],
+			cfg,
+		)
+	) {
 		return false;
 	}
 	return passesFilters(rel, cfg);
@@ -173,6 +191,12 @@ export function isInventoryFile(file: string, cfg: ResolvedUaightConfig): boolea
 }
 
 /** True when the file is a CSF module rather than a fixture module. §13 */
+export function isDocsFile(file: string, cfg: ResolvedUaightConfig): boolean {
+	const rel = relativeToFixturesDir(file, cfg);
+	if (rel === null) return false;
+	return matchesAny(rel, docsPatterns(cfg), cfg);
+}
+
 export function isCsfFile(file: string, cfg: ResolvedUaightConfig): boolean {
 	const rel = relativeToFixturesDir(file, cfg);
 	if (rel === null) return false;
@@ -274,7 +298,7 @@ export async function scanFixtures(
 	}
 
 	const [fixturePaths, decoratorPaths, inventoryPaths] = await Promise.all([
-		run(cfg, [...fixturePatterns(cfg), ...storybookPatterns(cfg)], cfg.exclude),
+		run(cfg, [...fixturePatterns(cfg), ...storybookPatterns(cfg), ...docsPatterns(cfg)], cfg.exclude),
 		run(cfg, decoratorPatterns(cfg), cfg.exclude),
 		cfg.inventory && cfg.command === "serve"
 			? run(cfg, inventoryPatterns(cfg), [...cfg.exclude, ...inventoryIgnore(cfg)])
@@ -410,8 +434,8 @@ async function indexFixtureFile(
 	}
 
 	const csf = isCsfFile(file, cfg);
-	const suffix =
-		csf && cfg.storybook ? cfg.storybook.fileSuffix : cfg.fixtureFileSuffix;
+	const docsPage = isDocsFile(file, cfg);
+	const suffix = suffixFor(cfg, csf, docsPage);
 	const globPath = toGlobPath(cfg.root, file);
 	const parsed = parseFixtureFile(source, file, { csf });
 
@@ -423,7 +447,17 @@ async function indexFixtureFile(
 		});
 	}
 
-	return fixtureEntry(globPath, cfg, suffix, parsed, source, csf);
+	return fixtureEntry(globPath, cfg, suffix, parsed, source, csf, docsPage);
+}
+
+/**
+ * Which suffix `displayPathOf` must strip. Three kinds of file reach the same
+ * index, and stripping the wrong one leaves `Button.docs` in the tree.
+ */
+function suffixFor(cfg: ResolvedUaightConfig, csf: boolean, docsPage: boolean): string {
+	if (csf && cfg.storybook) return cfg.storybook.fileSuffix;
+	if (docsPage && cfg.docs) return cfg.docs.fileSuffix;
+	return cfg.fixtureFileSuffix;
 }
 
 /**
@@ -438,6 +472,7 @@ function fixtureEntry(
 	parsed: ParsedFixtureFile,
 	source: string,
 	csf: boolean,
+	docsPage = false,
 ): FixtureFileIndex {
 	return {
 		path: displayPathOf(globPath, cfg, suffix),
@@ -445,6 +480,7 @@ function fixtureEntry(
 		names: parsed.names,
 		hash: hashSource(source),
 		...(csf ? { csf: true } : {}),
+		...(docsPage ? { docsPage: true } : {}),
 		// §3.1: absent when the parser could not read the export as a static
 		// object. The runtime's own normalization still wins once the module
 		// loads; this is only what the first paint can know.
@@ -749,10 +785,10 @@ export function applyParse(
 	const absolute = path.resolve(file);
 	const globPath = toGlobPath(cfg.root, absolute);
 	const csf = isCsfFile(absolute, cfg);
-	const suffix =
-		csf && cfg.storybook ? cfg.storybook.fileSuffix : cfg.fixtureFileSuffix;
+	const docsPage = isDocsFile(absolute, cfg);
+	const suffix = suffixFor(cfg, csf, docsPage);
 
-	const entry = fixtureEntry(globPath, cfg, suffix, parsed, source, csf);
+	const entry = fixtureEntry(globPath, cfg, suffix, parsed, source, csf, docsPage);
 
 	const files = sortByGlobPath([
 		...index.files.filter((f) => f.globPath !== globPath),

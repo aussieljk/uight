@@ -48,6 +48,10 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "bas
 function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 	const label = file.path.split("/").pop() ?? file.path;
 	const selfTitled = label === dirName;
+	// Rides every node this file produces. A docs page is one fixture (§14), so
+	// in practice that is one node — but the flag belongs to the file, and
+	// deriving it per branch is how a branch ends up forgetting it.
+	const docs = file.docsPage ? { docsPage: true as const } : {};
 
 	if (file.names === null) {
 		// Undecidable: one node per file until the module is loaded. §3.5
@@ -58,13 +62,21 @@ function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 			kind: "file",
 			fixture,
 			undecidable: true,
+			...docs,
 		};
 	}
 
 	if (file.names.length === 1 && file.names[0] === null) {
 		const fixture: FixtureId = { path: file.path, name: null };
 		const meta = fixtureMetaFor(file, null);
-		return { key: serializeFixtureId(fixture), label, kind: "fixture", fixture, meta };
+		return {
+			key: serializeFixtureId(fixture),
+			label,
+			kind: "fixture",
+			fixture,
+			meta,
+			...docs,
+		};
 	}
 
 	const children: TreeNode[] = file.names.map((name) => {
@@ -76,6 +88,7 @@ function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 			kind: "fixture" as const,
 			fixture,
 			meta: fixtureMetaFor(file, name),
+			...docs,
 		};
 	});
 
@@ -97,6 +110,7 @@ function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 		kind: "file",
 		fixture: { path: file.path, name: ALL_FIXTURES },
 		children,
+		...docs,
 	};
 }
 

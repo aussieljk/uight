@@ -1904,6 +1904,94 @@ Each is a `fixme` naming the defect, never a weakened assertion.
    firing or is losing the race — and naming the directive is the only reason
    that listener exists.
 
+### The six defects, fixed — and what each one actually was
+
+Every `fixme` above is gone; the assertions are unchanged. None of the six was
+where its symptom pointed, and two were not regressions from the concurrent UI
+work at all — they were in files untouched since the initial upload.
+
+1. **The control-panel edit.** Two independent causes, and the transport was
+   innocent — `OVERLAY` was never sent, so there was nothing to lose. First,
+   `ControlPanelInputs`'s text editors reported only on blur or Enter, so the
+   panel's own `draft` state showed the new value while no patch existed; a
+   `select` and a `checkbox` on the same fixture always worked, which is what
+   made it look like a text-specific transport fault. They are live now, and the
+   `draft` still owns the keystroke, which is what "typing must never fight the
+   renderer" actually required. Second, the `?state=` parameter of the fixture
+   being *left* was seeded onto the fixture being *arrived at*: `UaightUI`'s seed
+   effect ran on the commit where `targetKey` changed but the URL had not yet
+   been rewritten, so §7.3's "overlays are dropped on fixture change" was
+   observably false. A token equal to our own last write is no longer seeded, and
+   `store.seed` is now called unconditionally — patches that never found their
+   input used to lie in wait for a later fixture using the same input name.
+2. **Inline isolation.** Also two, and both are StrictMode-shaped.
+   `InlineHost`'s layout-effect cleanup disposed the `useMemo`-created transport
+   pair, so StrictMode's setup → cleanup → setup published a pair that had
+   already latched `disposed`: correct for a resource an effect acquired, wrong
+   for one `useMemo` produced. A direct pair owns no listener and no timer, so
+   nothing is leaked by not disposing it. Underneath that,
+   `createDirectTransportPair` delivered into whatever subscriber set existed at
+   send time, and the two ends of a direct pair never come up together — the host
+   end sends `SELECT_FIXTURE` from a layout effect, the renderer end does not
+   exist until `InlineHost` has measured its root and imported the preview entry.
+   It queues per direction while that direction has no subscriber now, which is
+   the frame path's INIT queue by another name.
+3. **Two mounts under StrictMode.** A refcount cannot say *who*. React remounts
+   effects one fiber at a time, so with two claimants the real order is
+   `A.setup(1) B.setup(2) A.cleanup(1) A.setup(2) B.cleanup(1) B.setup(2)` — the
+   count never returns to zero while A re-claims, so A was denied its own key and
+   nobody owned the parameter. Ownership is arbitrated by a stable per-instance
+   sequence now: A's `seq` is below B's however many times either re-claims.
+   Releasing also re-announces, so the second mount takes over when the first
+   really unmounts, which the refcount could never express either.
+4. **The rename.** Not the rename path at all: the plugin's topology debounce
+   carried the *arguments of the call that armed it*. A `rename(2)` arrives as
+   `unlink(old)` then `add(new)` microseconds apart, so the unlink was discarded
+   and the departed path stayed in the tree, selectable, deep-linking to nothing.
+   A plain delete was unaffected, which is exactly why it looked rename-specific.
+   The debounce coalesces the *set* of changed files now. **Q9's Bundled Dev Mode
+   half now has an answer for add, delete and rename.**
+5. **The fixture edit reloading the host.** The model in this file was wrong
+   rather than unimplemented. A fixture module is reached through the
+   `import.meta.glob` in `virtual:uaight/runtime`, which *both* realms import and
+   which accepted nothing, and §3.1 allows a fixture file whose exports are
+   elements — a module `plugin-react` has no component to build a Fast Refresh
+   boundary out of. So the update propagated to the host entry and Vite took the
+   only option left. Three changes: the plugin appends an
+   `import.meta.hot.accept` callback to every fixture module it serves, handing
+   the new namespace to `runtime/hot.ts`; the generated runtime module accepts
+   itself, so adding a file no longer reloads either; and the host sends the
+   renderer its reconciled index as `SET_INDEX`, because the renderer resolves
+   ids against `config.files` and Vite re-globs the instant a file lands —
+   *before* the plugin's debounced rescan has produced the index that goes with
+   it. That race is unwinnable from inside the dev server and trivial from the
+   host, which already has the answer.
+6. **The CSP message.** The `securitypolicyviolation` listener fires exactly as
+   designed. Three things notice a blocked renderer — the violation, the script's
+   own `error` event, and the 10 s handshake timeout — and the host took whichever
+   spoke last, which under a real nonce policy in Chromium is never the one that
+   knows the directive. A message naming a directive is sticky now, and the
+   `error` handler defers to a violation it has already seen.
+
+**`import.meta.hot.accept` on a user's fixture module is the one thing here that
+writes into code we do not own.** It is dev-only, it is appended (so the
+sourcemap above it stands), and where Fast Refresh *is* in play the fixture's
+components go into the refresh family as usual — a re-render with the new type
+reconciles rather than remounting, so fixture-local state survives. A fixture
+file exporting elements has no state to survive and no boundary either way.
+
+### §20.3's HMR budget, after that
+
+**37 ms**, against a 150 ms budget, from 880 ms. The measurement changed with
+the defect and only because its own stated blocker went away: it used to time
+`expect(...).toHaveText` polling from Node because "an in-page observer… cannot
+be used: editing a fixture file reloads the HOST document, which destroys the
+execution context mid-measurement". It no longer does, so the clock stops on a
+`MutationObserver` in the frame document. The clock still starts in Node the
+instant before the write, so the filesystem event, the dev server, the socket
+and the re-render are all still inside it — what left is ~130 ms of Playwright's
+polling interval, which was never latency.
+
 ### What passes, and is therefore now proven rather than hand-verified
 
 Frame bootstrap and handshake (3 engines); the preview entry running in the
@@ -1948,15 +2036,14 @@ run rather than from a memory.
 | ---------------------------------------------- | --------------- | ----------------------- |
 | Frame handshake (attach → `INIT_ACK`)          | < 100 ms        | **10 ms** (`READY` → `INIT_ACK` is 0.2 ms) |
 | Fixture selection → first paint (frame, warm)  | < 250 ms        | **14 ms**               |
-| HMR, fixture edit → render                     | < 150 ms        | **~880 ms — over budget** |
+| HMR, fixture edit → render                     | < 150 ms        | **37 ms**               |
 | Memory, 100 mount/unmount cycles               | no upward trend | **+0.23 MB per 10 cycles** (7.8 → 10.3 MB) |
 
-The HMR number is an upper bound measured from Node, because the host document
-reloads mid-measurement (defect 5) and an in-page observer cannot survive it.
-The cause is that reload, not a slow update path: a warm selection is 14 ms and
-the handshake is 10 ms, so 150 ms is reachable the moment an edit stops being a
-page load. The test is `fixme` with the number rather than retuned — retuning it
-to 900 ms would enshrine the reload.
+The HMR number was 880 ms and over budget for as long as an edit was a page
+load (defect 5). With the reload gone the clock stops on a `MutationObserver` in
+the frame document rather than on Playwright's polling interval, and the number
+is 37 ms — consistent with a warm selection at 14 ms and a handshake at 10 ms,
+which is what said 150 ms was reachable.
 
 The memory trend is a least-squares slope over ten post-warm-up samples plus a
 "has not doubled" backstop. It is Chromium-only, because the heap counters are;

@@ -1,0 +1,14 @@
+{
+	"name": "uaight-docs",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"sync": "bun run scripts/sync.ts",
+		"dev": "bun run sync && vitepress dev",
+		"build": "bun run sync && vitepress build",
+		"preview": "vitepress preview"
+	},
+	"devDependencies": {
+		"vitepress": "^1.6.3"
+	}
+}

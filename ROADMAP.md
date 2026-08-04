@@ -29,19 +29,26 @@ The gap is unchanged and is not features: **cross-browser proof**.
 
 Ordered by what blocks trusting the canary.
 
-### 1. The Playwright matrix (§20.2) — **built and running; six defects found**
+### 1. The Playwright matrix (§20.2) — **built, running, and the six defects are fixed**
 
 `playwright.config.ts` + `tests/e2e/**`. Chromium, Firefox and WebKit all run, against a
-purpose-built host app (`tests/e2e/fixture-app`) rather than the demo. 149 tests pass and
-42 are `fixme`, each naming the defect it is blocked on rather than asserting less than
-the spec requires. Every browser-level answer in `NOTES.md` that could be turned into an
-assertion now is one — see NOTES.md § "The Playwright matrix" for what the run found.
+purpose-built host app (`tests/e2e/fixture-app`) rather than the demo. Every browser-level
+answer in `NOTES.md` that could be turned into an assertion now is one — see NOTES.md
+§ "The Playwright matrix" for what the run found.
 
-Still open under this item: the six defects the matrix uncovered (control-panel edits not
-reaching the frame; inline isolation never receiving a selection; two mounts under
-StrictMode; a rename leaving its old path in the tree; a fixture edit reloading the host
-document; the CSP message not naming the directive), and the UX-pass scenarios listed
-below, which the suite does not cover yet.
+**All six defects the matrix uncovered are fixed and every `fixme` is gone**, with the
+assertions unchanged: the control-panel edit not reaching the frame (two causes, neither
+in the transport), inline isolation never receiving a selection (a disposed transport pair
+under StrictMode, plus a direct pair that delivered before either end existed), two mounts
+under StrictMode (a refcount cannot say *who* owns a key), a rename leaving its old path
+(the topology debounce kept the last call's arguments, so the `unlink` half of the move
+was discarded), a fixture edit reloading the host document (nothing accepted the glob's
+update, and an element-valued fixture module has no Fast Refresh boundary), and the CSP
+message not naming the directive (the vaguest of three reporters spoke last). Root causes
+are in NOTES.md § "The six defects, fixed".
+
+Still open under this item: the UX-pass scenarios listed below, which the suite does not
+cover yet.
 
 The original statement of the item, kept because the scenario list is still the checklist:
 
@@ -78,23 +85,22 @@ what builds the bundle it measures.
 | Incremental index on one file change           | < 30 ms         | **0.1 ms**, measured        |
 | Fixture selection to first paint (frame, warm) | < 250 ms        | **14 ms**, measured (Chromium) |
 | Frame handshake                                | < 100 ms        | **10 ms**, measured (Chromium) |
-| Chrome bundle, gzipped                         | < 90 KB         | **54.3 KB**, measured       |
+| Chrome bundle, gzipped                         | < 90 KB         | **57.8 KB**, measured       |
 | Memory after 100 mount/unmount cycles          | no upward trend | **+0.23 MB / 10 cycles**, measured |
-| HMR latency, fixture edit to render            | < 150 ms        | **~880 ms — OVER BUDGET**, measured |
+| HMR latency, fixture edit to render            | < 150 ms        | **37 ms**, measured (Chromium) |
 
 The four browser rows are now measured by `tests/e2e/specs/budgets.spec.ts`
 (`--project=chromium-perf`), which prints every number on every run and fails on a breach.
-Three are comfortably inside budget. **HMR latency is not**, and the cause is not a slow
-update path: editing a fixture file reloads the whole host document, so every edit pays
-for a navigation, a fresh explorer chunk and a fresh handshake. Since a warm selection is
-14 ms and the handshake is 10 ms, 150 ms is reachable the moment an edit stops being a
-page load. The test is `fixme` with the measured number rather than retuned, because
-retuning it to 900 ms would enshrine the reload.
+**All four are inside budget.** HMR latency was 880 ms and over, for as long as an edit
+was a page load; with that fixed it is 37 ms, which is what a 14 ms warm selection and a
+10 ms handshake predicted. The measurement stops on a `MutationObserver` in the frame
+document now rather than on Playwright's polling interval — possible only because the
+reload that used to destroy the execution context mid-measurement is gone.
 
 The startup rows are ranges because the harness reports best-of-N and the two figures are
 an idle machine and a loaded one; both are an order of magnitude inside the budget. The
-chrome bundle has gone 32.7 → 41.2 → 54.3 KB gzipped. Still inside its budget, and by
-some distance the metric that would fail first.
+chrome bundle has gone 32.7 → 41.2 → 54.3 → 57.8 KB gzipped, the last step being grid
+mode. Still inside its budget, and by some distance the metric that would fail first.
 
 ### 3. Prove the registry resolves (Q8) — **partly**
 
@@ -108,21 +114,30 @@ does — a `{name}` URL template as a `components.json` `registries` entry, tran
 `registryDependencies` resolved dependencies-first, files written to their `target` — and
 asserts the installed tree.
 
+**Hosting now exists in the repository:** `docs/` is the uaight.dev site, and its sync
+script copies the built registry into `public/r/`, so the URLs the versioned copies point
+at are served by the same deploy as the page documenting them. That closes the *where*,
+not the *whether* — nothing has resolved from a deployed origin yet, because nothing has
+been deployed.
+
 **Still open, and specific:** nothing proves the items are reachable at
-`https://uaight.dev/r/…`, which is what the versioned copies point at and what has never
-been hosted; and nothing runs shadcn's own resolver, so its schema validation,
+`https://uaight.dev/r/…` from a real deploy; and nothing runs shadcn's own resolver, so its schema validation,
 `components.json` path aliasing and dependency installer remain untested against these
 files. Needs hosting, then a scratch project.
 
 ### 4. Two open M0 questions — **narrowed**
 
-- **Q9 — glob invalidation.** The Node half is exercised: add (appears in sorted position,
-  not arrival order), delete, rename (both events, and the moment between them when both
-  files exist), a display-path collision appearing and clearing, an irrelevant file
-  changing nothing, and the emitted glob *patterns* staying fixed while the corpus moves.
-  **Bundled Dev Mode was not exercised** — it needs a browser re-evaluating the glob map
-  after a server-side invalidation, which a Node test cannot observe. That half belongs to
-  item 1.
+- **Q9 — glob invalidation.** ~~The browser half is open.~~ **Answered.** The Node half was
+  already exercised: add (in sorted position, not arrival order), delete, rename (both
+  events, and the moment between them when both files exist), a display-path collision
+  appearing and clearing, an irrelevant file changing nothing, and the emitted glob
+  *patterns* staying fixed while the corpus moves. The browser half is now `hmr.spec.ts`:
+  add, delete and rename all move the tree with no page reload, and the added file is
+  selectable and renders. It took three changes — the generated runtime module accepts its
+  own update, the host sends the renderer its reconciled index (`SET_INDEX`) because Vite
+  re-globs before the plugin's debounced rescan produces the index that goes with it, and
+  the debounce coalesces the *set* of changed files so a rename's `unlink` is not
+  discarded.
 - **Q4 — is the warm pass acceptable on by default?** The exposure is now quantified: the
   warm pass executes exactly the modules the static parser could not decide, which on the
   demo corpus is 1 file of 83, and §3.4's new identifier row can only reduce it. What one
@@ -130,6 +145,14 @@ files. Needs hosting, then a scratch project.
   and still needs item 1.
 
 ### 5. Follow-ups the canary created
+
+- **The docs site is written and unhosted.** `bun run docs:build` produces it; no deploy
+  exists, no domain is pointed at it, and item 3 above stays open until one is. Deploying
+  it is also what makes `/r` real, so the two are one task.
+- **Grid mode's budget is a guess.** 30 live frames was chosen by reasoning about what two
+  screens of tiles costs, not by measuring — and the corpus that would prove it wrong (591
+  fixtures) is the one the demo already ships. It belongs in item 1's browser work: a grid
+  row in `budgets.spec.ts` measuring time-to-first-tile and memory across a full sheet.
 
 - ~~**Call sites are name-matched.**~~ **Done.** Aliased specifiers resolve through
   `configResolved`'s alias table, by prefix match against its string entries rather than by
@@ -153,6 +176,10 @@ files. Needs hosting, then a scratch project.
 
 ## v1.1 — MDX, and the honesty items
 
+- ~~**MDX documentation pages (§14).**~~ **Done.** `**/*.docs.mdx` is a page rather than a
+  fixture, and differs from one only in what the tree calls it: the same glob map, index
+  entry, selection and frame realm carry it, which is what kept the feature from turning
+  into the documentation framework §1.4 rules out. The demo carries one.
 - ~~**MDX fixtures (§14).**~~ **Done.** The demo carries an `.mdx` fixture the golden
   corpus indexes as one fixture, `@mdx-js/rollup` is in the demo's config, and startup
   names the missing plugin and its install command when a project has `.mdx` fixtures and
@@ -248,8 +275,8 @@ instead, which gives the same output without the endpoint.
 | Q5  | Does the production gate remove the chunk?                   | Answered, affirmative, against a real build         |
 | Q6  | Do codec editors stay out of the renderer chunk?             | Answered — enforced by imports, not tree-shaking    |
 | Q7  | Rolldown file-URL token                                      | Answered — absent; `emitFile` + placeholder         |
-| Q8  | Does a real `shadcn add` resolve from our registry?          | **Open** — resolves from local files; hosting and shadcn's own resolver untested |
-| Q9  | Glob invalidation under Vite 8.1 / Rolldown / Bundled Dev     | **Open** — Node half exercised; Bundled Dev Mode not |
+| Q8  | Does a real `shadcn add` resolve from our registry?          | **Open** — resolves from local files; the docs site serves `/r`, but nothing has resolved from a deploy, and shadcn's own resolver is untested |
+| Q9  | Glob invalidation under Vite 8.1 / Rolldown / Bundled Dev     | Answered — add, delete and rename, in a browser, with no reload |
 | Q10 | Overlay reapplication across HMR                             | Answered — nothing stale survives; one caveat       |
 | Q11 | What goes in `UaightChromeApiV1`                             | Answered — `component` and `palette` groups; NOTES  |
 | Q12 | TypeScript 7.1 API sufficiency, tsgolint parity              | **Open**                                            |

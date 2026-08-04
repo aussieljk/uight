@@ -77,25 +77,14 @@ test.describe("CSP without a published nonce @cspblocked", () => {
 	});
 
 	test("names the violated directive", async ({ explorer, page }) => {
-		// **Finding.** This fails. §6.7 step 5 asks for "a message naming the
-		// missing directive rather than rendering an empty frame", and NOTES.md
-		// records `FrameHost` listening for `securitypolicyviolation` on the
-		// frame's document precisely so it can say `script-src`. Under a real
-		// nonce policy in Chromium the message that actually reaches the user is
-		// one of:
-		//
-		//   "The renderer entry could not be loaded from /@uaight/renderer."
-		//   "the fixture frame did not report READY within 10s. Check that the
-		//    renderer entry loaded and that no CSP directive blocked it."
-		//
-		// Both are the generic paths — the script `error` handler and the
-		// handshake timeout — so the violation listener is either not firing or
-		// losing the race. The half of step 5 that says "rather than rendering an
-		// empty frame" IS met (the test above passes); the half that names the
-		// directive is not, and naming it is the whole reason that listener
-		// exists.
-		test.fixme(true, "the CSP failure message does not name the violated directive (§6.7 step 5)");
-
+		// **Was `fixme`.** §6.7 step 5 asks for "a message naming the missing
+		// directive rather than rendering an empty frame", and `FrameHost` has
+		// always listened for `securitypolicyviolation` in order to say
+		// `script-src`. It fires — but so do the script's own `error` event and,
+		// ten seconds later, the handshake timeout, and the host took whichever
+		// spoke last. So the named directive was produced and then overwritten by
+		// "the renderer entry could not be loaded". A named directive is sticky
+		// now, and the `error` handler defers to a violation it has already seen.
 		await explorer.open({
 			fixture: { path: "fixtures/basic", name: "Alpha" },
 			waitForFrame: false,

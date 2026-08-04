@@ -62,10 +62,19 @@ export function checkMdxSupport(
 	if (hasMdx) return null;
 
 	const count = mdxFiles.length;
+	const pages = mdxFiles.filter((file) => file.docsPage).length;
+	// A project with docs pages and no MDX plugin has a broken docs site, not a
+	// broken fixture — naming the wrong one sends them looking in the wrong place.
+	const what =
+		pages === count
+			? `MDX documentation page${count === 1 ? "" : "s"}`
+			: pages > 0
+				? `MDX files (${count - pages} fixture${count - pages === 1 ? "" : "s"}, ${pages} docs page${pages === 1 ? "" : "s"})`
+				: `MDX fixture${count === 1 ? "" : "s"}`;
 	return {
 		kind: "missing",
 		message:
-			`[uaight] found ${count} MDX fixture${count === 1 ? "" : "s"} ` +
+			`[uaight] found ${count} ${what} ` +
 			`(e.g. ${mdxFiles[0]?.globPath ?? ""}) but no MDX plugin is installed, so Vite ` +
 			`cannot compile them. §14: MDX is bundler configuration, not a uaight feature — ` +
 			`so uaight indexes the file and the host compiles it. Add one:\n` +

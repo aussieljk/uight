@@ -12,6 +12,7 @@
  * with '/'"), which is §4.2 enforced by the bundler.
  */
 
+import { HOT_REGISTRY_KEY } from "../runtime/hot.ts";
 import { PROTOCOL_VERSION } from "../shared/protocol.ts";
 import type { FixtureIndex, RuntimeConfig } from "../shared/types.ts";
 import { UAIGHT_VERSION } from "../shared/version.ts";
@@ -117,6 +118,27 @@ export const config = ${json(buildRuntimeConfig(cfg, index))};
 export const fixtureModules = ${globCall(fixtureGlobPatterns(cfg), globOptions)};
 export const decoratorModules = ${globCall(decoratorGlobPatterns(cfg), globOptions)};
 export const inventoryModules = ${globCall(inventoryPatterns, globOptions)};
+${cfg.command === "serve" ? selfAccept() : ""}`;
+}
+
+/**
+ * §4.5, Q9 — this module is where adding a file used to reload the page.
+ *
+ * `import.meta.glob` matched a set of paths when this module was transformed,
+ * so a new fixture file makes it stale; Vite invalidates it, nobody along the
+ * chain to the host entry accepts anything, and the only move left is a full
+ * reload. Accepting here stops the propagation at the module that actually
+ * changed, and hands the fresh loaders to `runtime/hot.ts` — the index itself
+ * still arrives over the `uaight:index` event, which an accept callback cannot
+ * replace because the host needs it whether or not this module moved.
+ */
+function selfAccept(): string {
+	return `
+if (import.meta.hot) {
+	import.meta.hot.accept((mod) => {
+		if (mod) globalThis[${json(HOT_REGISTRY_KEY)}]?.updateMaps(mod);
+	});
+}
 `;
 }
 

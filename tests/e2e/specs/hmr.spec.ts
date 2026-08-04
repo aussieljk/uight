@@ -41,22 +41,20 @@ test.describe("HMR", () => {
 		explorer,
 		page,
 	}) => {
-		// **Finding.** This fails. NOTES.md states the model — "HMR of a fixture
-		// module relies on React Fast Refresh, which preserves the component tree
-		// and re-renders in place. The runtime does not re-import the module on
-		// `uaight:index`" — and the update does arrive (the test above passes),
-		// but it arrives as a fresh frame realm: a `window` expando set before the
-		// edit is gone afterwards. Whether that is a Fast Refresh boundary the
-		// fixture module does not satisfy, or the index invalidation remounting
-		// `FrameHost`, is a question for whoever owns the plugin and the UI; from
-		// here it is only observable as "the realm did not survive".
+		// **Was `fixme`.** The edit arrived as a fresh HOST document, so the frame
+		// realm went with it. A fixture module is reached through the
+		// `import.meta.glob` in `virtual:uaight/runtime`, which both realms import
+		// and nobody accepted, and §3.1 allows a fixture file whose exports are
+		// elements — which `plugin-react` has no component to make a Fast Refresh
+		// boundary out of. So the update propagated to the host entry and Vite
+		// full-reloaded. The plugin now appends an accept callback to every
+		// fixture module it serves and hands the new namespace to
+		// `runtime/hot.ts`, which is the half Fast Refresh could not supply.
 		//
 		// It matters beyond tidiness: a reload throws away renderer-side state,
 		// including the root overrides §7.3 uses for a setter's non-serializable
-		// value, and it is why the budget in `budgets.spec.ts` measures what it
-		// measures.
-		test.fixme(true, "the frame realm is replaced on a fixture edit rather than fast-refreshed");
-
+		// value, and it is why the budget in `budgets.spec.ts` measured what it
+		// measured.
 		await explorer.open({ fixture: { path: "fixtures/hmr", name: "Marker" } });
 		const marker = explorer.frame().locator("[data-e2e='hmr-marker']");
 		await expect(marker).toHaveText("HMR_MARKER_V0");
@@ -101,19 +99,16 @@ test.describe("HMR", () => {
 	});
 
 	test("adding a fixture file does not reload the host page", async ({ explorer, page }) => {
-		// **Finding.** This fails: adding a file reloads the whole host document.
-		// A new file changes the set of paths `import.meta.glob` matched, so Vite
-		// invalidates the virtual module and takes the full-reload path — which is
-		// Q9 ("glob invalidation under Vite 8.1, Rolldown, Bundled Dev Mode"),
-		// still open, now with a browser-level answer for the add case.
+		// **Was `fixme`.** Adding a file reloaded the whole host document: a new
+		// file changes the set of paths `import.meta.glob` matched, so Vite
+		// invalidated the virtual module and, with nobody accepting it, took the
+		// full-reload path. The generated module accepts itself now and publishes
+		// its fresh loaders, and the host hands the renderer the reconciled index
+		// over the transport rather than each realm racing the dev server for it.
 		//
-		// The user-visible cost is not the reload itself but what it throws away:
-		// control values are session state (Q14, not persisted), so a fixture
-		// appearing elsewhere in the project discards whatever the user had tuned.
-		// The test above proves the file DOES appear and IS selectable; this one
-		// records what it costs.
-		test.fixme(true, "adding a fixture file triggers a full page reload (Q9)");
-
+		// The cost this was recording is real: control values are session state
+		// (Q14, not persisted), so a fixture appearing elsewhere in the project
+		// used to discard whatever the user had tuned.
 		await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
 		await page.evaluate(() => {
 			(window as unknown as Record<string, unknown>).__noReloadWitness = 1;
@@ -160,7 +155,6 @@ test.describe("HMR", () => {
 	});
 
 	test("renaming a fixture file moves it in the tree", async ({ explorer }) => {
-		test.fixme(true, "a rename leaves the old path in the tree — see the comment below (Q9)");
 		const remove = addFixture(
 			"before-rename",
 			`export default {\n\tOnly: <p data-e2e="renamed">RENAMED</p>,\n};\n`,
@@ -173,15 +167,16 @@ test.describe("HMR", () => {
 			restore = renameFixture("before-rename", "after-rename");
 			await expect(explorer.treeItem("after-rename")).toHaveCount(1, { timeout: 20_000 });
 
-			// **Finding.** The OLD name stays in the tree. Asserted here rather than
-			// in a separate test because it is the same event: a `rename(2)` is one
-			// atomic move, and the index picks up the arrival without pruning the
-			// departure — even though a plain delete (the test above) prunes
-			// correctly, so it is the rename path specifically. Q9, with a
-			// browser-level answer for the rename case.
+			// **Was `fixme`.** The OLD name stayed in the tree. Asserted here rather
+			// than in a separate test because it is the same event: a `rename(2)`
+			// is one atomic move, reported as `unlink(old)` then `add(new)`
+			// microseconds apart — and the plugin's topology debounce kept only the
+			// arguments of the call that armed it, so the unlink was discarded. A
+			// plain delete was unaffected, which is what made it look
+			// rename-specific. The debounce coalesces the SET of changed files now.
 			//
-			// It is not cosmetic: the stale row is selectable, and selecting it
-			// deep-links to a path that no longer exists.
+			// It was not cosmetic: the stale row was selectable, and selecting it
+			// deep-linked to a path that no longer existed.
 			await expect(
 				explorer.treeItem("before-rename"),
 				"a renamed fixture file leaves its old path in the tree (Q9)",

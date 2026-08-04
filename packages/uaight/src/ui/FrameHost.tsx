@@ -72,6 +72,16 @@ export interface FrameHostProps {
 
 const WRITE_RETRY_FRAMES = 60;
 
+/**
+ * The opening of §6.7 step 5's message, and the marker the host uses to keep it.
+ *
+ * Three things notice a blocked renderer — the violation event, the script's
+ * `error` event and the handshake timeout — and only the first knows WHICH
+ * directive did it. `UaightUI` treats a message starting with this as the
+ * specific explanation and refuses to replace it with a vaguer one.
+ */
+export const CSP_BLOCKED_PREFIX = "Content Security Policy blocked the renderer:";
+
 function frameDocument(frame: HTMLIFrameElement): Document | null {
 	try {
 		return frame.contentDocument;
@@ -135,6 +145,9 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 		overlays: props.initialOverlays,
 	});
 
+	/** The script-src violation seen in the frame document, if any (§6.7 step 5). */
+	const cspDirective = useRef<{ directive: string; blockedURI: string } | null>(null);
+
 	const onTransportRef = useRef(onTransport);
 	const onErrorRef = useRef(onBootstrapError);
 	const onHeightRef = useRef(onContentHeight);
@@ -167,9 +180,17 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 			}
 			script.src = rendererEntryUrl;
 			script.addEventListener("error", () => {
+				// A blocked script fires `error` too, and "could not be loaded" is
+				// the answer to a question the violation already answered better.
+				const blocked = cspDirective.current;
 				onErrorRef.current({
 					kind: "bootstrap",
-					message: `The renderer entry could not be loaded from ${rendererEntryUrl}.`,
+					message: blocked
+						? `${CSP_BLOCKED_PREFIX} ${blocked.directive}. ` +
+							`uaight injects a module script into the preview frame, so that ` +
+							`directive has to allow it — add the page's nonce to a ` +
+							`<meta name="csp-nonce"> tag, or allow ${blocked.blockedURI || rendererEntryUrl}.`
+						: `The renderer entry could not be loaded from ${rendererEntryUrl}.`,
 				});
 			});
 			(doc.head ?? doc.documentElement).appendChild(script);
@@ -206,17 +227,33 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 		let observer: ResizeObserver | undefined;
 		let cspListenerDoc: Document | null = null;
 
+		/**
+		 * §6.7 step 5 — name the directive rather than showing a blank frame.
+		 *
+		 * Kept, because two other things also notice the failure and both of them
+		 * are vaguer: the injected script's own `error` event, and the handshake
+		 * timeout. Whichever spoke last used to win, and in Chromium under a real
+		 * nonce policy that was the `error` handler — so the half of step 5 that
+		 * says "rather than an empty frame" was met while the half that names the
+		 * directive, which is the only reason this listener exists, was not.
+		 * `cspDirective` is what the generic paths defer to.
+		 */
+		const cspMessage = (directive: string, blockedURI: string): string =>
+			`${CSP_BLOCKED_PREFIX} ${directive}. ` +
+			`uaight injects a module script into the preview frame, so that ` +
+			`directive has to allow it — add the page's nonce to a ` +
+			`<meta name="csp-nonce"> tag, or allow ${blockedURI || rendererEntryUrl}.`;
+
 		const onCspViolation = (event: Event) => {
 			const e = event as SecurityPolicyViolationEvent;
 			if (!e.violatedDirective?.startsWith("script-src")) return;
-			// §6.7 step 5 — name the missing directive rather than showing a blank frame.
+			cspDirective.current = {
+				directive: e.violatedDirective,
+				blockedURI: e.blockedURI ?? "",
+			};
 			onErrorRef.current({
 				kind: "bootstrap",
-				message:
-					`Content Security Policy blocked the renderer: ${e.violatedDirective}. ` +
-					`uaight injects a module script into the preview frame, so that ` +
-					`directive has to allow it — add the page's nonce to a ` +
-					`<meta name="csp-nonce"> tag, or allow ${e.blockedURI || rendererEntryUrl}.`,
+				message: cspMessage(e.violatedDirective, e.blockedURI ?? ""),
 			});
 		};
 

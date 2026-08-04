@@ -7,6 +7,8 @@
  */
 
 import type {
+	DecoratorFileIndex,
+	FixtureFileIndex,
 	FixtureId,
 	InputOptionsWire,
 	InputOverlay,
@@ -119,6 +121,21 @@ export interface NavigateMessage {
 	type: "NAVIGATE";
 	fixture: FixtureId;
 }
+/**
+ * The host's live fixture index — §4.5, §5.3.
+ *
+ * The renderer resolves a fixture id against `config.files`, and its copy of
+ * the config is whatever `virtual:uaight/runtime` held when the realm booted.
+ * A file added, renamed or removed since then leaves the renderer unable to
+ * resolve an id the tree is already offering. The host learns the new index
+ * from the plugin's `uaight:index` event; this is how it passes it on, rather
+ * than each realm racing the dev server for a freshly generated module.
+ */
+export interface SetIndexMessage {
+	type: "SET_INDEX";
+	files: FixtureFileIndex[];
+	decorators: DecoratorFileIndex[];
+}
 export interface SetOverlaysMessage {
 	type: "SET_OVERLAYS";
 	overlays: InputOverlay[];
@@ -134,6 +151,7 @@ export type MountedMessage =
 	| RendererErrorMessage
 	| DisposeMessage
 	| NavigateMessage
+	| SetIndexMessage
 	| SetOverlaysMessage;
 
 export interface MountedEnvelope<T = MountedMessage> {

@@ -20,3 +20,15 @@ tests/e2e/report/
 # clean up after a build from before that moved.
 uaight-explorer.html
 uaight-explorer.entry.js
+
+# The docs site's generated half. `docs/scripts/sync.ts` copies the repository's
+# own documents in and the built registry with them, so committing either would
+# be committing a second copy that can go stale — which is the failure the sync
+# script exists to prevent.
+docs/reference/spec.md
+docs/reference/architecture.md
+docs/reference/roadmap.md
+docs/reference/changelog.md
+docs/public/
+docs/.vitepress/dist/
+docs/.vitepress/cache/

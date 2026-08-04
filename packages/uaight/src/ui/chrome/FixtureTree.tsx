@@ -357,6 +357,16 @@ export function FixtureTree({
 						>
 							{row.group ? <Chevron open={row.open} /> : <span className="size-3 shrink-0" />}
 							<span className="truncate">{node.label}</span>
+							{node.docsPage ? (
+								// §14 — a page of prose, not a component. Worth one word in the row:
+								// the two are selected the same way and read very differently.
+								<span
+									title="An MDX documentation page"
+									className="ml-auto shrink-0 text-xs text-[var(--u-fg-subtle)]"
+								>
+									Doc
+								</span>
+							) : null}
 							{node.undecidable ? (
 								// §3.5 — one node until the module is loaded.
 								<span

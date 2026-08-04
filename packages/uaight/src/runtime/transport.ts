@@ -530,14 +530,56 @@ export function createDirectTransportPair(scheduler: Scheduler = microtaskSchedu
 	const statusListeners = new Set<() => void>();
 	let disposed = false;
 
+	/**
+	 * Messages sent to an end that has not subscribed yet — §8.2's queue, which
+	 * the frame path gets for free from the handshake and this one has to keep
+	 * itself.
+	 *
+	 * The two ends of a direct pair do not come up together. The host end is
+	 * live from the layout effect that publishes the transport, and sends
+	 * `SELECT_FIXTURE` immediately; the renderer end does not exist until
+	 * `InlineHost` has measured its root element and — when the project has one —
+	 * dynamically imported the preview entry, which is at best a microtask and in
+	 * practice a network round trip later. Delivering into an empty subscriber
+	 * set dropped that selection on the floor, and nothing replayed it: a direct
+	 * pair reports `status: "ready"` from its first read, so the host's
+	 * "re-send on ready" path never fires. Inline isolation therefore showed
+	 * "No fixture selected." for every selection.
+	 *
+	 * Buffering is per direction and only while that direction has no
+	 * subscriber, so a live pair never queues, ordering is preserved, and a
+	 * StrictMode unsubscribe/resubscribe cannot lose what arrives in between.
+	 */
+	const queues = new Map<Set<(message: MountedMessage) => void>, MountedMessage[]>([
+		[hostSubscribers, []],
+		[rendererSubscribers, []],
+	]);
+
 	function deliver(
 		subscribers: Set<(message: MountedMessage) => void>,
 		message: MountedMessage,
 	): void {
 		if (disposed) return;
+		if (subscribers.size === 0) {
+			queues.get(subscribers)?.push(message);
+			return;
+		}
 		// Scheduled, so a send can never re-enter the sender's own render.
 		scheduler(() => {
 			for (const subscriber of [...subscribers]) subscriber(message);
+		});
+	}
+
+	/** Called on the first subscribe of an end, on the scheduler like any delivery. */
+	function flush(subscribers: Set<(message: MountedMessage) => void>): void {
+		const queued = queues.get(subscribers);
+		if (!queued || queued.length === 0) return;
+		const batch = queued.splice(0, queued.length);
+		scheduler(() => {
+			if (disposed) return;
+			for (const message of batch) {
+				for (const subscriber of [...subscribers]) subscriber(message);
+			}
 		});
 	}
 
@@ -549,6 +591,7 @@ export function createDirectTransportPair(scheduler: Scheduler = microtaskSchedu
 		send: (message) => deliver(rendererSubscribers, message),
 		subscribe(callback) {
 			hostSubscribers.add(callback);
+			flush(hostSubscribers);
 			return () => {
 				hostSubscribers.delete(callback);
 			};
@@ -573,12 +616,14 @@ export function createDirectTransportPair(scheduler: Scheduler = microtaskSchedu
 		send: (message) => deliver(hostSubscribers, message),
 		subscribe(callback) {
 			rendererSubscribers.add(callback);
+			flush(rendererSubscribers);
 			return () => {
 				rendererSubscribers.delete(callback);
 			};
 		},
 		dispose() {
 			rendererSubscribers.clear();
+			queues.get(rendererSubscribers)?.splice(0);
 		},
 	};
 

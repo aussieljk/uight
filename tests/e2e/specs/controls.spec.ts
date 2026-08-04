@@ -14,21 +14,17 @@ const PANEL = { path: "fixtures/controls", name: "Panel" };
 const LATE = { path: "fixtures/controls", name: "Late" };
 
 /**
- * **Finding, and the reason for the `fixme`s below.** Against the current
- * build, an edit made in the control panel does not reach the frame. The panel
- * itself updates — `getByRole("textbox", { name: "label" })` reports the new
- * value, and the call-site panel is populated with the harvested props — but
- * the fixture inside the frame keeps rendering its module default, with no
- * console error on either side. Reproduced by hand outside Playwright, on a
- * plain `useFixtureInput("label", "Click me")` fixture, deep-linked and
- * selected, frame isolation, React 19, Chromium. Everything downstream of "the
- * overlay reaches the renderer" — Reset, drop-on-fixture-change, and both
- * `?state=` link tests — therefore cannot pass either, and each is marked with
- * this as its reason rather than weakened to assert less than §7.2 requires.
+ * **Was `fixme`, now fixed.** An edit made in the control panel did not reach
+ * the frame. Two independent causes, both in the UI half:
+ *
+ *  - `ControlPanelInputs`'s text editors reported only on blur or Enter, so the
+ *    panel's own `draft` state showed the new value while no patch was ever
+ *    produced. They are live now, and `draft` still keeps the keystroke;
+ *  - the `?state=` parameter of the fixture just left was seeded onto the
+ *    fixture just arrived, so overlays appeared to survive a fixture change in
+ *    breach of §7.3 — and patches that never found their input stayed pending
+ *    for a later fixture using the same input name.
  */
-const OVERLAY_NOT_DELIVERED =
-	"a control-panel edit does not reach the frame in the current build — see this file's header";
-
 test.describe("controls", () => {
 	test("an edit in the panel reaches the frame @core", async ({ explorer, page }) => {
 		await explorer.open({ fixture: PANEL });

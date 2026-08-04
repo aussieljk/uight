@@ -68,10 +68,6 @@ test.describe("frame realm", () => {
 	}) => {
 		// This is a COST, not a bug, and NOTES.md says so explicitly. It is tested
 		// so that the day it silently changes, somebody finds out.
-		test.fixme(
-			true,
-			"inline isolation renders 'No fixture selected' for every selection in the current build — see the report; re-enable once the inline transport delivers SELECT_FIXTURE",
-		);
 		await explorer.open({
 			mode: "inline",
 			fixture: { path: "fixtures/media", name: "Report" },

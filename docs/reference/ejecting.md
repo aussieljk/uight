@@ -1,0 +1,56 @@
+# Ejecting the chrome
+
+Two levels, and most needs stop at the first.
+
+## Replace a component
+
+Every chrome component is a prop:
+
+```tsx
+<Uaight components={{ FixtureTree: MyTree, PreviewShell: MyShell }} />
+```
+
+| Ejectable | Not ejectable |
+| --------- | ------------- |
+| `PreviewShell`, `FixtureTree`, `ControlPanel`, `ControlPanelInputs`, `ViewportToolbar`, `Toolbar`, `EmptyState`, `ErrorState`, `InventoryList` | `FrameHost`, the renderer bootstrap, the frame transport, the overlay store and serializer |
+
+The rule behind the table: anything that renders chrome is ejectable; anything that
+defines fixture semantics or owns the realm is not.
+
+## Take the source
+
+When replacing is not enough, the registry ships uaight's own implementations into your
+components directory, as yours:
+
+```bash
+npx shadcn add https://uaight.dev/r/fixture-tree.json
+```
+
+Or configure the namespace once:
+
+```json
+// components.json
+{ "registries": { "@uaight": "https://uaight.dev/r/{name}.json" } }
+```
+
+```bash
+npx shadcn add @uaight/fixture-tree
+```
+
+Items are published per minor at `/r/v{major}.{minor}/{name}.json`, with `/r/{name}.json`
+tracking latest. An ejected file records the version it came from in its header. Items
+from different versions may be combined only within one minor.
+
+## The frozen surface
+
+An ejected component reads the explorer through one hook:
+
+```ts
+import { useUaightChrome } from "uaight/chrome";
+
+const chrome = useUaightChrome(); // UaightChromeApiV1
+```
+
+That facade — not the component props, not the internal modules — is what is committed to.
+It is still settling during the canary; see the roadmap's v1.2 milestone for what has to
+land before it freezes.

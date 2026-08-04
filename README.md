@@ -35,6 +35,7 @@ Published as `0.0.1-canary.N` while the surface settles.
 | `ROADMAP.md`           | What is left, and what each milestone after this canary holds        |
 | `packages/uaight`      | The published package                                                |
 | `examples/frosted-ui`  | Demo: the explorer showing Whop's frosted-ui design system           |
+| `docs`                 | uaight.dev — the documentation site, and the registry it hosts       |
 
 ## Package entries (§16.1)
 
@@ -51,11 +52,16 @@ Published as `0.0.1-canary.N` while the surface settles.
 ## Command line
 
 ```bash
+uaight init           # wire uaight in — one command from a Storybook repository
 uaight build          # a deployable static explorer → dist-uaight/
 uaight doctor         # why is my component missing: config, index, problems
 uaight storybook      # which CSF features would not survive the move
 uaight mcp            # MCP server over stdio; finds the dev server itself
 ```
+
+`uaight init` adds the dependency, adds the plugin to your Vite config's `plugins` array,
+and prints how much of your CSF corpus survives the move. `--dry-run` shows every change
+and writes none; re-running skips what is already done.
 
 ## Development
 
@@ -63,6 +69,8 @@ uaight mcp            # MCP server over stdio; finds the dev server itself
 bun install
 bun run build      # compile scoped CSS, then bundle with tsdown
 bun run demo       # the frosted-ui example on http://localhost:5173/uaight
+bun run docs       # the documentation site
+bun run docs:build # …built, with SPEC/ARCHITECTURE/ROADMAP/CHANGELOG and /r synced in
 bun run test
 bun run typecheck  # builds first: uaight/client resolves types through dist
 bun run check      # the whole local gate, in the order that makes it mean something

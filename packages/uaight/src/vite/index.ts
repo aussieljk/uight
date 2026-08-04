@@ -27,6 +27,7 @@ import type {
 } from "../shared/types.ts";
 import { readOnlyApi } from "./api.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
+import { HOT_REGISTRY_KEY } from "../runtime/hot.ts";
 import {
 	isStructural,
 	normalizeAliases,
@@ -34,6 +35,7 @@ import {
 	safeReloadConfig,
 	sameAliases,
 	structuralDiff,
+	toGlobPath,
 } from "./config.ts";
 import {
 	DEV_ENTRY_URL,
@@ -83,6 +85,8 @@ export type { ParsedFixtureFile, NameSource } from "./parse.ts";
 export { buildFixtureIndex, validateFixtures } from "./scan.ts";
 export { groupCallSites, parseCallSites } from "./callsites.ts";
 export { formatStorybookReport, storybookReport } from "./storybook-report.ts";
+export { formatMigration, migrateFromStorybook } from "./init.ts";
+export type { MigrateOptions, MigrationChange, MigrationResult } from "./init.ts";
 export type { StorybookReport, StorybookFileReport } from "./storybook-report.ts";
 export { buildStatic } from "./static.ts";
 export type { BuildStaticOptions, BuildStaticResult } from "./static.ts";
@@ -214,28 +218,55 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 			// Raw watcher events are used ONLY for topology: add and unlink.
 			// Content changes go through handleHotUpdate, which provides
 			// ctx.read() and avoids the empty-file race during editor saves.
-			const onTopology = debounce(
-				serialize(
-					async (file: string) => {
-						if (!isTopologyRelevant(file, cfg)) return;
+			//
+			// **Every file in the window is rescanned, not just the last one.**
+			// The debounce used to carry the arguments of the call that armed it,
+			// which silently made a rename half-work: `rename(2)` is one atomic
+			// move that the watcher reports as `unlink(old)` then `add(new)`,
+			// microseconds apart, so the unlink was discarded and the departed
+			// path stayed in the tree — selectable, and deep-linking to a file
+			// that no longer exists. A plain delete was unaffected, which is why
+			// it looked like a rename-specific bug rather than the coalescing one
+			// it is. Q9.
+			const pending = new Set<string>();
+			const flush = serialize(
+				async () => {
+					const batch = [...pending];
+					pending.clear();
+					let moved = false;
+					for (const file of batch) {
+						if (!isTopologyRelevant(file, cfg)) continue;
 						index = await rescanIncremental(index, file, cfg);
-						invalidate(s, [V.runtime, V.inventory]);
-						s.hot.send({
-							type: "custom",
-							event: INDEX_EVENT,
-							data: serializeIndex(index),
-						});
-					},
-					// A silently failed rescan leaves a stale tree, which looks
-					// like a uaight bug rather than a filesystem problem.
-					(err) => logger.warn(`[uaight] index rescan failed: ${String(err)}`),
-				),
-				40,
+						moved = true;
+					}
+					if (!moved) return;
+					invalidate(s, [V.runtime, V.inventory]);
+					s.hot.send({
+						type: "custom",
+						event: INDEX_EVENT,
+						data: serializeIndex(index),
+					});
+				},
+				// A silently failed rescan leaves a stale tree, which looks
+				// like a uaight bug rather than a filesystem problem.
+				(err) => logger.warn(`[uaight] index rescan failed: ${String(err)}`),
 			);
+			const onTopology = debounce(flush, 40);
+			const enqueue = (file: string): void => {
+				pending.add(file);
+				onTopology();
+			};
+
+			// A mount that connected after the last topology change asks for the
+			// index it missed (§4.5). Custom events reach the clients connected at
+			// send time, and a page loading while a file lands is not one of them.
+			s.hot.on("uaight:hello", (_data: unknown, client: { send: (event: string, payload?: unknown) => void }) => {
+				client.send(INDEX_EVENT, serializeIndex(index));
+			});
 
 			for (const ev of ["add", "unlink"] as const) {
-				s.watcher.on(ev, onTopology);
-				disposers.push(() => s.watcher.off(ev, onTopology));
+				s.watcher.on(ev, enqueue);
+				disposers.push(() => s.watcher.off(ev, enqueue));
 			}
 			disposers.push(() => onTopology.cancel());
 			if (cfg.configFile) s.watcher.add(cfg.configFile);
@@ -300,6 +331,38 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 				if (id === DEV_ENTRY_URL) return resolvedId(V.devEntry);
 			}
 			return undefined;
+		},
+
+		/**
+		 * Make every fixture module its own HMR boundary — §4.5, Q9, §20.3.
+		 *
+		 * Without this, an edit to a fixture propagates through the
+		 * `import.meta.glob` in `virtual:uaight/runtime`, which both realms
+		 * import and neither accepts, and Vite full-reloads the HOST document:
+		 * a navigation, a fresh explorer chunk, a fresh frame and a fresh
+		 * handshake for every save, plus the loss of every tuned control (Q14).
+		 * `plugin-react` cannot supply the boundary, because §3.1 allows a
+		 * fixture file whose exports are elements and an element module has no
+		 * component for Fast Refresh to register.
+		 *
+		 * The appended callback hands the new namespace to `runtime/hot.ts`,
+		 * which is the half Fast Refresh could not give us anyway: the glob's
+		 * loader would return the browser's cached copy of the old URL. Where
+		 * Fast Refresh IS in play — a fixture file exporting components — its
+		 * own accept callback still runs, and the re-render below reconciles
+		 * through the refresh family rather than remounting.
+		 *
+		 * `map: null` is honest: nothing above the appended lines moved.
+		 */
+		transform(code, id) {
+			if (cfg.command !== "serve") return undefined;
+			const file = id.split("?", 1)[0] ?? id;
+			if (!isFixtureFile(file, cfg)) return undefined;
+			const globPath = toGlobPath(cfg.root, file);
+			return {
+				code: `${code}\nif (import.meta.hot) {\n\timport.meta.hot.accept((mod) => {\n\t\tif (mod) globalThis[${JSON.stringify(HOT_REGISTRY_KEY)}]?.update(${JSON.stringify(globPath)}, mod);\n\t});\n}\n`,
+				map: null,
+			};
 		},
 
 		async load(id) {

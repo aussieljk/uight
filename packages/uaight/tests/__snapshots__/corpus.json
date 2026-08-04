@@ -1,12 +1,17 @@
 {
-	"files": 83,
-	"fixtures": 592,
+	"files": 84,
+	"fixtures": 593,
 	"undecidable": 1,
 	"decorators": 1,
 	"problems": 0,
 	"components": 5,
 	"callSiteGroups": 27,
 	"entries": [
+		{
+			"path": "fixtures/buttons",
+			"count": 1,
+			"csf": false
+		},
 		{
 			"path": "fixtures/controls",
 			"count": 1,
@@ -423,5 +428,5 @@
 			"csf": true
 		}
 	],
-	"digest": "2dc7e057bf552385b59c354332e2af652584d24ac3f60ccbe0c35299f693993d"
+	"digest": "5ddedae96490c42f3b40c9895aa7ed91e1e89a6d03796f613177f60887249855"
 }

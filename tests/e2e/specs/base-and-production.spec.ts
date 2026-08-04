@@ -44,10 +44,8 @@ test.describe("production preview @prod", () => {
 	});
 
 	test("controls still drive the frame in a build", async ({ explorer, page }) => {
-		// Same defect as `controls.spec.ts`, and worth its own cell: it is not a
-		// dev-server artefact — a control-panel edit does not reach the frame in a
-		// production build either.
-		test.fixme(true, "a control-panel edit does not reach the frame — see controls.spec.ts");
+		// Worth its own cell: the defect `controls.spec.ts` records was not a
+		// dev-server artefact, so the fix has to hold in a build too.
 		await explorer.open({ fixture: { path: "fixtures/controls", name: "Panel" } });
 		await page.getByRole("textbox", { name: "label" }).fill("Built");
 		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Built");

@@ -1052,11 +1052,8 @@ With no fixtures present, `/uaight` lists what it found:
 2. Filter with `oxc-parser`: exported names, PascalCase, function or `memo`/`forwardRef` shape. **No docgen in v1** (§15) — this pass is syntax only, which keeps it fast and dependency-light.
 3. Group by directory, matching the fixture tree's shape so the two merge naturally when fixtures appear.
 4. **Selecting a component renders it** in frame isolation, behind an error boundary, with required-prop names shown when it fails.
-5. A first-run notice states the limitation once.
 
-**The safety wording matters and is used verbatim in the UI:**
-
-> Rendering runs your component's real code. Frame isolation contains DOM, CSS and global listeners. It does not contain network requests, storage, cookies or backend effects.
+**The limitation is real and belongs in the docs rather than in a banner:** rendering runs your component's real code. Frame isolation contains DOM, CSS and global listeners. It does not contain network requests, storage, cookies or backend effects. The in-app first-run notice was removed — it interrupted every session to say something the docs say once, permanently.
 
 Rendering happens **on explicit selection only** — never on tree expansion, never in bulk, never on hover. An error boundary catches render errors; it does not stop a `fetch`.
 
@@ -1088,7 +1085,11 @@ Storybook applies decorators innermost-first from the array; we nest outermost-f
 
 **MDX fixtures.** An `.mdx` file normalizes into a fixture. Upstream implements this purely as bundler configuration — `@mdx-js/rollup` plus the extension — so it is a glob pattern and a transform, not a server feature.
 
-**Documentation pages are the host's job.** We export a component; a host MDX setup puts it in scope. We do not compile arbitrary docs pages and do not try to detect whether the host already has an MDX plugin — plugin ordering is configuration, not something to infer.
+**Documentation pages.** `**/*.docs.mdx` under the fixtures directory is a documentation page: prose that lives beside the components it is about. Mechanically it is a fixture — the same glob map, the same index entry, the same selection and the same frame realm, and one page per module by the rule above — and it carries `docsPage: true` so the tree can say which it is. `docs: false` turns the pattern off, `docs: { fileSuffix }` renames it.
+
+Compiling MDX is still entirely the host's job, and this does not change that: uaight exports a component, a host MDX setup puts it in scope, and we do not try to detect whether the host already has an MDX plugin — plugin ordering is configuration, not something to infer. Startup naming a *missing* plugin is not inference; it reads the resolved list and reports it.
+
+**This is not a documentation framework** (§1.4). No router, no authored navigation, no page hierarchy separate from the fixture tree.
 
 ---
 

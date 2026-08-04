@@ -359,7 +359,6 @@ export class OverlayStore {
 	/* -------------------- patches from the host -------------------- */
 
 	receiveOverlay(message: OverlayMessage): "applied" | "stale" | "invalid" {
-		console.log("[dbg] receiveOverlay", JSON.stringify(message), "reg=", JSON.stringify([...this.registrations.values()].map(r=>[r.name,r.revision])));
 		if (typeof message.name !== "string" || !Array.isArray(message.patches)) {
 			return "invalid";
 		}
