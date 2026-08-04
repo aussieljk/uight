@@ -24,6 +24,8 @@
  * JSON-RPC
  * ------------------------------------------------------------------ */
 
+import { DEFAULT_VIEWPORT, renderFixture, SCREENSHOT_VIEWPORTS } from "./screenshot.ts";
+
 interface RpcRequest {
 	jsonrpc: "2.0";
 	id?: string | number | null;
@@ -402,6 +404,79 @@ export const TOOLS: Tool[] = [
 		},
 	},
 	{
+		name: "render_fixture",
+		description:
+			"Screenshot one fixture as it actually renders and return the IMAGE. This is the " +
+			"only tool that answers 'what does it look like' — the others return text. Needs " +
+			"the optional playwright package; without it the error says so and fixture_url " +
+			"remains the fallback.",
+		inputSchema: {
+			type: "object",
+			properties: {
+				path: { type: "string", description: "Fixture display path from list_fixtures" },
+				name: { type: "string", description: "Fixture name; omit for a single-fixture file" },
+				viewport: {
+					type: "string",
+					description:
+						`Viewport preset: ${Object.keys(SCREENSHOT_VIEWPORTS).join(", ")} ` +
+						`(default ${DEFAULT_VIEWPORT})`,
+				},
+				width: { type: "number", description: "Explicit viewport width; overrides viewport" },
+				height: { type: "number", description: "Explicit viewport height; used with width" },
+				theme: { type: "string", enum: ["light", "dark"], description: "Resolved theme" },
+				fullPage: {
+					type: "boolean",
+					description: "Capture the whole explorer chrome instead of just the fixture frame",
+				},
+			},
+			required: ["path"],
+		},
+		async run(args, client) {
+			const path = stringArg(args, "path");
+			if (!path) throw new Error("path is required");
+			const width = numberArg(args, "width");
+			const height = numberArg(args, "height");
+			if ((width === undefined) !== (height === undefined)) {
+				throw new Error("width and height must be given together");
+			}
+			const theme = stringArg(args, "theme");
+			const result = await renderFixture({
+				base: await client.base(),
+				route: await routeOf(client),
+				path,
+				name: stringArg(args, "name") ?? null,
+				...(width !== undefined && height !== undefined
+					? { viewport: { width, height } }
+					: stringArg(args, "viewport")
+						? { viewport: stringArg(args, "viewport") as string }
+						: {}),
+				...(theme ? { theme: theme as "light" | "dark" } : {}),
+				fullPage: args.fullPage === true,
+			});
+			// An image block, not JSON: the point of this tool is that the agent
+			// sees the render. The URL rides along as text so the answer stays
+			// checkable by a human.
+			return {
+				content: [
+					{ type: "image", data: result.base64, mimeType: "image/png" },
+					{
+						type: "text",
+						text: JSON.stringify(
+							{
+								url: result.url,
+								viewport: result.viewport,
+								theme: result.theme,
+								fullPage: result.fullPage,
+							},
+							null,
+							2,
+						),
+					},
+				],
+			};
+		},
+	},
+	{
 		name: "get_config",
 		description:
 			"The resolved uaight configuration, including both path representations and the " +
@@ -475,6 +550,17 @@ export async function handleRequest(
 			const args = (request.params?.arguments ?? {}) as Record<string, unknown>;
 			try {
 				const result = await tool.run(args, client);
+				// Most tools return plain data and get serialized as one text block.
+				// A tool that already speaks in MCP content blocks — render_fixture,
+				// which must return an image — says so by returning `{ content }`,
+				// and that is passed through untouched.
+				if (
+					result !== null &&
+					typeof result === "object" &&
+					Array.isArray((result as { content?: unknown }).content)
+				) {
+					return result;
+				}
 				return {
 					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
 				};

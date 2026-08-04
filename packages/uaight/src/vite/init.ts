@@ -1,5 +1,9 @@
 /**
- * One command from a Storybook repository to a working `/uaight`.
+ * One command from a Storybook or react-cosmos repository to a working
+ * `/uaight`.
+ *
+ * The cosmos half lives in `cosmos.ts`; this file owns the part both sources
+ * share — the dependency, the Vite config, the transcript — and calls into it.
  *
  * §13 already made the corpus readable — CSF is a declared subset and
  * `.storybook/preview` is loaded — but the last mile was still four manual
@@ -23,6 +27,16 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { parseSync } from "oxc-parser";
 import { resolveUaightConfig } from "./config.ts";
+import type { CosmosReport, FixtureRename } from "./cosmos.ts";
+import {
+	cosmosFixturesDirName,
+	cosmosReport,
+	detectCosmos,
+	planFixtureRenames,
+	readCosmosConfig,
+	rewriteCosmosImports,
+	translateCosmosConfig,
+} from "./cosmos.ts";
 import type { StorybookReport } from "./storybook-report.ts";
 import { storybookReport } from "./storybook-report.ts";
 
@@ -42,20 +56,26 @@ const STORYBOOK_DIRS = [".storybook", "storybook"];
 export interface MigrationChange {
 	/** Root-relative. */
 	path: string;
-	action: "create" | "edit" | "skip";
+	action: "create" | "edit" | "skip" | "rename";
 	/** One line describing the change, or why there was none. */
 	detail: string;
-	/** The full file after the change. Absent for `skip`. */
+	/** The full file after the change. Absent for `skip` and bare renames. */
 	contents?: string;
+	/** Root-relative source path. Set only for `rename`. */
+	renameFrom?: string;
 }
 
 export interface MigrationResult {
 	root: string;
 	/** What made this look like a Storybook project, empty when nothing did. */
 	evidence: string[];
+	/** What made this look like a react-cosmos project, empty when nothing did. */
+	cosmosEvidence: string[];
 	changes: MigrationChange[];
 	/** Null when there was no CSF to scan. */
 	report: StorybookReport | null;
+	/** Null when this was not a cosmos project. */
+	cosmos: CosmosReport | null;
 	/** Commands and edits the user still has to do, in order. */
 	nextSteps: string[];
 	/** True when `--dry-run` meant nothing was written. */
@@ -68,6 +88,12 @@ export interface MigrateOptions {
 	dryRun?: boolean;
 	/** Version range written into `devDependencies`. Default `latest`. */
 	version?: string;
+	/**
+	 * Rename cosmos's `__fixtures__/Button.tsx` to `Button.fixture.tsx`, which
+	 * is what makes those fixtures discoverable at all. Default true — off is
+	 * for someone who would rather do the renames in their own commit.
+	 */
+	renameFixtures?: boolean;
 }
 
 /* ------------------------------------------------------------------ *
@@ -294,14 +320,16 @@ function addDevDependency(
  * ------------------------------------------------------------------ */
 
 /**
- * Wire uaight into the Storybook project at `root`.
+ * Wire uaight into the project at `root`, whatever it is coming from.
+ *
+ * Storybook and react-cosmos are detected independently and both halves run
+ * when both are present, because a repository mid-migration between the two is
+ * a real repository and picking one for it would leave the other unwired.
  *
  * Exported from `uaight/vite` so a repository can run it from a script — the
  * CLI is one caller, not the only one.
  */
-export async function migrateFromStorybook(
-	options: MigrateOptions,
-): Promise<MigrationResult> {
+export async function migrateProject(options: MigrateOptions): Promise<MigrationResult> {
 	const root = path.resolve(options.root);
 	const dryRun = options.dryRun === true;
 	const version = options.version ?? "latest";
@@ -376,7 +404,19 @@ export async function migrateFromStorybook(
 		}
 	}
 
-	/* 3 — what will not survive, before anyone commits to the move. */
+	/* 3 — the cosmos-shaped half of the move, when there is one. */
+	const cosmosEvidence = detectCosmos(root, pkg?.json ?? null);
+	let cosmos: CosmosReport | null = null;
+	if (cosmosEvidence.length > 0) {
+		cosmos = await migrateCosmos({
+			root,
+			changes,
+			nextSteps,
+			renameFixtures: options.renameFixtures !== false,
+		});
+	}
+
+	/* 4 — what will not survive, before anyone commits to the move. */
 	let report: StorybookReport | null = null;
 	if (evidence.length > 0 || existing) {
 		const config = resolveUaightConfig({
@@ -387,9 +427,14 @@ export async function migrateFromStorybook(
 		report = await storybookReport(config);
 	}
 
-	/* 4 — write, unless this was a rehearsal. */
+	/* 5 — write, unless this was a rehearsal. */
 	if (!dryRun) {
 		for (const change of changes) {
+			// A rename moves the file first, so a rewritten fixture is written to
+			// the name it is going to have rather than the one it is leaving.
+			if (change.action === "rename" && change.renameFrom) {
+				await fsp.rename(path.join(root, change.renameFrom), path.join(root, change.path));
+			}
 			if (change.contents === undefined) continue;
 			await fsp.writeFile(path.join(root, change.path), change.contents, "utf8");
 		}
@@ -397,8 +442,148 @@ export async function migrateFromStorybook(
 
 	nextSteps.push("Start your dev server and open /uaight");
 
-	return { root, evidence, changes, report, nextSteps, dryRun };
+	return { root, evidence, cosmosEvidence, changes, report, cosmos, nextSteps, dryRun };
 }
+
+/* ------------------------------------------------------------------ *
+ * react-cosmos
+ * ------------------------------------------------------------------ */
+
+/**
+ * The three things a cosmos repository needs beyond the plugin: its config
+ * translated, its `__fixtures__/` files named so the scan can see them, and
+ * its hook imports pointed at `uaight`.
+ *
+ * The order matters, and it is the order the writes happen in: a file that is
+ * both renamed and rewritten is recorded once, under its new name, so the two
+ * halves cannot disagree about where it lives.
+ */
+async function migrateCosmos(args: {
+	root: string;
+	changes: MigrationChange[];
+	nextSteps: string[];
+	renameFixtures: boolean;
+}): Promise<CosmosReport> {
+	const { root, changes, nextSteps } = args;
+	const config = readCosmosConfig(root);
+	const suffix =
+		typeof config?.json.fixtureFileSuffix === "string"
+			? config.json.fixtureFileSuffix
+			: "fixture";
+
+	/* a — the config. */
+	if (config) {
+		const translation = translateCosmosConfig(config.json);
+		const target = path.join(root, "uaight.config.json");
+		const keys = Object.keys(translation.options);
+		if (!keys.length) {
+			changes.push({
+				path: "uaight.config.json",
+				action: "skip",
+				detail: `${path.basename(config.file)} says nothing uaight does not already default to`,
+			});
+		} else if (fs.existsSync(target)) {
+			changes.push({
+				path: "uaight.config.json",
+				action: "skip",
+				detail: `already exists — ${keys.join(", ")} from ${path.basename(config.file)} were not merged in`,
+			});
+			nextSteps.push(
+				`Merge ${keys.join(", ")} from ${path.basename(config.file)} into uaight.config.json.`,
+			);
+		} else {
+			changes.push({
+				path: "uaight.config.json",
+				action: "create",
+				detail: translation.translated.join("; "),
+				contents: `${JSON.stringify(translation.options, null, "\t")}\n`,
+			});
+		}
+		for (const [key, reason] of Object.entries(translation.dropped)) {
+			nextSteps.push(
+				`${path.basename(config.file)} \`${key}\` has no equivalent — ${reason}.`,
+			);
+		}
+	}
+
+	/* b — the renames. */
+	const dirName = cosmosFixturesDirName(config?.json ?? null);
+	const renames: FixtureRename[] = args.renameFixtures
+		? await planFixtureRenames({ root, dirName, suffix })
+		: [];
+	const renamedFrom = new Map(renames.map((r) => [r.from, r.to]));
+	for (const rename of renames) {
+		changes.push({
+			path: rename.to,
+			action: "rename",
+			detail: `from ${rename.from} — uaight finds fixtures by name, not by directory`,
+			renameFrom: rename.from,
+		});
+	}
+
+	/* c — the imports. */
+	const report = await cosmosReport({ root, suffix });
+	if (!args.renameFixtures && report.renames.length) {
+		nextSteps.push(
+			`${report.renames.length} file(s) under ${dirName}/ carry no \`.${suffix}\` suffix and will not be found. ` +
+				"Re-run without --no-rename, or rename them yourself.",
+		);
+	}
+	for (const detail of report.details) {
+		const file = path.join(root, detail.path);
+		let source: string;
+		try {
+			source = await fsp.readFile(file, "utf8");
+		} catch {
+			continue;
+		}
+		const rewrite = rewriteCosmosImports(source, file);
+		const target = renamedFrom.get(detail.path) ?? detail.path;
+		if (rewrite.problem) {
+			changes.push({ path: target, action: "skip", detail: rewrite.problem });
+			continue;
+		}
+		const declined = Object.keys(rewrite.declined);
+		if (!rewrite.changed) {
+			changes.push({
+				path: target,
+				action: "skip",
+				detail: declined.length
+					? `nothing to move — ${declined.join(", ")} have no equivalent`
+					: "nothing to move",
+			});
+			continue;
+		}
+		// A rename already queued this path; folding the contents into that change
+		// keeps one entry per file and makes the write order fall out for free.
+		const queued = changes.find((c) => c.action === "rename" && c.path === target);
+		const names = Object.entries(rewrite.renamed)
+			.map(([from, to]) => `${from} → ${to}`)
+			.join(", ");
+		const detailText =
+			`react-cosmos → uaight${names ? ` (${names})` : ""}` +
+			(declined.length ? `; left behind: ${declined.join(", ")}` : "");
+		if (queued) {
+			queued.contents = rewrite.source;
+			queued.detail = `${queued.detail}; ${detailText}`;
+		} else {
+			changes.push({
+				path: target,
+				action: "edit",
+				detail: detailText,
+				contents: rewrite.source,
+			});
+		}
+	}
+
+	if (report.evidence.some((line) => line.includes("package.json"))) {
+		nextSteps.push("Remove react-cosmos from package.json once /uaight looks right.");
+	}
+	return report;
+}
+
+/** The name this had when Storybook was the only source. */
+export const migrateFromStorybook = migrateProject;
 
 function plural(n: number, one: string, many = `${one}s`): string {
 	return `${n} ${n === 1 ? one : many}`;
@@ -408,24 +593,51 @@ function plural(n: number, one: string, many = `${one}s`): string {
 export function formatMigration(result: MigrationResult): string {
 	const lines: string[] = [];
 
-	if (result.evidence.length === 0) {
+	if (result.evidence.length) lines.push(`Storybook found: ${result.evidence.join("; ")}`);
+	if (result.cosmosEvidence.length)
+		lines.push(`react-cosmos found: ${result.cosmosEvidence.join("; ")}`);
+	if (!result.evidence.length && !result.cosmosEvidence.length) {
 		lines.push(
-			"No Storybook found here — looked for .storybook/, storybook/ and @storybook/* in package.json.",
+			"No Storybook or react-cosmos found here — looked for .storybook/, storybook/, " +
+				"cosmos.config.json, and @storybook/* or react-cosmos in package.json.",
 		);
 		lines.push(
-			"Wiring uaight in anyway: it reads CSF wherever it lives, and fixtures need no Storybook at all.",
+			"Wiring uaight in anyway: it reads CSF wherever it lives, and fixtures need neither of them.",
 		);
-	} else {
-		lines.push(`Storybook found: ${result.evidence.join("; ")}`);
 	}
 	lines.push("");
 
 	for (const change of result.changes) {
-		const mark = change.action === "skip" ? "·" : result.dryRun ? "→" : "✓";
+		const mark =
+			change.action === "skip"
+				? "·"
+				: change.action === "rename"
+					? "↦"
+					: result.dryRun
+						? "→"
+						: "✓";
 		lines.push(`  ${mark} ${change.path}  ${change.detail}`);
 	}
 
-	if (result.report) {
+	if (result.cosmos) {
+		const declined = Object.entries(result.cosmos.declined);
+		lines.push("");
+		lines.push(
+			`${plural(result.cosmos.files, "cosmos fixture")} — the format itself moves unchanged`,
+		);
+		if (declined.length) {
+			lines.push("");
+			lines.push("left in place, no equivalent in uaight:");
+			const width = Math.max(...declined.map(([key]) => key.length));
+			for (const [key, count] of declined) lines.push(`  ${key.padEnd(width)}  ${count}`);
+			lines.push("");
+			lines.push("`uaight cosmos` prints this per file.");
+		}
+	}
+
+	// A cosmos-only project scans for CSF too and finds none; saying "0 CSF files"
+	// there is noise about a tool it never used.
+	if (result.report && (result.report.files > 0 || result.evidence.length > 0)) {
 		const { files, stories, clean } = result.report;
 		lines.push("");
 		lines.push(

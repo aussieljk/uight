@@ -75,7 +75,9 @@ export default () => {
 
 ```bash
 uaight build          # a deployable static explorer → dist-uaight/
+uaight init           # wire it in — one command from Storybook or react-cosmos
 uaight storybook      # which CSF features would not survive the move
+uaight cosmos         # what a react-cosmos move would rename and decline
 uaight mcp            # MCP server over stdio, for a coding agent
 ```
 
@@ -105,8 +107,24 @@ No port. The dev server is discovered on first use by probing the common Vite po
 `UAIGHT_URL` override it; when nothing answers, the error names every port it probed.
 
 Exposes `list_fixtures`, `list_components`, `list_call_sites`, `fixture_url`,
-`get_config` and `health` — a read-only client of the running dev server, so it can
-never disagree with what the explorer shows.
+`render_fixture`, `get_config` and `health` — a read-only client of the running dev
+server, so it can never disagree with what the explorer shows.
+
+`render_fixture` is the one that returns an **image**: it drives a headless browser to the
+fixture's deep link, waits for the renderer to actually paint into `#uaight-root`, and
+returns a PNG of the fixture frame (`fullPage: true` captures the whole explorer instead).
+It takes `path`, optional `name`, a `viewport` preset (`small`, `mobile`, `tablet`,
+`laptop`, `desktop`) or an explicit `width`/`height` pair, and `theme` (`light` | `dark`).
+
+Playwright is an **optional** dependency — an install of uaight does not pay for three
+browser engines. Install it only if you want screenshots:
+
+```sh
+bun add -d playwright && bunx playwright install chromium
+```
+
+Without it every other tool still works and `render_fixture` returns one message naming
+the package and the fix.
 
 ## Compatibility and attribution
 

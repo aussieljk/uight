@@ -17,6 +17,7 @@ import {
 	EMPTY_SESSION,
 	MAX_RECENTS,
 	parseSession,
+	prefsKey,
 	pushRecent,
 	readSession,
 	sessionKey,
@@ -218,6 +219,50 @@ describe("the explorer session", () => {
 	it("never throws when storage is absent", () => {
 		expect(readSession("k", null)).toEqual(EMPTY_SESSION);
 		expect(() => writeSession("k", { selection: "x" }, null)).not.toThrow();
+	});
+
+	it("splits navigation from preferences across the two stores", () => {
+		// Preferences outlive the tab; navigation does not. Simulating a closed
+		// tab is exactly "throw the session store away and keep the other one".
+		const session = memoryStorage();
+		const prefs = memoryStorage();
+		writeSession("uaight:session:/u:m", { selection: "uaight:1|a" }, session, prefs);
+		writeSession(
+			"uaight:session:/u:m",
+			{ sidebarWidth: 320, inventoryOpen: false },
+			session,
+			prefs,
+		);
+
+		const fresh = readSession("uaight:session:/u:m", memoryStorage(), prefs);
+		expect(fresh.selection).toBeNull();
+		expect(fresh.sidebarWidth).toBe(320);
+		expect(fresh.inventoryOpen).toBe(false);
+	});
+
+	it("writes only the half a patch touches, and namespaces both", () => {
+		const session = memoryStorage();
+		const prefs = memoryStorage();
+		const key = sessionKey("/uaight", "m");
+		expect(prefsKey(key)).toBe("uaight:prefs:/uaight:m");
+
+		writeSession(key, { panelWidth: 280 }, session, prefs);
+		expect(session.getItem(key)).toBeNull();
+		expect(prefs.getItem(prefsKey(key))).not.toBeNull();
+
+		writeSession(key, { recents: ["a"] }, session, prefs);
+		expect(session.getItem(key)).not.toBeNull();
+		expect(readSession(key, session, prefs).panelWidth).toBe(280);
+	});
+
+	it("degrades when only the preference store is unavailable", () => {
+		const session = memoryStorage();
+		expect(() =>
+			writeSession("k", { sidebarWidth: 300, selection: "x" }, session, null),
+		).not.toThrow();
+		const back = readSession("k", session, null);
+		expect(back.selection).toBe("x");
+		expect(back.sidebarWidth).toBeNull();
 	});
 });
 

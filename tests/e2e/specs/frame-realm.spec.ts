@@ -12,7 +12,7 @@
 import { expect, test } from "../support/harness.ts";
 
 test.describe("frame realm", () => {
-	test("a portal lands in the frame document, not the host @core", async ({
+	test("a portal lands in the frame document, not the host @core @react", async ({
 		explorer,
 		page,
 	}) => {
@@ -35,7 +35,9 @@ test.describe("frame realm", () => {
 		expect(await page.locator("[data-e2e='modal']").count()).toBe(0);
 	});
 
-	test("portals are torn down when the fixture changes @core", async ({ explorer }) => {
+	test("portals are torn down when the fixture changes @core @react", async ({
+		explorer,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/modal", name: "Stacked" } });
 		await expect(explorer.frame().locator("[data-e2e='modal']")).toHaveCount(2);
 

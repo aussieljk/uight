@@ -13,6 +13,23 @@
  * enough to survive HMR, a restart and a refresh, short enough that a new tab
  * is a clean slate and nothing accumulates on the user's machine forever.
  *
+ * **Two lifetimes, not one.** That argument is about *navigation*: where you
+ * were is worth remembering for as long as you are still going there, and a new
+ * tab deserves a clean slate. It does not cover *preferences*. A pane width and
+ * the inventory disclosure are not a place you were; they are how you like the
+ * tool set up, and re-dragging the sidebar in every new tab is not a clean
+ * slate, it is an amnesiac one. So the record is split by lifetime:
+ *
+ * | Field                                | Store            | Why |
+ * | ------------------------------------ | ---------------- | --- |
+ * | `collapsed`, `selection`, `recents`  | `sessionStorage` | Navigation: where you were, and the MRU that follows from it. |
+ * | `sidebarWidth`, `panelWidth`, `inventoryOpen` | `localStorage` | Preferences: how the tool is set up. |
+ *
+ * Both halves keep the same `uaight:…:<route>:<mountId>` namespacing, so two
+ * mounts and two routes stay independent in both stores, and both halves keep
+ * the same best-effort behaviour — private mode throws on `localStorage` just as
+ * readily, and neither read nor write may ever surface that.
+ *
  * Everything here is best-effort. Private mode throws on access, and the
  * explorer must open anyway; every read falls back to the default and every
  * write is swallowed.
@@ -61,9 +78,35 @@ export function sessionKey(route: string, mountId: string): string {
 	return `uaight:session:${route}:${mountId}`;
 }
 
+/**
+ * The preference half of the same key. A distinct prefix rather than the same
+ * one in a different store, so a stray `localStorage` dump is readable and the
+ * two records can never be mistaken for each other by a future migration.
+ */
+export function prefsKey(sessionStorageKey: string): string {
+	return sessionStorageKey.replace(/^uaight:session:/, "uaight:prefs:");
+}
+
+/** Which fields live in `localStorage`. Everything else stays per-tab. */
+const PREFERENCE_FIELDS = ["sidebarWidth", "panelWidth", "inventoryOpen"] as const;
+type PreferenceField = (typeof PREFERENCE_FIELDS)[number];
+
+function isPreference(field: string): field is PreferenceField {
+	return (PREFERENCE_FIELDS as readonly string[]).includes(field);
+}
+
 function storage(): SessionStorageLike | null {
 	try {
 		return typeof window === "undefined" ? null : window.sessionStorage;
+	} catch {
+		return null;
+	}
+}
+
+/** Same contract as `storage()`: any access may throw, and `null` is fine. */
+function prefsStorage(): SessionStorageLike | null {
+	try {
+		return typeof window === "undefined" ? null : window.localStorage;
 	} catch {
 		return null;
 	}
@@ -106,10 +149,24 @@ export function parseSession(raw: string | null): ExplorerSession {
 	};
 }
 
-export function readSession(
-	key: string,
-	store: SessionStorageLike | null = storage(),
-): ExplorerSession {
+/**
+ * Resolves the two backends.
+ *
+ * Omitting both arguments uses the real stores. Passing only `store` — which is
+ * how the tests and any embedder inject a fake — makes that one object stand in
+ * for *both* halves, so a single in-memory map still round-trips a whole
+ * `ExplorerSession`. Pass both to exercise the split itself.
+ */
+function stores(
+	store: SessionStorageLike | null | undefined,
+	prefs: SessionStorageLike | null | undefined,
+): [SessionStorageLike | null, SessionStorageLike | null] {
+	const nav = store === undefined ? storage() : store;
+	const pref = prefs !== undefined ? prefs : store === undefined ? prefsStorage() : store;
+	return [nav, pref];
+}
+
+function readRecord(store: SessionStorageLike | null, key: string): ExplorerSession {
 	if (!store) return EMPTY_SESSION;
 	try {
 		return parseSession(store.getItem(key));
@@ -118,20 +175,50 @@ export function readSession(
 	}
 }
 
-/** Merges a partial over what is stored and writes it back. Never throws. */
+export function readSession(
+	key: string,
+	store?: SessionStorageLike | null,
+	prefs?: SessionStorageLike | null,
+): ExplorerSession {
+	const [nav, pref] = stores(store, prefs);
+	const navigation = readRecord(nav, key);
+	// Same key when one store stands in for both; reading it twice is harmless.
+	const preferences = readRecord(pref, prefsKey(key));
+	return {
+		...navigation,
+		sidebarWidth: preferences.sidebarWidth,
+		panelWidth: preferences.panelWidth,
+		inventoryOpen: preferences.inventoryOpen,
+	};
+}
+
+function put(store: SessionStorageLike | null, key: string, value: unknown): void {
+	if (!store) return;
+	try {
+		store.setItem(key, JSON.stringify(value));
+	} catch {
+		/* quota or private mode; the record simply does not persist */
+	}
+}
+
+/**
+ * Merges a partial over what is stored and writes it back. Never throws.
+ *
+ * Writes only the half a patch actually touches: a pane drag must not rewrite
+ * the navigation record (and re-persist a selection the user has since left),
+ * and remembering a selection must not touch the preferences.
+ */
 export function writeSession(
 	key: string,
 	patch: Partial<ExplorerSession>,
-	store: SessionStorageLike | null = storage(),
+	store?: SessionStorageLike | null,
+	prefs?: SessionStorageLike | null,
 ): ExplorerSession {
-	const next = { ...readSession(key, store), ...patch };
-	if (store) {
-		try {
-			store.setItem(key, JSON.stringify(next));
-		} catch {
-			/* quota or private mode; the session simply does not persist */
-		}
-	}
+	const [nav, pref] = stores(store, prefs);
+	const next = { ...readSession(key, nav, pref), ...patch };
+	const fields = Object.keys(patch);
+	if (fields.some((field) => !isPreference(field))) put(nav, key, next);
+	if (fields.some(isPreference)) put(pref, prefsKey(key), next);
 	return next;
 }
 

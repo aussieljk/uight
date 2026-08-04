@@ -10,6 +10,10 @@ fixture-app/dist-base/
 fixture-app/dist-relative/
 fixture-app/dist-gate/
 
+# Scratch copies for the mutating specs (support/scratch-apps.mjs).
+fixture-app-hmr/
+fixture-app-perf/
+
 # Playwright artefacts.
 results/
 report/

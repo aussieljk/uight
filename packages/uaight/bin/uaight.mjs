@@ -4,7 +4,9 @@
  *
  *   uaight build [--out dist-uaight] [--base /] [--root .]
  *   uaight doctor [--root .] [--json]
+ *   uaight init [--root .] [--dry-run] [--no-rename]
  *   uaight storybook [--root .]
+ *   uaight cosmos [--root .]
  *   uaight mcp [--url <url>]
  *
  * A thin argument parser over the Node API in `uaight/vite` and `uaight/mcp`.
@@ -37,9 +39,11 @@ function usage() {
     --root <dir>              Project root (default: cwd)
     --config <file>           Vite config file
 
-  uaight init                 Wire uaight into this project — one command from Storybook
+  uaight init                 Wire uaight into this project — one command from
+                              Storybook or react-cosmos
     --root <dir>              Project root (default: cwd)
     --dry-run                 Print every change and write nothing
+    --no-rename               Leave cosmos __fixtures__/ filenames alone
     --version-range <range>   Version written to devDependencies (default: latest)
 
   uaight doctor               Why is my component missing: config, index, problems
@@ -50,8 +54,14 @@ function usage() {
     --root <dir>              Project root (default: cwd)
     --json                    Print the full report as JSON
 
+  uaight cosmos               Report what a react-cosmos move would rename and decline
+    --root <dir>              Project root (default: cwd)
+    --json                    Print the full report as JSON
+
   uaight mcp                  Run the MCP server over stdio
     --url <url>               Dev server URL (default: discovered)
+                              render_fixture returns a screenshot and needs the
+                              optional "playwright" package; the rest do not.
 
   uaight --version
 `);
@@ -84,11 +94,12 @@ async function main() {
 	}
 
 	if (command === "init" || command === "migrate") {
-		const { migrateFromStorybook, formatMigration } = await import("../dist/vite.js");
+		const { migrateProject, formatMigration } = await import("../dist/vite.js");
 		const range = flag("version-range", undefined);
-		const result = await migrateFromStorybook({
+		const result = await migrateProject({
 			root: path.resolve(String(flag("root", process.cwd()))),
 			dryRun: flag("dry-run", false) === true,
+			renameFixtures: flag("no-rename", false) !== true,
 			...(typeof range === "string" ? { version: range } : {}),
 		});
 		console.log(formatMigration(result));
@@ -130,6 +141,19 @@ async function main() {
 			return;
 		}
 		console.log(formatStorybookReport(report));
+		return;
+	}
+
+	if (command === "cosmos") {
+		const { cosmosReport, formatCosmosReport } = await import("../dist/vite.js");
+		const report = await cosmosReport({
+			root: path.resolve(String(flag("root", process.cwd()))),
+		});
+		if (flag("json", false) === true) {
+			console.log(JSON.stringify(report, null, 2));
+			return;
+		}
+		console.log(formatCosmosReport(report));
 		return;
 	}
 

@@ -6,16 +6,25 @@
  * Emits shadcn-compatible registry items into `registry/`: one JSON per
  * ejectable item (§11.3), plus the index and a versioned copy (§11.1).
  *
- * Two things here are load-bearing and easy to get wrong:
+ * Three things here are load-bearing and easy to get wrong:
  *
  *   - `registryDependencies` must be namespaced. A bare `"tree-item"` resolves
  *     against shadcn's own registry and installs somebody else's component.
- *     The versioned copies go further and use absolute URLs, because §11.1 says
- *     items may only be combined within one minor and a namespace alone cannot
- *     express that.
+ *     The versioned copies use a per-minor namespace rather than a namespace
+ *     alone, because §11.1 says items may only be combined within one minor —
+ *     and rather than an absolute URL, because an absolute URL cannot be
+ *     pointed at a mirror and makes the pinned items untestable until
+ *     `uaight.dev` is deployed.
  *   - Every emitted file carries a header naming the project, version and
  *     licence (§11.4). Repository-level licensing does not travel into another
  *     repository; the file has to say so itself.
+ *   - **Import specifiers are rewritten at emit time.** The sources are written
+ *     for this repository and say `../../shared/types.ts` and `../cx.ts`; those
+ *     paths do not exist in a consumer's project, so an installed file that
+ *     kept them would resolve, install, and then fail to compile. See
+ *     `PUBLISHED_ENTRY` and `COMPANION_FILE` below. An unmapped relative specifier fails the build:
+ *     silent passthrough is exactly how that defect survived a real
+ *     `shadcn add` (ROADMAP Q8).
  *
  * Sources are read at run time from `src/ui/chrome/`, which the UI owns. A
  * missing file is a hard failure naming every one that is missing, because a
@@ -34,7 +43,6 @@ const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const PROJECT = "uaight";
 const LICENCE = "MIT";
 const HOMEPAGE = "https://uaight.dev";
-const REGISTRY_BASE = "https://uaight.dev/r";
 const NAMESPACE = "@uaight";
 
 /**
@@ -49,6 +57,22 @@ const SCHEMA_ITEM = "https://ui.shadcn.com/schema/registry-item.json";
 const TOKENS_TARGET = "~/styles/uaight-chrome.css";
 const TOKENS_PATH = "styles/uaight-chrome.css";
 
+/**
+ * Every emitted source file — components and their companions alike — is
+ * published under one flat directory.
+ *
+ * This is not cosmetic. shadcn v4 does not promise to preserve the directory
+ * part of an item's `path`: observed behaviour is that a `registry:component`
+ * lands in the `components` alias under its BASE NAME, so `ui/a/X.tsx` and
+ * `ui/b/Y.tsx` both end up in `components/`. A layout that only works if the
+ * directories survive would break sibling imports (`control-panel` importing
+ * `control-panel-inputs`) on exactly that behaviour. Emitting one flat
+ * directory makes both readings agree: whether shadcn keeps `uaight/` or
+ * flattens to the base name, every file lands in the SAME directory as every
+ * other, so a `./sibling.ts` specifier resolves either way.
+ */
+const EMIT_DIR = "uaight";
+
 /* ------------------------------------------------------------------ *
  * §11.3 — what is ejectable
  *
@@ -58,13 +82,13 @@ const TOKENS_PATH = "styles/uaight-chrome.css";
  * ------------------------------------------------------------------ */
 
 export interface Ejectable {
-	/** Registry item name; also the directory the file is published under. */
+	/** Registry item name. */
 	name: string;
 	/** Component and source file base name, under the chrome source directory. */
 	component: string;
 	title: string;
 	description: string;
-	/** Bare names; namespaced or URL-pinned at emit time. */
+	/** Bare names; namespaced, or pinned to a minor namespace, at emit time. */
 	registryDependencies: string[];
 }
 
@@ -142,6 +166,14 @@ export const EJECTABLE: readonly Ejectable[] = [
 		registryDependencies: [],
 	},
 	{
+		name: "prop-table",
+		component: "PropTable",
+		title: "Prop Table",
+		description:
+			"The documented props of the selected component: name, type, default, required and description, with react-docgen's limitations named rather than hidden (§13).",
+		registryDependencies: [],
+	},
+	{
 		name: "command-palette",
 		component: "CommandPalette",
 		title: "Command Palette",
@@ -150,6 +182,183 @@ export const EJECTABLE: readonly Ejectable[] = [
 		registryDependencies: [],
 	},
 ];
+
+/* ------------------------------------------------------------------ *
+ * Specifier rewriting — the difference between "installs" and "compiles"
+ *
+ * A source under `src/ui/chrome/` imports three kinds of thing:
+ *
+ *   1. External packages (`react`). Left alone — the consumer already has them.
+ *   2. Symbols that uaight publishes. Rewritten to the published entry point.
+ *      `uaight/chrome` is the one used throughout: §11.4 makes it the frozen
+ *      surface, so an ejected component that reaches for nothing else is an
+ *      ejected component that cannot be broken by a minor. Where a symbol was
+ *      not yet exported from there it was ADDED to `src/chrome/index.ts` — a
+ *      published-surface addition, which is the honest fix, rather than
+ *      reaching into `uaight/runtime` for something the renderer does not own.
+ *   3. Repository-internal helpers with no published home (`cx.ts`, the
+ *      `wire-view` formatters, …). These are emitted as COMPANION FILES in the
+ *      same item, so the relative import still resolves after install. They are
+ *      yours-now code too, which is the point of ejection.
+ *
+ * Keys are the specifier NORMALISED against the chrome source directory, so
+ * one table covers both a component's `../cx.ts` and a companion's own
+ * `../shared/types.ts` (both of which resolve to the same file).
+ * ------------------------------------------------------------------ */
+
+/** Internal file → the published entry point that re-exports its symbols. */
+const PUBLISHED_ENTRY: Readonly<Record<string, string>> = {
+	// Every prop and wire type a chrome component names is re-exported from the
+	// frozen surface. See `src/chrome/index.ts`.
+	"../../shared/types.ts": "uaight/chrome",
+	// `applyPatches` / `pathKey` — overlay arithmetic the control panel does in
+	// the UI realm. Added to `uaight/chrome` for this.
+	"../../shared/wire.ts": "uaight/chrome",
+	// `fixtureIdsEqual` / `serializeFixtureId` — the tree compares ids. `uaight`
+	// exports the serializer but not the comparison; both added to the frozen
+	// surface so an ejected tree needs exactly one import source.
+	"../../shared/fixture-id.ts": "uaight/chrome",
+	// `builtinCodecEditors`. Deliberately NOT on `uaight/runtime` (Q6: editors
+	// render in the UI realm, §7.7, and re-exporting them there would pull every
+	// editor into the renderer chunk). `uaight/chrome` IS the UI realm, so that
+	// is where it belongs.
+	"../../runtime/codec-editors.tsx": "uaight/chrome",
+	// The facade itself. §11.4.
+	"../chrome-context.ts": "uaight/chrome",
+};
+
+/**
+ * Internal file → the base name it is published under, beside the component.
+ *
+ * Base names must be unique across the whole set, since everything lands in one
+ * directory (`EMIT_DIR`). Asserted below rather than trusted.
+ */
+const COMPANION_FILE: Readonly<Record<string, string>> = {
+	"../cx.ts": "cx.ts",
+	"../dropped.ts": "dropped.ts",
+	"../docs.ts": "docs.ts",
+	"../constants.ts": "constants.ts",
+	"../wire-view.ts": "wire-view.ts",
+	"../Overlay.tsx": "Overlay.tsx",
+};
+
+{
+	const seen = new Set<string>();
+	for (const base of Object.values(COMPANION_FILE)) {
+		if (seen.has(base)) {
+			throw new Error(`[uaight] companion base name collides in one directory: ${base}`);
+		}
+		seen.add(base);
+	}
+}
+
+/**
+ * Find the specifier of every static/dynamic import and re-export.
+ *
+ * Deliberately not a parser: the decision is made by `SPECIFIER_MAP`, and this
+ * only has to locate the strings. A specifier this misses is caught by the
+ * guard below, which rejects any relative specifier left in the output — so the
+ * failure mode is a loud build, not a broken install.
+ */
+const SPECIFIER_RE = /(\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)(["'])([^"']+)\2/g;
+
+/**
+ * Drop the extension from an emitted specifier.
+ *
+ * This repository writes `./cx.ts`, which needs `allowImportingTsExtensions`.
+ * A consumer's tsconfig is not ours to choose — Next.js's default does not set
+ * it — and every shadcn item in the ecosystem is extensionless, so an ejected
+ * file is written the way the project it lands in already writes imports.
+ */
+function bare(base: string): string {
+	return base.replace(/\.tsx?$/, "");
+}
+
+/** Normalise a specifier to a key in the tables above: relative to `sourceDir`. */
+function specifierKey(sourceDir: string, importer: string, spec: string): string {
+	const abs = path.resolve(path.dirname(importer), spec);
+	return path.relative(sourceDir, abs).split(path.sep).join("/");
+}
+
+interface Rewritten {
+	content: string;
+	/** Keys of internal files that must be emitted alongside this one. */
+	companions: string[];
+}
+
+/**
+ * Rewrite one file's relative specifiers, and report the companions it needs.
+ *
+ * `siblings` maps a normalised key of another EJECTABLE's source to the base
+ * name it is published under. Those are pulled in by `registryDependencies`,
+ * not copied, so they are rewritten but not collected.
+ */
+export function rewriteSpecifiers(opts: {
+	sourceDir: string;
+	/** Absolute path of the file being rewritten. */
+	importer: string;
+	content: string;
+	siblings: ReadonlyMap<string, string>;
+}): Rewritten {
+	const { sourceDir, importer, content, siblings } = opts;
+	const companions: string[] = [];
+	const unmapped: string[] = [];
+
+	const out = content.replace(
+		SPECIFIER_RE,
+		(match, lead: string, quote: string, spec: string) => {
+			if (!spec.startsWith(".")) return match;
+			const key = specifierKey(sourceDir, importer, spec);
+
+			const entry = PUBLISHED_ENTRY[key];
+			if (entry !== undefined) return `${lead}${quote}${entry}${quote}`;
+
+			const sibling = siblings.get(key);
+			if (sibling !== undefined) return `${lead}${quote}./${bare(sibling)}${quote}`;
+
+			const companion = COMPANION_FILE[key];
+			if (companion !== undefined) {
+				companions.push(key);
+				return `${lead}${quote}./${bare(companion)}${quote}`;
+			}
+
+			unmapped.push(spec);
+			return match;
+		},
+	);
+
+	if (unmapped.length > 0) {
+		throw new Error(
+			`[uaight] cannot build the ejection registry: unmapped relative import(s) in ` +
+				`${path.relative(PKG_ROOT, importer)}:\n` +
+				unmapped
+					.map((s) => `  ${s}  (key: ${specifierKey(sourceDir, importer, s)})`)
+					.join("\n") +
+				"\n\nAn ejected file may only import external packages, a published uaight entry\n" +
+				"point, or a companion file shipped in the same item. Add the specifier to\n" +
+				"PUBLISHED_ENTRY or COMPANION_FILE in scripts/build-registry.ts — a passthrough\n" +
+				"installs cleanly and then fails to compile in the consumer's project (§11.1).",
+		);
+	}
+
+	return { content: out, companions };
+}
+
+/**
+ * The guard §11.1 actually asks for: nothing in a shipped file may point
+ * outside the directory it is installed into.
+ */
+export function assertNoEscapingSpecifier(file: string, content: string): void {
+	for (const [, , , spec] of content.matchAll(SPECIFIER_RE)) {
+		if (spec === undefined || !spec.startsWith(".")) continue;
+		if (spec.startsWith("./") && !spec.slice(2).includes("/")) continue;
+
+		throw new Error(
+			`[uaight] emitted file ${file} keeps a relative import that escapes its ` +
+				`install directory: ${spec}`,
+		);
+	}
+}
 
 /* ------------------------------------------------------------------ *
  * §11.2 — registry item shape
@@ -209,9 +418,11 @@ export function fileHeader(opts: {
 		"inherits your theme (§10.3); the tokens it names come from",
 		`${TOKENS_PATH}, installed beside it.`,
 		"",
-		"The only uaight surface it depends on is `useUaightChrome()` from",
-		"`uaight/chrome`, which is the frozen one (§11.4). Component props are not",
-		"frozen and may change in a minor.",
+		"The only uaight surface it depends on is `uaight/chrome`, which is the",
+		"frozen one (§11.4) — the facade hook, the prop and wire types, and the few",
+		"pure helpers it names. Anything it needed that has no published home was",
+		"installed beside it as a plain file. Component props are not frozen and",
+		"may change in a minor.",
 	];
 	return `/**\n${body.map((l) => (l ? ` * ${l}` : " *")).join("\n")}\n */\n\n`;
 }
@@ -242,8 +453,23 @@ function namespaced(name: string): string {
 	return `${NAMESPACE}/${name}`;
 }
 
+/**
+ * The namespace a consumer defines for one published minor. §11.1
+ *
+ * This used to be an absolute `https://uaight.dev/r/v0.0/…` URL. An absolute
+ * URL says *where*, and a pinned item only needs to say *which minor* — the
+ * cost of conflating the two was that the pinned items could not be resolved
+ * against a mirror or a local server, which made them untestable until the
+ * domain was deployed. A namespace expresses the pin and leaves the host to
+ * `components.json`, where it belongs. Dots are not used: shadcn registry
+ * names are identifier-ish, so `v0.0` is spelled `v0-0`.
+ */
+function pinnedNamespace(version: string): string {
+	return `${NAMESPACE}-${minorTag(version).replace(".", "-")}`;
+}
+
 function pinned(name: string, version: string): string {
-	return `${REGISTRY_BASE}/${minorTag(version)}/${name}.json`;
+	return `${pinnedNamespace(version)}/${name}`;
 }
 
 /** Strip `content` for the index, which records paths rather than sources. */
@@ -284,15 +510,73 @@ export function buildRegistry(options: BuildRegistryOptions): BuildRegistryResul
 	const tokensContent =
 		fileHeader({ title: "Chrome tokens", name: "chrome-tokens", version }) + tokensSource;
 
+	// Another ejectable's source is pulled in by `registryDependencies`, never
+	// copied — but its specifier still has to name where it lands (§11.3).
+	const siblings = new Map<string, string>(
+		table.map((e) => [`${e.component}.tsx`, `${e.component}.tsx`]),
+	);
+
 	for (const entry of table) {
 		const source = path.join(sourceDir, `${entry.component}.tsx`);
 		if (!existsSync(source)) {
 			missing.push(source);
 			continue;
 		}
-		const content =
-			fileHeader({ title: entry.component, name: entry.name, version }) +
-			readFileSync(source, "utf8");
+
+		/*
+		 * Walk the component and everything it drags in. A companion may import
+		 * another companion, so this is a queue rather than one pass — and each
+		 * file is rewritten with the same table, so `../shared/types.ts` seen from
+		 * `src/ui/cx.ts` and `../../shared/types.ts` seen from a component both
+		 * normalise to the same key.
+		 */
+		const emitted = new Map<string, string>(); // base name → rewritten content
+		const queue: { file: string; base: string; title: string }[] = [
+			{ file: source, base: `${entry.component}.tsx`, title: entry.component },
+		];
+		const seen = new Set<string>();
+		let missingCompanion = false;
+
+		while (queue.length > 0) {
+			const next = queue.shift()!;
+			if (seen.has(next.base)) continue;
+			seen.add(next.base);
+			if (!existsSync(next.file)) {
+				missing.push(next.file);
+				missingCompanion = true;
+				continue;
+			}
+			const rewritten = rewriteSpecifiers({
+				sourceDir,
+				importer: next.file,
+				content: readFileSync(next.file, "utf8"),
+				siblings,
+			});
+			const body =
+				fileHeader({ title: next.title, name: entry.name, version }) + rewritten.content;
+			assertNoEscapingSpecifier(`${entry.name}/${next.base}`, body);
+			emitted.set(next.base, body);
+			for (const key of rewritten.companions) {
+				const base = COMPANION_FILE[key]!;
+				queue.push({
+					file: path.resolve(sourceDir, key),
+					base,
+					title: base.replace(/\.tsx?$/, ""),
+				});
+			}
+		}
+
+		if (missingCompanion) continue;
+		const content = emitted.get(`${entry.component}.tsx`)!;
+		// The component first, then its companions in a stable order.
+		const companionFiles: RegistryFile[] = [...emitted.entries()]
+			.filter(([base]) => base !== `${entry.component}.tsx`)
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([base, body]) => ({
+				path: `${EMIT_DIR}/${base}`,
+				type: "registry:component" as const,
+				content: body,
+			}));
 
 		items.push({
 			$schema: SCHEMA_ITEM,
@@ -307,10 +591,11 @@ export function buildRegistry(options: BuildRegistryOptions): BuildRegistryResul
 			registryDependencies: entry.registryDependencies.map(namespaced),
 			files: [
 				{
-					path: `ui/${entry.name}/${entry.component}.tsx`,
+					path: `${EMIT_DIR}/${entry.component}.tsx`,
 					type: "registry:component",
 					content,
 				},
+				...companionFiles,
 				{
 					path: TOKENS_PATH,
 					type: "registry:file",

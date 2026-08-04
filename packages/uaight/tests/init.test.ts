@@ -190,7 +190,7 @@ describe("migrateFromStorybook", () => {
 		const result = await migrateFromStorybook({ root });
 
 		expect(result.evidence).toHaveLength(0);
-		expect(formatMigration(result)).toContain("No Storybook found");
+		expect(formatMigration(result)).toContain("No Storybook or react-cosmos found");
 		expect(read("vite.config.ts")).toContain("uaight({ storybook: true })");
 	});
 });

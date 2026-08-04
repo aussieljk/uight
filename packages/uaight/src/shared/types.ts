@@ -487,6 +487,20 @@ export interface UaightComponents {
 	ErrorState: React.ComponentType<ErrorStateProps>;
 	InventoryList: React.ComponentType<InventoryListProps>;
 	CommandPalette: React.ComponentType<CommandPaletteProps>;
+	PropTable: React.ComponentType<PropTableProps>;
+}
+
+/**
+ * §15.2's prop documentation, and §11.3 ejectable like the rest of the chrome.
+ *
+ * D18: this is display metadata. A replacement may render `doc` however it
+ * likes, but docgen never becomes a source of controls — those come from the
+ * fixture and the call site (§7.6). A component with no doc is `null` rather
+ * than an empty table, so an ejected implementation can decide whether to
+ * occupy space at all.
+ */
+export interface PropTableProps {
+	doc: ComponentDoc | null;
 }
 
 export interface PreviewShellProps {
@@ -543,6 +557,19 @@ export interface ErrorStateProps {
 	error: RendererError;
 	onRetry?: () => void;
 }
+/**
+ * The same components are reachable two ways: here as props, and from
+ * `useUaightChrome().inventory` on the frozen facade (§11.4). That duplication
+ * is deliberate and it is permanent at the v1.2 freeze — see NOTES.md,
+ * "Two ways to the same data".
+ *
+ * **Which to use.** An ejected copy should prefer the *props*. Props are how
+ * §11.3's ejection works at all: you copy the file, pass it what the explorer
+ * passed it, and it renders — including outside an explorer, where the context
+ * is `null` and `useUaightChrome()` throws. The facade is for a replacement
+ * that wants more than its own props carry (to filter against the current
+ * selection, say), and reaching for it trades away standalone use.
+ */
 export interface InventoryListProps {
 	components: InventoryItem[];
 	onSelect: (item: InventoryItem) => void;
@@ -563,6 +590,13 @@ export interface CommandPaletteItem {
 	callSite?: CallSite;
 }
 
+/**
+ * Duplicated capability, kept on purpose: `useUaightChrome().palette` exposes
+ * the same items, query and open state (§11.4). See NOTES.md, "Two ways to the
+ * same data" — and prefer these props in an ejected copy, for the reason given
+ * on `InventoryListProps`. The facade's items are already ranked by the
+ * explorer; so are these. Neither is the "real" one.
+ */
 export interface CommandPaletteProps {
 	open: boolean;
 	/** Already filtered and ranked against `query`. */

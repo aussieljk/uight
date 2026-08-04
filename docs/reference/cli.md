@@ -9,18 +9,31 @@ supported path for CI. The CLI exists so trying it costs one command.
 
 ## `uaight init`
 
-Wire uaight into this project — one command from a Storybook repository to a working
-`/uaight`. See [From Storybook](/guide/storybook).
+Wire uaight into this project — one command from a Storybook or react-cosmos repository
+to a working `/uaight`. See [From Storybook](/guide/storybook) and
+[From react-cosmos](/guide/cosmos).
 
-| Flag                      | Default  | Notes                                |
-| ------------------------- | -------- | ------------------------------------ |
-| `--root <dir>`            | cwd      | Project root                         |
-| `--dry-run`               | off      | Print every change and write nothing |
-| `--version-range <range>` | `latest` | What is written to `devDependencies` |
+| Flag                      | Default  | Notes                                        |
+| ------------------------- | -------- | -------------------------------------------- |
+| `--root <dir>`            | cwd      | Project root                                 |
+| `--dry-run`               | off      | Print every change and write nothing         |
+| `--no-rename`             | off      | Leave cosmos `__fixtures__/` filenames alone |
+| `--version-range <range>` | `latest` | What is written to `devDependencies`         |
 
-It adds the dependency, edits the Vite config's plugins array, and prints the Storybook
-compatibility report. It installs nothing and runs no package manager — the install
+It adds the dependency and edits the Vite config's plugins array. In a Storybook project
+it prints the CSF compatibility report; in a react-cosmos project it also translates
+`cosmos.config.json`, renames `__fixtures__/` files so the scan can see them, and points
+cosmos hook imports at `uaight`. It installs nothing and runs no package manager — the install
 command is printed, not executed. Re-running is safe.
+
+## `uaight cosmos`
+
+What a react-cosmos move would rename and decline, without moving anything.
+
+| Flag           | Default | Notes                           |
+| -------------- | ------- | ------------------------------- |
+| `--root <dir>` | cwd     | Project root                    |
+| `--json`       | off     | The full report as JSON, for CI |
 
 ## `uaight build`
 

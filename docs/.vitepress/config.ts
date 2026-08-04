@@ -35,6 +35,7 @@ export default defineConfig({
 				items: [
 					{ text: "Getting started", link: "/guide/getting-started" },
 					{ text: "From Storybook", link: "/guide/storybook" },
+					{ text: "From react-cosmos", link: "/guide/cosmos" },
 					{ text: "Fixtures", link: "/guide/fixtures" },
 					{ text: "Controls", link: "/guide/controls" },
 					{ text: "Docs pages", link: "/guide/docs-pages" },
@@ -48,6 +49,7 @@ export default defineConfig({
 					{ text: "CLI", link: "/reference/cli" },
 					{ text: "Plugin options", link: "/reference/config" },
 					{ text: "Ejecting the chrome", link: "/reference/ejecting" },
+					{ text: "The registry", link: "/reference/registry" },
 					{ text: "Spec", link: "/reference/spec" },
 					{ text: "Architecture", link: "/reference/architecture" },
 					{ text: "Roadmap", link: "/reference/roadmap" },

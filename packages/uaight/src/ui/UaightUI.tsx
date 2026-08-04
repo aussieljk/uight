@@ -43,6 +43,7 @@ import { ALL_FIXTURES } from "../shared/types.ts";
 import type {
 	CallSite,
 	CallSiteGroup,
+	ComponentDoc,
 	CommandPaletteItem,
 	EditableWire,
 	FixtureCodec,
@@ -79,6 +80,7 @@ import {
 	VIEWPORT_PRESETS,
 } from "./constants.ts";
 import { FOCUS_RING, MOTION, QUIET_BUTTON, SECTION_LABEL, cx } from "./cx.ts";
+import { findDoc } from "./docs.ts";
 import { CSP_BLOCKED_PREFIX, FrameHost } from "./FrameHost.tsx";
 import { GridView } from "./chrome/GridView.tsx";
 import { HelpDialog } from "./HelpDialog.tsx";
@@ -325,10 +327,13 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		files: FixtureFileIndex[];
 		inventory: InventoryItem[];
 		callSites: CallSiteGroup[];
+		/** §15.2 — prop docs keyed by glob path. Empty unless `docgen` is on. */
+		docs: Record<string, ComponentDoc[]>;
 	}>(() => ({
 		files: config.files,
 		inventory: config.inventory,
 		callSites: config.callSites ?? [],
+		docs: config.docs ?? {},
 	}));
 
 	useEffect(() => {
@@ -341,6 +346,9 @@ export default function UaightUI(props: UaightProps): ReactElement {
 				files: next.files,
 				inventory: Array.isArray(next.inventory) ? next.inventory : [],
 				callSites: Array.isArray(next.callSites) ? next.callSites : [],
+				// An index rebuilt without docgen carries no `docs`; the prop table
+				// then disappears rather than going stale.
+				docs: next.docs && typeof next.docs === "object" ? next.docs : {},
 			});
 		};
 		hot.on("uaight:index", handler);
@@ -1456,6 +1464,19 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	/* ---- layout ---- */
 	const showTree = chrome.tree && mode !== "pinned";
 	const showControls = chrome.controls && overlayState.registered.length > 0;
+
+	/*
+	 * §15.2 — the prop table for the selected detected component.
+	 *
+	 * Only detected components (§12) have a doc: docgen reads component source,
+	 * and a fixture file is not one. D18 keeps this strictly beside the control
+	 * panel and never inside it — the panel's inputs come from the call site
+	 * (§7.6), and nothing below feeds it.
+	 */
+	const propDoc = useMemo(
+		() => findDoc(index.docs, selectedComponent),
+		[index.docs, selectedComponent],
+	);
 	const heightProp = props.height ?? (chrome.tree ? 560 : "auto");
 	const autoHeight = heightProp === "auto";
 	const height =
@@ -1478,6 +1499,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		ErrorState,
 		InventoryList,
 		CommandPalette,
+		PropTable,
 	} = components;
 
 	const panelSlots = useMemo(
@@ -1864,7 +1886,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 							</div>
 						</PreviewShell>
 
-						{showControls ? (
+						{showControls || propDoc ? (
 							<>
 								<PaneResizer
 									pane="right"
@@ -1877,16 +1899,20 @@ export default function UaightUI(props: UaightProps): ReactElement {
 								/>
 								<aside
 									style={{ width: panelWidth }}
-									className="min-w-0 shrink-0 bg-[var(--u-bg-sunken)]"
+									className="min-w-0 shrink-0 overflow-y-auto bg-[var(--u-bg-sunken)]"
 								>
-									<ControlPanel
-										inputs={overlayState.registered}
-										overlay={overlayState.overlays}
-										onSet={setInput}
-										onReset={resetInput}
-										droppedPatches={overlayState.dropped}
-										droppedInputs={overlayState.droppedInputs}
-									/>
+									{showControls ? (
+										<ControlPanel
+											inputs={overlayState.registered}
+											overlay={overlayState.overlays}
+											onSet={setInput}
+											onReset={resetInput}
+											droppedPatches={overlayState.dropped}
+											droppedInputs={overlayState.droppedInputs}
+										/>
+									) : null}
+									{/* Below the controls, never merged into them — D18. */}
+									<PropTable doc={propDoc} />
 								</aside>
 							</>
 						) : null}

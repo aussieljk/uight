@@ -79,12 +79,16 @@
 		"tinyglobby": "0.2.17"
 	},
 	"peerDependencies": {
+		"playwright": "^1.50 || ^2",
 		"react": "^18 || ^19",
 		"react-dom": "^18 || ^19",
 		"vite": "^8.1"
 	},
 	"peerDependenciesMeta": {
 		"vite": {
+			"optional": true
+		},
+		"playwright": {
 			"optional": true
 		}
 	},

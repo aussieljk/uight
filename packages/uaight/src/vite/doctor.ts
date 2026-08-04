@@ -15,6 +15,8 @@
 
 import type { FixtureIndex, IndexProblem } from "../shared/types.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
+import { resolveUaightConfig } from "./config.ts";
+import { loadViteUaightOptions } from "./load-config.ts";
 import { scanFixtures } from "./scan.ts";
 import { fixtureGlobPatterns, indexStats, inventoryGlobPatterns } from "./scan.ts";
 
@@ -23,6 +25,10 @@ export interface DoctorReport {
 	command: "serve" | "build";
 	route: string | false;
 	configFile: string | null;
+	/** The Vite config the inline options came from, when one was loaded. */
+	viteConfigFile: string | null;
+	/** Why the Vite config yielded no options, when it did not. */
+	viteConfigProblem: string | null;
 
 	/** Both of §4.2's representations, because confusing them is the bug. */
 	fixturesDirFsPath: string;
@@ -55,11 +61,37 @@ export interface DoctorReport {
 	aliases: number;
 }
 
-/** Run the scan and describe it. Never throws for a project-level problem. */
+/**
+ * Run the scan and describe it. Never throws for a project-level problem.
+ *
+ * Unless the caller passes an already-scanned index — which is how a running
+ * plugin calls this — the project's Vite config is loaded first and the
+ * options passed inline to `uaight()` are folded into `cfg` before scanning.
+ * Without that step this reports the defaults for every project that
+ * configures the plugin the documented way; see `load-config.ts`.
+ */
 export async function doctorReport(
 	cfg: ResolvedUaightConfig,
 	scanned?: FixtureIndex,
 ): Promise<DoctorReport> {
+	let vite = { viteConfigFile: null as string | null, problem: null as string | null };
+
+	if (!scanned) {
+		const loaded = await loadViteUaightOptions(cfg.root, cfg.command);
+		vite = { viteConfigFile: loaded.viteConfigFile, problem: loaded.problem };
+		if (loaded.options) {
+			// Re-resolve rather than patch: inline options win over
+			// `uaight.config.json` (§4.1), and only `resolveUaightConfig` knows
+			// the precedence, the two path representations and the CSF defaults.
+			cfg = resolveUaightConfig({
+				root: cfg.root,
+				options: loaded.options,
+				command: cfg.command,
+				alias: loaded.alias,
+			});
+		}
+	}
+
 	const index = scanned ?? (await scanFixtures(cfg));
 	const stats = indexStats(index);
 
@@ -73,6 +105,8 @@ export async function doctorReport(
 		command: cfg.command,
 		route: cfg.route,
 		configFile: cfg.configFile ?? null,
+		viteConfigFile: vite.viteConfigFile,
+		viteConfigProblem: vite.problem,
 
 		fixturesDirFsPath: cfg.fixturesDirFsPath,
 		fixturesDirGlobPath: cfg.fixturesDirGlobPath,
@@ -129,17 +163,14 @@ export function formatDoctorReport(report: DoctorReport): string {
 	lines.push(row("command", report.command));
 	lines.push(row("route", report.route === false ? "disabled" : report.route));
 	lines.push(row("config file", report.configFile ?? "none (defaults)"));
-	// The caveat that explains the commonest surprising line in this report.
-	// `uaight.config.json` is discoverable from a shell; options written inline
-	// in `vite.config.ts` are arguments to a function call in a module we do not
-	// execute, so a project that turns Storybook support on there will see
-	// "storybook off" here and no stories in the count.
-	if (!report.configFile) {
-		lines.push(
-			row("", "Options passed inline to uaight() in vite.config.ts are not"),
-			row("", "visible here — only uaight.config.json is. Compare against"),
-			row("", "/@uaight/config.json on a running dev server."),
-		);
+	// The Vite config is loaded and its inline `uaight()` options are folded in
+	// before the scan, so the numbers below are the dev server's numbers. This
+	// row says which file they came from — and, when they came from nowhere,
+	// why, because "no vite config found" is itself an answer.
+	lines.push(row("vite config", report.viteConfigFile ?? "none"));
+	if (report.viteConfigProblem) {
+		lines.push(row("", report.viteConfigProblem));
+		lines.push(row("", "Options below are defaults plus uaight.config.json only."));
 	}
 	lines.push("");
 

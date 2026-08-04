@@ -1,0 +1,9 @@
+{
+	"recorded": "2026-08-04",
+	"values": {
+		"startup100": 19.86,
+		"startup500": 88.98,
+		"incremental": 0.1,
+		"chrome": 59.59
+	}
+}

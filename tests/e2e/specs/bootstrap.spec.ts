@@ -31,7 +31,7 @@ import {
 	test,
 } from "../support/harness.ts";
 
-test.describe("frame bootstrap @core", () => {
+test.describe("frame bootstrap @core @react", () => {
 	test("the frame boots and the handshake completes", async ({ explorer, page }) => {
 		const errors = collectConsoleErrors(page);
 		await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
@@ -53,7 +53,7 @@ test.describe("frame bootstrap @core", () => {
 		expect(errors.filter((e) => !isIgnorableError(e))).toEqual([]);
 	});
 
-	test("exactly one renderer script and one READY per document @core", async ({
+	test("exactly one renderer script and one READY per document @core @react", async ({
 		explorer,
 		page,
 	}) => {
@@ -79,7 +79,10 @@ test.describe("frame bootstrap @core", () => {
 		expect(readies).toHaveLength(1);
 	});
 
-	test("recovers when the frame document is blanked @core", async ({ explorer, page }) => {
+	test("recovers when the frame document is blanked @core @react", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
 		await expect(explorer.frame().locator("[data-e2e='basic']")).toHaveText("ALPHA");
 
@@ -110,7 +113,10 @@ test.describe("frame bootstrap @core", () => {
 		expect(scripts).toBe(1);
 	});
 
-	test("the selection survives a frame reload @core", async ({ explorer, page }) => {
+	test("the selection survives a frame reload @core @react", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/basic", name: "Beta" } });
 		await expect(explorer.frame().locator("[data-e2e='basic']")).toHaveText("BETA");
 
@@ -125,7 +131,7 @@ test.describe("frame bootstrap @core", () => {
 		await expect(explorer.frame().locator("[data-e2e='basic']")).toHaveText("BETA");
 	});
 
-	test("a single-fixture file is selectable @core", async ({ explorer }) => {
+	test("a single-fixture file is selectable @core @react", async ({ explorer }) => {
 		// §3.4's `names: [null]`. The integration log records a period where every
 		// zero-config single-fixture file was invisible in the tree; this is the
 		// browser-level guard against that returning through another door.
@@ -133,7 +139,10 @@ test.describe("frame bootstrap @core", () => {
 		await expect(explorer.frame().locator("[data-e2e='single']")).toHaveText("SINGLE");
 	});
 
-	test("the preview entry runs in the frame realm @core", async ({ explorer, page }) => {
+	test("the preview entry runs in the frame realm @core @react", async ({
+		explorer,
+		page,
+	}) => {
 		// §6.4: the consumer's providers wrap the fixture inside the FRAME, and
 		// must not appear in the host document.
 		await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
@@ -141,7 +150,7 @@ test.describe("frame bootstrap @core", () => {
 		expect(await page.locator("[data-e2e-preview]").count()).toBe(0);
 	});
 
-	test("StrictMode off changes nothing @core", async ({ explorer }) => {
+	test("StrictMode off changes nothing @core @react", async ({ explorer }) => {
 		// If a defence depends on the double-invoke it is not a defence.
 		await explorer.open({
 			strict: false,

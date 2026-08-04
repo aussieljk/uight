@@ -168,9 +168,13 @@ files. Needs hosting, then a scratch project.
   live under `node_modules/.uaight/` now, so a crashed build leaves nothing in the working
   tree — and the build no longer has to reserve two filenames in the user's root. The
   virtual-HTML-input route stays rejected for the reason given.
-- **MCP has no screenshot tool.** It returns URLs an agent with a browser can open. A real
-  `render_fixture → image` needs the Playwright dependency item 1 brings anyway. (`--url`
-  is no longer required: the dev server is discovered by probing `/@uaight/health`.)
+- ~~**MCP has no screenshot tool.**~~ **Done.** `render_fixture` drives a headless
+  Chromium to the fixture's deep link, waits for `#uaight-root` inside the frame document
+  to have children — an attached iframe proves nothing — and returns a PNG image block of
+  the frame (`fullPage` for the whole explorer), with viewport presets and a resolved
+  theme. Playwright is an **optional** peer, imported dynamically the way `react-docgen`
+  is, so no install pays for three browser engines; absent, the tool says so and names the
+  fix. (`--url` is not required: the dev server is discovered via `/@uaight/health`.)
 
 ---
 

@@ -1,8 +1,31 @@
 /**
  * Performance budgets. SPEC.md §20.3, ROADMAP item 2.
  *
- *   bun run bench            # measure, print, fail on any breach
- *   bun run bench --json     # the same numbers as JSON, for a CI annotation
+ *   bun run bench                    # measure, print, fail on any breach
+ *   bun run bench --json             # the same numbers as JSON, for a CI annotation
+ *   bun run bench --update-baseline  # accept the current numbers as the baseline
+ *
+ * **The delta, not the number.** A budget only fires at the cliff edge. The
+ * chrome bundle went 41.2 → 54.3 → 57.8 KB across three passes and every one of
+ * them printed a green tick against the 90 KB limit, because nothing compared a
+ * run to the run before it. `bench-baseline.json` is committed, so a PR's bench
+ * output shows the movement it caused ("+3.5 KB since baseline") next to the
+ * budget it has not yet breached.
+ *
+ * **Does a large jump fail?** Yes, for the bundle: `driftLimit` below is a
+ * second, tighter budget on the *change*, and 8 KB in one pass fails the bench
+ * even at 60 KB against a 90 KB limit. The reasoning is that the three steps
+ * above are exactly the shape of a regression that a plain budget cannot catch
+ * — no single one of them is alarming, and the sum is 40% of the budget spent
+ * without a decision — and a single PR that adds 8 KB of gzipped chrome should
+ * have to say so in its description rather than in six months' archaeology.
+ * Growth is not forbidden; it is made deliberate, by requiring
+ * `--update-baseline` in the same commit.
+ *
+ * The timing rows carry a baseline and print their drift, but do **not** fail
+ * on it: they are wall-clock measurements of whatever machine CI landed on, and
+ * a drift gate over them would fire on a noisy neighbour rather than on a
+ * change to this repository. Their gate stays the absolute budget.
  *
  * §20.3 says "measured in CI, failing on regression beyond a threshold". CI
  * measured nothing, which meant every budget in that table was a target nobody
@@ -35,6 +58,8 @@ const PKG = path.join(ROOT, "packages/uaight");
 const DIST = path.join(PKG, "dist");
 
 const json = process.argv.includes("--json");
+const updateBaseline = process.argv.includes("--update-baseline");
+const BASELINE_FILE = path.join(ROOT, "scripts/bench-baseline.json");
 
 /* ------------------------------------------------------------------ *
  * The budgets — §20.3's table, Node-side rows only
@@ -45,14 +70,55 @@ interface Budget {
 	/** Upper bound. Exceeding it fails the run. */
 	limit: number;
 	unit: "ms" | "KB";
+	/**
+	 * Upper bound on the *increase* since the committed baseline. Exceeding it
+	 * fails the run even when the absolute number is under `limit`. Omitted for
+	 * the timing rows — see the header for why.
+	 */
+	driftLimit?: number;
 }
 
 const BUDGETS: Record<string, Budget> = {
 	startup100: { metric: "Plugin startup, 100 fixture modules", limit: 300, unit: "ms" },
 	startup500: { metric: "Plugin startup, 500 fixture modules", limit: 1200, unit: "ms" },
 	incremental: { metric: "Incremental index on one file change", limit: 30, unit: "ms" },
-	chrome: { metric: "Chrome bundle, gzipped", limit: 90, unit: "KB" },
+	// 8 KB gzipped is roughly a whole new panel. Anything that large is a
+	// decision, and this makes it one.
+	chrome: { metric: "Chrome bundle, gzipped", limit: 90, unit: "KB", driftLimit: 8 },
 };
+
+/* ------------------------------------------------------------------ *
+ * The baseline
+ * ------------------------------------------------------------------ */
+
+interface Baseline {
+	/** ISO date the baseline was taken, for reading a stale one at a glance. */
+	recorded: string;
+	values: Record<string, number>;
+}
+
+function readBaseline(): Baseline | null {
+	if (!fs.existsSync(BASELINE_FILE)) return null;
+	try {
+		return JSON.parse(fs.readFileSync(BASELINE_FILE, "utf8")) as Baseline;
+	} catch {
+		return null;
+	}
+}
+
+function writeBaseline(results: Measurement[]): void {
+	const values: Record<string, number> = {};
+	// Two decimals: a baseline is compared against, never displayed raw, and
+	// rounding it to the display precision would bake a 0.05 KB error into every
+	// future delta.
+	for (const result of results) values[result.key] = Number(result.value.toFixed(2));
+	const baseline: Baseline = {
+		recorded: new Date().toISOString().slice(0, 10),
+		values,
+	};
+	fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(baseline, null, "\t")}\n`);
+	console.log(`\n  baseline updated → ${path.relative(ROOT, BASELINE_FILE)}\n`);
+}
 
 interface Measurement {
 	key: string;
@@ -293,20 +359,50 @@ async function main(): Promise<void> {
 	report(results);
 }
 
+/** `+3.5 KB since baseline`, or the empty string when there is nothing to say. */
+function driftLabel(
+	delta: number | null,
+	unit: Budget["unit"],
+	breached: boolean,
+): string {
+	if (delta === null) return "  (no baseline)";
+	// Below the display precision in either direction: noise, and printing
+	// "+0.0 KB since baseline" on every unrelated PR would train people to skip
+	// the column that matters.
+	if (Math.abs(delta) < 0.05) return "  (unchanged since baseline)";
+	const sign = delta > 0 ? "+" : "−";
+	const text = `  (${sign}${Math.abs(delta).toFixed(1)} ${unit} since baseline)`;
+	if (breached) return `\x1b[31m${text}\x1b[0m`;
+	return delta > 0 ? `\x1b[33m${text}\x1b[0m` : `\x1b[32m${text}\x1b[0m`;
+}
+
 function report(results: Measurement[]): void {
+	const baseline = readBaseline();
 	const rows = results.map((result) => {
 		const budget = BUDGETS[result.key] as Budget;
+		const before = baseline?.values[result.key];
+		const delta = typeof before === "number" ? result.value - before : null;
+		const drifted =
+			budget.driftLimit !== undefined && delta !== null && delta > budget.driftLimit;
 		return {
 			...result,
 			metric: budget.metric,
 			limit: budget.limit,
 			unit: budget.unit,
-			pass: result.value <= budget.limit,
+			baseline: before ?? null,
+			delta,
+			driftLimit: budget.driftLimit ?? null,
+			// Two independent gates, and a row passes only when both do.
+			overBudget: result.value > budget.limit,
+			drifted,
+			pass: result.value <= budget.limit && !drifted,
 		};
 	});
 
 	if (json) {
-		console.log(JSON.stringify({ results: rows }, null, 2));
+		console.log(
+			JSON.stringify({ baseline: baseline?.recorded ?? null, results: rows }, null, 2),
+		);
 	} else {
 		console.log("\nuaight budgets (SPEC §20.3)\n");
 		for (const row of rows) {
@@ -318,9 +414,21 @@ function report(results: Measurement[]): void {
 			const mark = row.pass ? "\x1b[32m✓\x1b[0m" : "\x1b[31m✗\x1b[0m";
 			console.log(
 				`  ${mark} ${row.metric.padEnd(40)} ${String(value).padStart(6)} ${row.unit}` +
-					`  (budget ${row.limit} ${row.unit})`,
+					`  (budget ${row.limit} ${row.unit})` +
+					driftLabel(row.delta, row.unit, row.drifted),
 			);
 			if (row.note) console.log(`      ${row.note}`);
+			if (row.drifted) {
+				console.log(
+					`      \x1b[31mover the ${row.driftLimit} ${row.unit} drift limit for one change.\x1b[0m ` +
+						"Justify the growth, or\n      re-run with --update-baseline in the same commit to accept it.",
+				);
+			}
+		}
+		if (baseline) {
+			console.log(`\n  baseline recorded ${baseline.recorded}`);
+		} else {
+			console.log("\n  no baseline — run with --update-baseline to record one");
 		}
 		console.log(
 			"\n  Not measured here — they need a browser, and belong to the Playwright\n" +
@@ -329,12 +437,30 @@ function report(results: Measurement[]): void {
 		);
 	}
 
+	// The baseline is written from the measured numbers whatever the gates say:
+	// `--update-baseline` is how growth is deliberately accepted, so it must
+	// work on exactly the run that would otherwise fail on drift.
+	if (updateBaseline) {
+		writeBaseline(results);
+		return;
+	}
+
 	const failed = rows.filter((row) => !row.pass);
 	if (failed.length > 0) {
-		console.error(
-			`\x1b[31m✗ ${failed.length} budget${failed.length === 1 ? "" : "s"} breached:\x1b[0m ` +
-				failed.map((row) => row.metric).join("; "),
-		);
+		const over = failed.filter((row) => row.overBudget);
+		const drift = failed.filter((row) => row.drifted && !row.overBudget);
+		if (over.length > 0) {
+			console.error(
+				`\x1b[31m✗ ${over.length} budget${over.length === 1 ? "" : "s"} breached:\x1b[0m ` +
+					over.map((row) => row.metric).join("; "),
+			);
+		}
+		if (drift.length > 0) {
+			console.error(
+				`\x1b[31m✗ ${drift.length} row${drift.length === 1 ? "" : "s"} grew too much in one change ` +
+					`(still under budget):\x1b[0m ${drift.map((row) => row.metric).join("; ")}`,
+			);
+		}
 		process.exitCode = 1;
 	}
 }

@@ -27,7 +27,10 @@
  * regression.
  */
 
-import { patchFile } from "../support/edit.ts";
+import { patchFile, scratchRoot } from "../support/edit.ts";
+
+/** Its own copy of the app: the HMR budget writes to disk (see `hmr.spec.ts`). */
+const ROOT = scratchRoot("perf");
 import { expect, test } from "../support/harness.ts";
 
 function median(values: number[]): number {
@@ -138,7 +141,7 @@ test.describe("budgets @perf", () => {
 		// excluded from it.
 		await explorer.open({ fixture: { path: "fixtures/hmr", name: "Marker" } });
 		const marker = explorer.frame().locator("[data-e2e='hmr-marker']");
-		await expect(marker).toHaveText("HMR_MARKER_V0");
+		await expect(marker).toHaveText("HMR_MARKER_V0", { timeout: 20_000 });
 
 		const samples: number[] = [];
 		let current = "HMR_MARKER_V0";
@@ -177,7 +180,7 @@ test.describe("budgets @perf", () => {
 				await page.waitForTimeout(50);
 
 				const started = Date.now();
-				restores.push(patchFile("src/fixtures/hmr.fixture.tsx", current, next));
+				restores.push(patchFile("src/fixtures/hmr.fixture.tsx", current, next, ROOT));
 				await painted;
 				const elapsed = Date.now() - started;
 				await expect(marker).toHaveText(next, { timeout: 20_000 });

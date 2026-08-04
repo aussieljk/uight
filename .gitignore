@@ -12,6 +12,9 @@ registry
 # here because the linter and formatter read the ROOT ignore file, and bundled
 # output is neither ours to lint nor meaningful to format.
 tests/e2e/fixture-app*/dist-*/
+# Scratch copies of the fixture app, made per run for the specs that write to disk.
+tests/e2e/fixture-app-hmr/
+tests/e2e/fixture-app-perf/
 tests/e2e/results/
 tests/e2e/report/
 

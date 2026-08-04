@@ -34,6 +34,10 @@ if (argv.includes("--help") || argv.includes("-h")) {
 
 Speaks MCP over stdio. The dev server must be running by the time a tool is
 called; it does not have to be running when this starts.
+
+render_fixture returns a PNG of a fixture and needs the optional "playwright"
+package (bun add -d playwright && bunx playwright install chromium). Every other
+tool works without it.
 `);
 	process.exit(0);
 }

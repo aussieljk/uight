@@ -2053,3 +2053,76 @@ The memory trend is a least-squares slope over ten post-warm-up samples plus a
 "has not doubled" backstop. It is Chromium-only, because the heap counters are;
 the other engines are covered by the same leak's other symptom, the exact
 document-and-script counts asserted in `bootstrap.spec.ts`.
+
+### Two ways to the same data — kept, and why (§11.3, §11.4)
+
+`UaightChromeApiV1` carries the palette catalogue and the inventory list, and
+`CommandPaletteProps` / `InventoryListProps` carry the same data as props. At
+the v1.2 freeze that duplication becomes permanent, so it is recorded as a
+decision rather than left to look like an oversight.
+
+**Kept.** Removing the props would break the thing ejection is for. §11.3's
+promise is that you copy the file out, hand it what the explorer handed it, and
+it works — including in a test, a docs page, or any tree with no explorer above
+it, where the context is `null` and `useUaightChrome()` throws by design. A
+props-less chrome component is not ejectable; it is a component that only runs
+inside us.
+
+**Which one an ejected copy should prefer: the props.** They are the narrower
+dependency and the one that keeps the copy standalone. The facade exists for a
+_replacement_ that needs more than its props carry — the whole ranked catalogue
+when the packaged layout only passes one slice, or the current selection to
+filter against. Reaching for it is a real trade, not a stylistic choice: it buys
+reach and it spends portability.
+
+Neither source is the "real" one; both are produced by the same explorer state
+in the same render, and the facade's `items` are ranked exactly as the props'
+are. Documented on both props types and on `palette` in `ui/chrome-context.ts`
+so the answer is wherever the question gets asked. No published type changed.
+
+### Navigation and preferences are two lifetimes (`ui/session.ts`)
+
+Everything the explorer remembered lived in `sessionStorage`, on the argument
+that a tab is the right lifetime for _where you were_. That argument is sound
+and it still holds — for navigation. It was quietly also applied to pane widths
+and the inventory disclosure, which are not a place you were: they are how you
+like the tool set up, and losing them when a tab closes means re-dragging the
+sidebar in every new tab. So the record is split by lifetime:
+
+- `sessionStorage` — `collapsed`, `selection`, `recents`. Per-tab navigation and
+  the MRU that follows from it.
+- `localStorage` — `sidebarWidth`, `panelWidth`, `inventoryOpen`. Preferences.
+
+Same `<route>:<mountId>` namespacing on both halves, under a `uaight:prefs:`
+prefix instead of `uaight:session:`, so the two records can never be confused
+and two mounts stay independent in both stores. Q14 is untouched: overlay values
+are still not persisted anywhere. `writeSession` writes only the half a patch
+touches, so a pane drag no longer rewrites the navigation record. Both halves
+are still best-effort — `localStorage` throws in private mode just as readily,
+and neither read nor write may surface that.
+
+### §15.2 — prop tables, and the D18 line they must not cross
+
+The docgen interface shipped with nothing consuming it. `ui/PropTable.tsx` now
+renders `FixtureIndex.docs` for the selected detected component, joined by
+`(globPath, exportName)` in `ui/docs.ts`.
+
+Three things worth recording:
+
+1. **D18 is structural here, not just a rule.** The table sits _beside_ the
+   control panel in the right pane and shares no code with it. Nothing reads a
+   prop's name, type or default to decide a control should exist. A prop table
+   that grew controls would make docgen's guesses load-bearing, which is exactly
+   what D18 refuses.
+2. **The limitation is rendered, always.** Every `ComponentDoc` carries
+   `inherited-props`, so the caveat is not conditional on anything — a table
+   that silently omits inherited props while looking complete is worse than no
+   table. The enum is translated into a sentence a reader can act on.
+3. **No fallback to "the only doc in the file".** If the export name does not
+   match, nothing renders. A file with two exports would otherwise attach one
+   component's props to another, and a wrong prop table is worse than a missing
+   one.
+
+Internal for now: §11.3 wants an ejectable chrome component's props type in
+`shared/types.ts`, and `PropTableProps` has not been added there. Until it is,
+the file stays outside `ui/chrome/` rather than half-following the pattern.

@@ -17,21 +17,36 @@
  * which is how an HMR suite ends up commented out.
  */
 
-import { addFixture, patchFile, removeFixture, renameFixture } from "../support/edit.ts";
+import {
+	addFixture,
+	patchFile,
+	removeFixture,
+	renameFixture,
+	scratchRoot,
+} from "../support/edit.ts";
 import { expect, test } from "../support/harness.ts";
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("HMR", () => {
+/** Its OWN copy of the app, with its own dev server (`chromium-hmr`). These
+ *  tests delete and rename files; doing that in the shared app made unrelated
+ *  specs fail depending on run order. */
+const ROOT = scratchRoot("hmr");
+
+test.describe("HMR @hmr", () => {
 	test("a fixture edit reaches the frame", async ({ explorer }) => {
 		await explorer.open({ fixture: { path: "fixtures/hmr", name: "Marker" } });
 		const marker = explorer.frame().locator("[data-e2e='hmr-marker']");
-		await expect(marker).toHaveText("HMR_MARKER_V0");
+		// 20s, like every other wait in this file: the first paint after a cold
+		// dev server has to transform the module graph, which is slower than the
+		// suite's (deliberately short) default expect timeout.
+		await expect(marker).toHaveText("HMR_MARKER_V0", { timeout: 20_000 });
 
 		const restore = patchFile(
 			"src/fixtures/hmr.fixture.tsx",
 			"HMR_MARKER_V0",
 			"HMR_MARKER_V1",
+			ROOT,
 		);
 		try {
 			await expect(marker).toHaveText("HMR_MARKER_V1", { timeout: 20_000 });
@@ -61,7 +76,10 @@ test.describe("HMR", () => {
 		// measured.
 		await explorer.open({ fixture: { path: "fixtures/hmr", name: "Marker" } });
 		const marker = explorer.frame().locator("[data-e2e='hmr-marker']");
-		await expect(marker).toHaveText("HMR_MARKER_V0");
+		// 20s, like every other wait in this file: the first paint after a cold
+		// dev server has to transform the module graph, which is slower than the
+		// suite's (deliberately short) default expect timeout.
+		await expect(marker).toHaveText("HMR_MARKER_V0", { timeout: 20_000 });
 
 		await page.evaluate(() => {
 			const frame = document.querySelector<HTMLIFrameElement>("iframe[data-uaight-frame]");
@@ -72,6 +90,7 @@ test.describe("HMR", () => {
 			"src/fixtures/hmr.fixture.tsx",
 			"HMR_MARKER_V0",
 			"HMR_MARKER_V1",
+			ROOT,
 		);
 		try {
 			await expect(marker).toHaveText("HMR_MARKER_V1", { timeout: 20_000 });
@@ -94,6 +113,7 @@ test.describe("HMR", () => {
 		const remove = addFixture(
 			"added",
 			`export default {\n\tAdded: <p data-e2e="added">ADDED</p>,\n};\n`,
+			ROOT,
 		);
 		try {
 			await expect(explorer.treeItem("added")).toHaveCount(1, { timeout: 20_000 });
@@ -101,7 +121,9 @@ test.describe("HMR", () => {
 			// And it is actually selectable, not merely listed.
 			await explorer.select("fixtures/added", "Added");
 			await explorer.waitForFrame();
-			await expect(explorer.frame().locator("[data-e2e='added']")).toHaveText("ADDED");
+			await expect(explorer.frame().locator("[data-e2e='added']")).toHaveText("ADDED", {
+				timeout: 20_000,
+			});
 		} finally {
 			remove();
 		}
@@ -130,6 +152,7 @@ test.describe("HMR", () => {
 		const remove = addFixture(
 			"added2",
 			`export default {\n\tAdded: <p data-e2e="added2">ADDED</p>,\n};\n`,
+			ROOT,
 		);
 		try {
 			await expect(explorer.treeItem("added2")).toHaveCount(1, { timeout: 20_000 });
@@ -149,12 +172,24 @@ test.describe("HMR", () => {
 		const remove = addFixture(
 			"doomed",
 			`export default {\n\tDoomed: <p data-e2e="doomed">DOOMED</p>,\n};\n`,
+			ROOT,
 		);
 		try {
-			await explorer.open({ fixture: { path: "fixtures/doomed", name: "Doomed" } });
-			await expect(explorer.frame().locator("[data-e2e='doomed']")).toHaveText("DOOMED");
+			// The document is loaded first and the new fixture is waited for in the
+			// tree, THEN selected. Deep-linking straight at a file written
+			// microseconds earlier raced the dev server's watcher: the index served
+			// with the document predated the write, and the test was measuring that
+			// race rather than the deletion it is about. The deep-link path itself
+			// is covered by `bootstrap.spec.ts`.
+			await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
+			await expect(explorer.treeItem("doomed")).toHaveCount(1, { timeout: 20_000 });
+			await explorer.select("fixtures/doomed", "Doomed");
+			await explorer.waitForFrame();
+			await expect(explorer.frame().locator("[data-e2e='doomed']")).toHaveText("DOOMED", {
+				timeout: 20_000,
+			});
 
-			const restore = removeFixture("doomed");
+			const restore = removeFixture("doomed", ROOT);
 			try {
 				await expect(explorer.treeItem("doomed")).toHaveCount(0, { timeout: 20_000 });
 				// §5.3: a well-formed id that names nothing keeps its parameter and
@@ -173,13 +208,14 @@ test.describe("HMR", () => {
 		const remove = addFixture(
 			"before-rename",
 			`export default {\n\tOnly: <p data-e2e="renamed">RENAMED</p>,\n};\n`,
+			ROOT,
 		);
 		let restore: (() => void) | null = null;
 		try {
 			await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
 			await expect(explorer.treeItem("before-rename")).toHaveCount(1, { timeout: 20_000 });
 
-			restore = renameFixture("before-rename", "after-rename");
+			restore = renameFixture("before-rename", "after-rename", ROOT);
 			await expect(explorer.treeItem("after-rename")).toHaveCount(1, { timeout: 20_000 });
 
 			// **Was `fixme`.** The OLD name stayed in the tree. Asserted here rather
@@ -199,7 +235,9 @@ test.describe("HMR", () => {
 
 			await explorer.select("fixtures/after-rename", "Only");
 			await explorer.waitForFrame();
-			await expect(explorer.frame().locator("[data-e2e='renamed']")).toHaveText("RENAMED");
+			await expect(explorer.frame().locator("[data-e2e='renamed']")).toHaveText("RENAMED", {
+				timeout: 20_000,
+			});
 		} finally {
 			restore?.();
 			remove();

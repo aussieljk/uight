@@ -61,9 +61,15 @@ export interface UaightChromeApiV1 {
 	/**
 	 * The palette is the one chrome component that needs the *whole* catalogue —
 	 * fixtures, components and call sites ranked together — and it is ejectable,
-	 * so an ejected one must be able to get it from here rather than from props
-	 * the packaged layout happens to pass. `items` is already filtered and ranked
-	 * against `query`, exactly as `CommandPaletteProps` receives it.
+	 * so a *replacement* mounted somewhere the packaged layout does not pass
+	 * props must be able to get it from here. `items` is already filtered and
+	 * ranked against `query`, exactly as `CommandPaletteProps` receives it.
+	 *
+	 * The overlap with `CommandPaletteProps` and `InventoryListProps` is
+	 * deliberate and permanent — NOTES.md, "Two ways to the same data". A copy
+	 * ejected per §11.3 should prefer its props; this facade is the escape hatch
+	 * for a component that needs more than its props carry, and using it costs
+	 * the ability to render outside an explorer.
 	 */
 	palette: {
 		open: boolean;

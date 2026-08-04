@@ -14,11 +14,11 @@
  * out is the file tree a `shadcn add` would leave behind.
  *
  * **What this does not prove**, and no local test can: that the items are
- * reachable at `https://uaight.dev/r/…`, which is what the versioned copies
- * point at and what nobody has ever hosted; and that shadcn's own resolver —
- * its schema validation, its `components.json` path aliasing, its dependency
- * installer — accepts them. Q8 stays open on both counts. This closes the part
- * that is a property of the files.
+ * reachable at `https://uaight.dev/r/…`, which nobody has ever hosted. Nothing
+ * an item emits names that host any more — the pinned copies use a per-minor
+ * NAMESPACE rather than an absolute URL — so this walk, and the real `shadcn`
+ * 4.16.1 run behind ROADMAP Q8, transfer to the deploy the moment it exists.
+ * Until then Q8 stays open on the deploy alone.
  */
 
 import { createServer } from "node:http";
@@ -195,20 +195,23 @@ describe.skipIf(!built)("resolving the registry as a client", () => {
 			const written = install(project, await resolveTree("control-panel"));
 
 			// The component lands under the components directory…
-			expect(written).toContain(
-				path.join("components", "ui/control-panel/ControlPanel.tsx"),
-			);
+			expect(written).toContain(path.join("components", "uaight/ControlPanel.tsx"));
+			// …beside the sibling it imports and the helpers it needs, which is
+			// the whole point of one flat emit directory.
+			expect(written).toContain(path.join("components", "uaight/ControlPanelInputs.tsx"));
+			expect(written).toContain(path.join("components", "uaight/cx.ts"));
 			// …and the token stylesheet lands where its `target` says, which is what
 			// makes the ejected Tailwind compile at all (§10.3).
 			expect(written).toContain(path.join("styles", "uaight-chrome.css"));
 
 			const source = readFileSync(
-				path.join(project, "components", "ui/control-panel/ControlPanel.tsx"),
+				path.join(project, "components", "uaight/ControlPanel.tsx"),
 				"utf8",
 			);
 			// §11.4: repository-level licensing does not travel; the file says so.
 			expect(source).toContain("MIT licence");
-			expect(source).toContain("useUaightChrome()");
+			expect(source).toContain("uaight/chrome");
+			expect(source).toContain('from "./ControlPanelInputs"');
 			expect(source.length).toBeGreaterThan(200);
 
 			const tokens = readFileSync(path.join(project, "styles", "uaight-chrome.css"), "utf8");
@@ -231,15 +234,20 @@ describe.skipIf(!built)("resolving the registry as a client", () => {
 		}
 	});
 
-	it("pins the versioned copies to absolute URLs, which a namespace cannot express", async () => {
+	it("pins the versioned copies to a minor namespace, not to a host", async () => {
+		// This used to assert an absolute `https://uaight.dev/r/v0.0/…` URL. A URL
+		// says *where*; a pin only needs to say *which minor*. Conflating the two
+		// made the pinned items unresolvable against a mirror or a local server —
+		// untestable until the domain was deployed, which is the opposite of
+		// §11.1's "proof, not plausibility".
 		const versioned = JSON.parse(
 			readFileSync(path.join(REGISTRY, "v0.0", "control-panel.json"), "utf8"),
 		) as Item;
 
 		for (const dep of versioned.registryDependencies ?? []) {
-			expect(dep).toMatch(/^https:\/\//);
 			// §11.1: items may only be combined within one minor.
-			expect(dep).toContain("/v0.0/");
+			expect(dep).toMatch(/^@uaight-v0-0\//);
+			expect(dep).not.toMatch(/^https?:/);
 		}
 	});
 });

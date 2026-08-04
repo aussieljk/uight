@@ -81,8 +81,25 @@ export type { ParsedFixtureFile, NameSource } from "./parse.ts";
 export { buildFixtureIndex, validateFixtures } from "./scan.ts";
 export { groupCallSites, parseCallSites } from "./callsites.ts";
 export { formatStorybookReport, storybookReport } from "./storybook-report.ts";
-export { formatMigration, migrateFromStorybook } from "./init.ts";
+export { formatMigration, migrateFromStorybook, migrateProject } from "./init.ts";
 export type { MigrateOptions, MigrationChange, MigrationResult } from "./init.ts";
+export {
+	cosmosReport,
+	detectCosmos,
+	formatCosmosReport,
+	planFixtureRenames,
+	readCosmosConfig,
+	rewriteCosmosImports,
+	translateCosmosConfig,
+} from "./cosmos.ts";
+export type {
+	CosmosFileReport,
+	CosmosReport,
+	CosmosReportOptions,
+	CosmosTranslation,
+	FixtureRename,
+	ImportRewrite,
+} from "./cosmos.ts";
 export type { StorybookReport, StorybookFileReport } from "./storybook-report.ts";
 export { buildStatic } from "./static.ts";
 export type { BuildStaticOptions, BuildStaticResult } from "./static.ts";
@@ -114,6 +131,18 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 
 	return {
 		name: "uaight",
+
+		/**
+		 * Vite's documented plugin-to-plugin channel, used here for one thing:
+		 * `uaight doctor` loads the project's Vite config and needs to know what
+		 * this call was given (see `load-config.ts`). Options written inline in
+		 * `vite.config.ts` are otherwise an expression no shell tool can read,
+		 * which is why the doctor used to report defaults for most projects.
+		 *
+		 * The raw options, not the resolved config: `config()` may not have run
+		 * when this is read, and resolution is the doctor's job anyway.
+		 */
+		api: { options },
 
 		// Config is resolved HERE, where Vite documents configuration changes.
 		// `env.command` is already available, so nothing needs configResolved,
