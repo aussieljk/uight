@@ -15,7 +15,7 @@ Section numbers refer to `SPEC.md`; the findings behind most entries are recorde
 
 ---
 
-## [Unreleased]
+## [0.0.1-canary.2] — 4 August 2026
 
 ### Fixed — the preview frame is a real document, not `about:blank`
 
