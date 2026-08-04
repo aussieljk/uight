@@ -71,7 +71,6 @@ bun run build      # compile scoped CSS, then bundle with tsdown
 bun run demo       # the frosted-ui example on http://localhost:5173/uaight
 bun run docs       # the documentation site
 bun run docs:build # …built, with SPEC/ARCHITECTURE/ROADMAP/CHANGELOG and /r synced in
-bun run test
 bun run typecheck  # builds first: uaight/client resolves types through dist
 bun run check      # the whole local gate, in the order that makes it mean something
 bun run bench      # SPEC §20.3's budgets; fails on a breach

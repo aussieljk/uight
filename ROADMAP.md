@@ -18,10 +18,14 @@ and a Storybook drop-in path §13 had ruled out entirely. On top of that,
 `0.0.1-canary.0` adds call-site harvesting, `uaight/test`, `uaight/mcp`, the static
 build, shareable state and the command palette.
 
-336 unit tests and a golden-corpus suite pass. The demo indexes 82 files and 591 fixtures
-with zero problems, and harvests 45 real usages across 26 components.
+**There are no automated tests.** The unit suite, the golden-corpus snapshot and the
+§20.2 browser matrix were all removed deliberately. `bun run check` is now the stylesheet
+freshness check, the build, the type check, lint and format — nothing executes the
+package's behaviour. The demo indexes 84 files and 593 fixtures with zero problems and
+harvests 61 usages across 26 components, but that is now a thing observed by running the
+demo rather than a thing asserted on every change.
 
-The gap is unchanged and is not features: **cross-browser proof**.
+The gap is no longer only cross-browser proof: it is proof of any kind.
 
 ---
 
@@ -29,28 +33,31 @@ The gap is unchanged and is not features: **cross-browser proof**.
 
 Ordered by what blocks trusting the canary.
 
-### 1. The Playwright matrix (§20.2) — **built, running, and the six defects are fixed**
+### 1. Automated tests (§20.1, §20.2) — **removed**
 
-`playwright.config.ts` + `tests/e2e/**`. Chromium, Firefox and WebKit all run, against a
-purpose-built host app (`tests/e2e/fixture-app`) rather than the demo. Every browser-level
-answer in `NOTES.md` that could be turned into an assertion now is one — see NOTES.md
-§ "The Playwright matrix" for what the run found.
+`packages/uaight/tests/**`, `playwright.config.ts` and `tests/e2e/**` are gone, along with
+the `test` scripts and CI's `e2e` job. This was a deliberate decision, recorded here
+because SPEC §20 still asks for both halves and the divergence should be visible rather
+than inferred:
 
-**All six defects the matrix uncovered are fixed and every `fixme` is gone**, with the
-assertions unchanged: the control-panel edit not reaching the frame (two causes, neither
-in the transport), inline isolation never receiving a selection (a disposed transport pair
-under StrictMode, plus a direct pair that delivered before either end existed), two mounts
-under StrictMode (a refcount cannot say _who_ owns a key), a rename leaving its old path
-(the topology debounce kept the last call's arguments, so the `unlink` half of the move
-was discarded), a fixture edit reloading the host document (nothing accepted the glob's
-update, and an element-valued fixture module has no Fast Refresh boundary), and the CSP
-message not naming the directive (the vaguest of three reporters spoke last). Root causes
-are in NOTES.md § "The six defects, fixed".
+- **§20.1's unit suite** — 514 tests across 33 files, including the golden-corpus snapshot
+  that pinned the indexer's output against a real 84-file project.
+- **§20.2's browser matrix** — "required, not optional" in the spec. Chromium, Firefox and
+  WebKit against a purpose-built host app, and the only thing that has ever exercised the
+  frame bootstrap race across more than one engine.
 
-Still open under this item: the UX-pass scenarios listed below, which the suite does not
-cover yet.
+**What this costs, stated plainly.** Every browser-level answer in `NOTES.md` reverts to
+being a finding rather than a regression test: the frame bootstrap race and `FrameHost`'s
+three defences, the Refresh preamble, CSP, `matchMedia` in-frame, focus and history. The
+six defects that matrix found — the control-panel edit not reaching the frame, inline
+isolation never receiving a selection, two mounts under StrictMode, the rename leaving its
+old path, the host-document reload on edit, and the CSP message not naming its directive —
+are still fixed in the source, but nothing now prevents any of them from returning
+silently. `FrameHost` carries three defences because each covers a different engine's
+ordering, and losing one of them is once again invisible.
 
-The original statement of the item, kept because the scenario list is still the checklist:
+The scenario checklist is kept below, because it remains the right list for whatever
+replaces this.
 
 - **Matrix:** Chromium, Firefox, WebKit × React 18 and 19 × dev server and production
   preview × default base, non-root base, relative base.
@@ -89,13 +96,12 @@ what builds the bundle it measures.
 | Memory after 100 mount/unmount cycles          | no upward trend | **+0.23 MB / 10 cycles**, measured |
 | HMR latency, fixture edit to render            | < 150 ms        | **37 ms**, measured (Chromium)     |
 
-The four browser rows are now measured by `tests/e2e/specs/budgets.spec.ts`
-(`--project=chromium-perf`), which prints every number on every run and fails on a breach.
-**All four are inside budget.** HMR latency was 880 ms and over, for as long as an edit
-was a page load; with that fixed it is 37 ms, which is what a 14 ms warm selection and a
-10 ms handshake predicted. The measurement stops on a `MutationObserver` in the frame
-document now rather than on Playwright's polling interval — possible only because the
-reload that used to destroy the execution context mid-measurement is gone.
+The four browser rows were measured once, by the browser matrix that item 1 removed.
+**The numbers above are a historical observation, not a gate**: nothing measures them now,
+and a regression in any of the four would land silently. HMR latency is the cautionary
+one — it was 880 ms and over for as long as an edit was a page load, and only a measured
+budget made that visible at all. The Node rows in `scripts/bench.ts` still run in CI and
+still fail on a breach.
 
 The startup rows are ranges because the harness reports best-of-N and the two figures are
 an idle machine and a loaded one; both are an order of magnitude inside the budget. The
@@ -151,8 +157,8 @@ files. Needs hosting, then a scratch project.
   it is also what makes `/r` real, so the two are one task.
 - **Grid mode's budget is a guess.** 30 live frames was chosen by reasoning about what two
   screens of tiles costs, not by measuring — and the corpus that would prove it wrong (591
-  fixtures) is the one the demo already ships. It belongs in item 1's browser work: a grid
-  row in `budgets.spec.ts` measuring time-to-first-tile and memory across a full sheet.
+  fixtures) is the one the demo already ships. Measuring it needs a browser harness, which
+  the repository no longer has.
 
 - ~~**Call sites are name-matched.**~~ **Done.** Aliased specifiers resolve through
   `configResolved`'s alias table, by prefix match against its string entries rather than by

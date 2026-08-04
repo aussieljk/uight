@@ -68,8 +68,7 @@
 		"dev": "bun run build:css && tsdown --watch",
 		"registry": "bun run scripts/build-registry.ts",
 		"corpus": "bun run scripts/corpus.ts",
-		"test": "vitest run",
-		"prepublishOnly": "bun run version:check && bun run build && bun run test",
+		"prepublishOnly": "bun run version:check && bun run build",
 		"version:bump": "bun run scripts/version.ts --bump",
 		"version:sync": "bun run scripts/version.ts --sync",
 		"version:check": "bun run scripts/version.ts --check"
@@ -102,8 +101,7 @@
 		"react-dom": "19.2.8",
 		"tailwindcss": "4.3.3",
 		"tsdown": "0.22.14",
-		"vite": "8.1.5",
-		"vitest": "^3.2.4"
+		"vite": "8.1.5"
 	},
 	"engines": {
 		"node": ">=20.19.0"

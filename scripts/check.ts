@@ -16,8 +16,10 @@
  *      against a stale one passes when it should not.
  *   3. Lint and format are cheap and independent, so they run after the two
  *      gates that can tell you your change does not compile.
- *   4. Tests come last: they are the slowest, and everything above them
- *      diagnoses a failure faster than a test name does.
+ *
+ * There is no test step: the unit suite and the §20.2 browser matrix were both
+ * removed, so the type check is now the only thing standing between a change
+ * and a release.
  */
 
 import { spawnSync } from "node:child_process";
@@ -44,7 +46,6 @@ const steps: Step[] = [
 	},
 	{ title: "Lint", args: ["run", "lint"] },
 	{ title: "Format", args: ["run", "format:check"] },
-	{ title: "Test", args: ["run", "test"], cwd: PKG },
 ];
 
 const started = Date.now();

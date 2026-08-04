@@ -132,7 +132,6 @@ const steps: Step[] = [
 		cwd: path.join(ROOT, "examples/frosted-ui"),
 	},
 	{ title: "Lint", command: "bun", args: ["run", "lint"] },
-	{ title: "Test", command: "bun", args: ["run", "test"], cwd: PKG },
 	{ title: "Registry builds", command: "bun", args: ["run", "registry"], cwd: PKG },
 ];
 

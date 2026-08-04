@@ -1815,7 +1815,15 @@ production build has none either, because the inventory pass is development-only
 
 ---
 
-## The Playwright matrix (§20.2, §20.3)
+## The Playwright matrix (§20.2, §20.3) — REMOVED
+
+> **This suite no longer exists.** `playwright.config.ts` and `tests/e2e/**` were
+> deleted, along with §20.1's unit suite. The section is kept because what the
+> matrix _found_ is still true of the source — the six defects below are fixed,
+> and the reasoning about engine ordering still explains why `FrameHost` carries
+> three defences. What is gone is the part that would notice any of it breaking
+> again. Read everything below as a record of an investigation, not as a
+> description of something that runs.
 
 `playwright.config.ts` at the repository root, everything else under `tests/e2e/`.
 Chromium 145, Firefox 153 and WebKit 26.5 all installed and all actually run;
