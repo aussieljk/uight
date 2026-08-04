@@ -21,12 +21,17 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
+import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASS } from "../ui/constants.ts";
 import { STATIC_ENV } from "./config.ts";
 
 export { STATIC_ENV };
 
 const HTML_NAME = "uaight-explorer.html";
 const ENTRY_NAME = "uaight-explorer.entry.js";
+/** The frame's document, emitted beside the explorer's. See `PREVIEW_NAME`'s use. */
+const PREVIEW_NAME = "uaight-preview.html";
+/** Where it ends up in the output, and therefore what the frame's `src` is. */
+const PREVIEW_OUTPUT = "preview.html";
 
 /**
  * Where the scaffold lives. `node_modules/.uaight/` rather than the project
@@ -90,11 +95,40 @@ function documentHtml(title: string): string {
 }
 
 /**
+ * The frame's document, so the published explorer's frame has a real URL for
+ * the same reasons the dev server's does — see `DEV_PREVIEW_URL`. A fixture
+ * that mocks its network works in `bun dev` and in the deployed site, or the
+ * asymmetry costs someone an afternoon.
+ *
+ * It carries no script: `adoptCustomDocument` injects the stylesheet and the
+ * renderer into whatever document it finds at this URL.
+ */
+function previewHtml(): string {
+	return `<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="robots" content="noindex" />
+		<title>uaight preview</title>
+		<style>
+			html, body { margin: 0; padding: 0; min-height: 100% }
+			#${FRAME_ROOT_ID} { min-height: 100vh }
+		</style>
+	</head>
+	<body>
+		<div id="${FRAME_ROOT_ID}"></div>
+		<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASS}"></div>
+	</body>
+</html>
+`;
+}
+
+/**
  * `createElement` rather than JSX, for the same reason the dev entry uses it:
  * this file is generated, and nothing guarantees it passes through a JSX
  * transform before it is bundled.
  */
-const entryJs = `import { createElement } from "react";
+const entryJs = (previewUrl: string) => `import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { Uaight } from "uaight";
 
@@ -102,7 +136,11 @@ const container = document.getElementById("uaight-app");
 if (!container) throw new Error('[uaight] the static document is missing <div id="uaight-app">');
 
 createRoot(container).render(
-	createElement(Uaight, { router: "history", height: "100%" }),
+	createElement(Uaight, {
+		router: "history",
+		height: "100%",
+		previewDocumentUrl: ${JSON.stringify(previewUrl)},
+	}),
 );
 `;
 
@@ -125,6 +163,11 @@ export async function buildStatic(
 	const scaffoldDir = path.join(root, SCAFFOLD_DIR);
 	const htmlPath = path.join(scaffoldDir, HTML_NAME);
 	const entryPath = path.join(scaffoldDir, ENTRY_NAME);
+	const previewPath = path.join(scaffoldDir, PREVIEW_NAME);
+	// Absolute, so the frame resolves it from the site root rather than from
+	// whatever path the explorer's history router happens to be showing.
+	const base = options.base ?? "/";
+	const previewUrl = `${base.endsWith("/") ? base : `${base}/`}${PREVIEW_OUTPUT}`;
 
 	const previous = process.env[STATIC_ENV];
 	process.env[STATIC_ENV] = "1";
@@ -132,19 +175,24 @@ export async function buildStatic(
 	try {
 		await fsp.mkdir(scaffoldDir, { recursive: true });
 		await fsp.writeFile(htmlPath, documentHtml(title));
-		await fsp.writeFile(entryPath, entryJs);
+		await fsp.writeFile(entryPath, entryJs(previewUrl));
+		await fsp.writeFile(previewPath, previewHtml());
 
 		const { build } = await import("vite");
 		const result = await build({
 			root,
-			base: options.base ?? "/",
+			base,
 			...(options.configFile !== undefined ? { configFile: options.configFile } : {}),
 			...(options.mode ? { mode: options.mode } : {}),
 			...(options.quiet ? { logLevel: "warn" as const } : {}),
 			build: {
 				outDir,
 				emptyOutDir: true,
-				rollupOptions: { input: htmlPath },
+				// A record, not an array. A plugin in the user's own config may
+				// append its entry to `input`, and appending to an array of
+				// strings is how `{ index: "virtual:…" }` ends up as `input.2`
+				// and the build dies on a type error naming neither plugin.
+				rollupOptions: { input: { uaightExplorer: htmlPath, uaightPreview: previewPath } },
 			},
 		});
 
@@ -161,6 +209,10 @@ export async function buildStatic(
 		const emitted = path.join(outDir, SCAFFOLD_DIR, HTML_NAME);
 		if (fs.existsSync(emitted)) {
 			await fsp.rename(emitted, path.join(outDir, "index.html"));
+		}
+		const emittedPreview = path.join(outDir, SCAFFOLD_DIR, PREVIEW_NAME);
+		if (fs.existsSync(emittedPreview)) {
+			await fsp.rename(emittedPreview, path.join(outDir, PREVIEW_OUTPUT));
 		}
 		await fsp.rm(path.join(outDir, "node_modules"), { recursive: true, force: true });
 

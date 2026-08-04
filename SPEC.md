@@ -624,11 +624,33 @@ The dev route handler returns a minimal document that mounts `<Uaight />`, passe
 
 ### 6.2 Frame bootstrap
 
-1. Create the iframe with **no `src`**; `about:blank` inherits the parent origin.
-2. Wait for the document to be usable — the initial-load race is the fiddly part (Q1).
-3. Write a minimal document: inherited `<base href>`, `<div id="uaight-root">`, our scoped stylesheet, and in development `<script type="module" src="/@vite/client">`.
+The frame's document is served from a **real URL**, not written into `about:blank`.
+
+A document with no creation URL is not merely unusual, it is second-class:
+`navigator.serviceWorker.getRegistrations()` throws `InvalidStateError` in one
+outright, which takes MSW — and with it every fixture that mocks its network —
+down with it, leaving a blank frame whose only evidence is a console line.
+Cookies, storage partitioning and `location` are all likewise not what the
+fixture would see in the app. The written document also can never pass through
+`transformIndexHtml`, which is why §6.3 has to import the React preamble by hand.
+
+Both the dev server and `uaight build` therefore emit a preview document of their
+own — in memory at `/@uaight/preview` in `serve`, and as `preview.html` beside
+`index.html` in the static build. Neither writes to your repository (§6.1); the
+static build's scaffold lives under `node_modules/.uaight/` like the explorer's.
+
+1. Point the iframe's `src` at the preview document's URL.
+2. On load, adopt it: it already contains `<div id="uaight-root">`.
+3. Stamp the theme, and inject our scoped stylesheet (§10.3).
 4. Inject `<script type="module" src={rendererEntryUrl}>`.
 5. Handshake (§8.2), then render.
+
+`previewDocumentUrl` (§6.6) overrides which URL that is. Writing into
+`about:blank` remains the fallback for a mount that has no URL to offer — an
+embedded `<Uaight />` in an app that ships no preview document — and carries the
+initial-load race (Q1) that a served document does not have: create with no
+`src`, wait for `contentDocument`, write, and keep a `load` listener for the
+about:blank load already in flight.
 
 ### 6.3 The renderer entry
 
@@ -692,6 +714,11 @@ Contract: contains `id="uaight-root"`; does not boot the renderer itself; same-o
 
 - **`previewHtmlPath`** (plugin option) — a build-time file path.
 - **`previewDocumentUrl`** (component prop) — a runtime URL.
+
+Neither is required to get a _served_ document: the dev route and the static
+build each supply one by default (§6.2). These name a document of **your own**,
+for when the default's two divs and a reset are not enough — a `<meta>` the
+fixtures read, a font link, a CSP nonce of your issuing.
 
 ### 6.7 CSP
 

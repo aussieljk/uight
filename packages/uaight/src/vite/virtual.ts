@@ -48,6 +48,26 @@ export const RENDERER_URL_PLACEHOLDER = "__UAIGHT_RENDERER_URL__";
 export const DEV_RENDERER_URL = "/@uaight/renderer";
 export const DEV_ENTRY_URL = "/@uaight/dev-entry";
 
+/**
+ * The frame's document in `serve` mode (§6.6).
+ *
+ * The frame used to be `about:blank` written into from the host. That document
+ * has no creation URL, and a surprising amount of the platform refuses to work
+ * in one: `navigator.serviceWorker.getRegistrations()` throws `InvalidStateError`
+ * outright, which takes MSW — and therefore every fixture that mocks its
+ * network — down with it, with the only evidence a console line. Cookies,
+ * storage partitioning and `location` are all likewise not what the fixture
+ * would see in the app.
+ *
+ * Serving the same document from a real URL costs one request and fixes all of
+ * it. Nothing is written to the repository: this is generated in memory by the
+ * dev middleware exactly like the explorer document above it (§6.1), and it
+ * goes through `transformIndexHtml`, so the React plugin's Fast Refresh
+ * preamble reaches the frame realm — which the written document could never
+ * arrange for itself.
+ */
+export const DEV_PREVIEW_URL = "/@uaight/preview";
+
 /** `<` is escaped so a generated module can also be inlined into HTML. */
 function json(value: unknown): string {
 	return JSON.stringify(value ?? null)
@@ -295,6 +315,8 @@ export function generateInventory(
  * Fast Refresh preamble is already installed here — unlike the frame (§6.3).
  */
 export function generateDevEntry(): string {
+	// `previewDocumentUrl` is what keeps the frame off `about:blank` — see the
+	// constant's own note for what that document cannot do.
 	return `import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { Uaight } from "uaight";
@@ -305,7 +327,11 @@ if (!container) {
 }
 
 createRoot(container).render(
-	createElement(Uaight, { router: "history", height: "100%" }),
+	createElement(Uaight, {
+		router: "history",
+		height: "100%",
+		previewDocumentUrl: ${json(DEV_PREVIEW_URL)},
+	}),
 );
 `;
 }

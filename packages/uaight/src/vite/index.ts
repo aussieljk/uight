@@ -35,9 +35,11 @@ import {
 } from "./config.ts";
 import {
 	DEV_ENTRY_URL,
+	DEV_PREVIEW_URL,
 	DEV_RENDERER_URL,
 	devEntryHandler,
 	devRouteHandler,
+	previewDocumentHandler,
 	rendererHandler,
 } from "./dev-route.ts";
 import { emitManifest, replaceRendererUrl } from "./manifest.ts";
@@ -109,7 +111,7 @@ export { doctorReport, formatDoctorReport } from "./doctor.ts";
 export type { DoctorReport } from "./doctor.ts";
 export { checkMdxSupport } from "./mdx.ts";
 export type { MdxAdvice } from "./mdx.ts";
-export { DEV_RENDERER_URL, DEV_ENTRY_URL };
+export { DEV_RENDERER_URL, DEV_ENTRY_URL, DEV_PREVIEW_URL };
 
 const V = VIRTUAL_IDS;
 const ALL_VIRTUAL_IDS: string[] = Object.values(V);
@@ -230,6 +232,9 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 			}
 			s.middlewares.use(DEV_RENDERER_URL, rendererHandler(s));
 			s.middlewares.use(DEV_ENTRY_URL, devEntryHandler(s));
+			// Before the `/@uaight` catch-all below, which would otherwise
+			// answer this path with the read-only JSON API's 404.
+			s.middlewares.use(DEV_PREVIEW_URL, previewDocumentHandler(s));
 			s.middlewares.use(
 				"/@uaight",
 				readOnlyApi(

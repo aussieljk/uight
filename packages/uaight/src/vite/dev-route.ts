@@ -11,10 +11,16 @@
  */
 
 import type { Connect, ViteDevServer } from "vite";
+import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASS } from "../ui/constants.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
-import { DEV_ENTRY_URL, DEV_RENDERER_URL, VIRTUAL_IDS } from "./virtual.ts";
+import {
+	DEV_ENTRY_URL,
+	DEV_PREVIEW_URL,
+	DEV_RENDERER_URL,
+	VIRTUAL_IDS,
+} from "./virtual.ts";
 
-export { DEV_ENTRY_URL, DEV_RENDERER_URL };
+export { DEV_ENTRY_URL, DEV_PREVIEW_URL, DEV_RENDERER_URL };
 
 const JS_CONTENT_TYPE = "application/javascript; charset=utf-8";
 const HTML_CONTENT_TYPE = "text/html; charset=utf-8";
@@ -69,6 +75,64 @@ export function generateDevHtml(): string {
 	<body>
 		<div id="uaight-app"></div>
 		<script type="module" src="${escapeHtml(DEV_ENTRY_URL)}"></script>
+	</body>
+</html>
+`;
+}
+
+/* ------------------------------------------------------------------ *
+ * `GET /@uaight/preview` — the frame's document (§6.6)
+ * ------------------------------------------------------------------ */
+
+/**
+ * The same document `FrameHost` used to write into `about:blank`, served from
+ * a URL instead — see `DEV_PREVIEW_URL` for why that difference matters.
+ *
+ * Generated in memory and never written to the repository (§1.4), and passed
+ * through `transformIndexHtml` so the React plugin's preamble and any nonce
+ * handling apply *inside the frame realm* rather than only around it.
+ */
+export function previewDocumentHandler(
+	server: ViteDevServer,
+): Connect.NextHandleFunction {
+	return (req, res, next) => {
+		if (!isReadRequest(req.method)) return next();
+		const pathname = (req.url ?? "/").split("?")[0] ?? "/";
+		if (pathname !== "/" && pathname !== "") return next();
+
+		void server
+			.transformIndexHtml(DEV_PREVIEW_URL, generatePreviewHtml(server.config.base))
+			.then((html) => {
+				res.statusCode = 200;
+				res.setHeader("Content-Type", HTML_CONTENT_TYPE);
+				res.setHeader("Cache-Control", "no-cache");
+				send(res, req.method, html);
+			})
+			.catch((err: unknown) => next(err));
+	};
+}
+
+/**
+ * Deliberately the same shape as `FrameHost`'s `buildDocument`: the two mount
+ * points, the reset, and nothing else. `adoptCustomDocument` finds
+ * `#uaight-root`, then injects the stylesheet and the renderer itself, so this
+ * document carries no uaight script of its own.
+ */
+export function generatePreviewHtml(base: string): string {
+	return `<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<base href="${escapeHtml(base)}" />
+		<title>uaight preview</title>
+		<style>
+			html, body { margin: 0; padding: 0; min-height: 100% }
+			#${FRAME_ROOT_ID} { min-height: 100vh }
+		</style>
+	</head>
+	<body>
+		<div id="${FRAME_ROOT_ID}"></div>
+		<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASS}"></div>
 	</body>
 </html>
 `;

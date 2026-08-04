@@ -15,6 +15,43 @@ Section numbers refer to `SPEC.md`; the findings behind most entries are recorde
 
 ---
 
+## [Unreleased]
+
+### Fixed — the preview frame is a real document, not `about:blank`
+
+`FrameHost` created the iframe with no `src` and wrote into the `about:blank`
+document it inherited. That document has no creation URL, and the platform treats
+one as second-class: `navigator.serviceWorker.getRegistrations()` throws
+`InvalidStateError` in it outright. MSW calls that inside `start()`, so
+**every fixture that mocks its network rendered nothing** — the worker promise
+rejected, the wrapper never flipped to ready, and the only evidence was a console
+line naming neither MSW nor the frame. Cookies, storage partitioning and
+`location` were all likewise not what the fixture would see in the app.
+
+The dev server now serves the same document at `/@uaight/preview`, generated in
+memory by the middleware exactly like the explorer document above it (§6.1), and
+`uaight build` emits it as `preview.html` beside `index.html`. Both pass it to
+`<Uaight previewDocumentUrl>`, which already existed for §6.6's custom documents
+— the adopt path was written and reachable only by hand.
+
+Two things come free. The served document goes through `transformIndexHtml`, so
+the React plugin's Fast Refresh preamble reaches the frame realm rather than
+being imported by hand in §6.3. And a fixture now behaves the same in `bun dev`
+and in a deployed static explorer, which it did not before.
+
+Writing into `about:blank` stays as the fallback for a mount with no URL to
+offer, so an embedded `<Uaight />` is unaffected.
+
+### Fixed — `uaight build` passed `input` as an array
+
+A plugin in the user's own config that appends its entry to
+`build.rollupOptions.input` turned the array into a mixed array of strings and
+objects, and the build died on `Invalid type: Expected string but received
+Object` for `input.2` — naming neither plugin. It is a record now, which is what
+`previewHtmlInput` already used for the same reason.
+
+---
+
 ## [0.0.1-canary.1] — 4 August 2026
 
 ### Removed — every automated test
