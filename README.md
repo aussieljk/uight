@@ -62,14 +62,32 @@ uaight mcp            # MCP server over stdio, for a coding agent
 bun install
 bun run build      # compile scoped CSS, then bundle with tsdown
 bun run demo       # the frosted-ui example on http://localhost:5173/uaight
+bun run test
 bun run typecheck  # run AFTER build: uaight/client resolves types through dist
-bun run --cwd packages/uaight test
 bun run --cwd packages/uaight corpus -- --write   # refresh the golden corpus snapshot
 ```
 
-Releases are `0.0.1-canary.N`. `bun run --cwd packages/uaight version:bump` moves the
-counter and keeps `package.json` and `UAIGHT_VERSION` in lockstep — the runtime compares
-them at §16.2, so drift reaches users as a version-skew error.
+## Releasing
+
+```bash
+bun run verify              # every gate, ending in a publish dry run. What CI runs
+bun run release             # verify, then publish
+bun run release --bump      # move the canary counter first
+bun run release --tag next  # publish under a different dist-tag
+```
+
+Releases are `0.0.1-canary.N`. `verify` and `release` run the same gates in the same
+order, so CI and the release path cannot check different things. Three ordering rules are
+enforced there rather than remembered:
+
+- the build precedes the type check, because `uaight/client` resolves `RuntimeConfig`
+  through the package's own `dist` — checking against a stale one passes when it should not;
+- the stylesheet check precedes the build, or it compares the build against itself;
+- npm refuses to publish a prerelease without an explicit `--tag`, so the script always
+  passes one (`latest` by default, so `npm i uaight` resolves).
+
+`package.json` and `UAIGHT_VERSION` are held in lockstep by `version:bump` and asserted by
+a test — the runtime compares them at §16.2, so drift reaches users as a version-skew error.
 
 ## Fixtures
 

@@ -115,8 +115,19 @@ function main(): void {
 	const scoped = scopeCss(raw);
 
 	if (check) {
-		const current = existsSync(DIST_CSS) ? readFileSync(DIST_CSS, "utf8") : "";
-		if (current !== scoped) {
+		// `src/styles/generated.ts` is the one that can actually go stale in a way
+		// anybody would notice: it is COMMITTED, it carries the compiled sheet, and
+		// `tsdown` on its own will happily bundle an old copy. `dist/styles.css` is
+		// gitignored, so comparing only against it made this check vacuous — after
+		// a build it is trivially equal, and before one it does not exist.
+		const expected = generatedModule(scoped);
+		const actual = existsSync(GENERATED_TS) ? readFileSync(GENERATED_TS, "utf8") : "";
+		if (actual !== expected) {
+			throw new Error(
+				"[uaight] src/styles/generated.ts is stale — run `bun run build:css`",
+			);
+		}
+		if (existsSync(DIST_CSS) && readFileSync(DIST_CSS, "utf8") !== scoped) {
 			throw new Error("[uaight] dist/styles.css is stale — run `bun run build:css`");
 		}
 		process.stdout.write("[uaight] styles up to date\n");

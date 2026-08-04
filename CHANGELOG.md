@@ -191,6 +191,27 @@ its own — and the sweep that caught one of them lived in a scratchpad and was 
   rather than the source tree.
 - The package had **no README and no LICENSE of its own**, so the npm page would have
   been blank and the licence would not have travelled with the tarball.
+- **`bin` paths carried a `./` prefix**, which made `npm publish` report
+  `"bin[uaight]" script name … was invalid and removed` on every run. The message is
+  npm's, and it is misleading — that branch normalizes the value rather than dropping it,
+  and the packed manifest was always intact — but a warning saying "removed" on every
+  publish is a warning nobody will read the second time.
+- **`build:css --check` was a vacuous gate.** It compared against `dist/styles.css`,
+  which is gitignored: after a build it is trivially equal, and before one it does not
+  exist. It now compares the **committed** `src/styles/generated.ts`, which is the file
+  that can actually go stale — `tsdown` on its own will happily bundle an old copy. The
+  new check was verified to fail on a deliberately stale file.
+
+### Added — `bun run verify` and `bun run release`
+
+- One script at the repository root runs every gate in the order that makes them
+  meaningful, then publishes. CI calls the same script, so the two cannot drift into
+  checking different things.
+- It ends in `npm publish --dry-run`, which needs no auth and catches packaging defects
+  that no amount of source-level checking can see — both of the packaging bugs above were
+  found that way.
+- npm refuses to publish a prerelease without an explicit `--tag`, so the script always
+  passes one, defaulting to `latest` so `npm i uaight` resolves.
 
 ---
 

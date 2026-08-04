@@ -22,8 +22,8 @@
 	"type": "module",
 	"files": ["dist", "registry", "bin"],
 	"bin": {
-		"uaight": "./bin/uaight.mjs",
-		"uaight-mcp": "./bin/uaight-mcp.mjs"
+		"uaight": "bin/uaight.mjs",
+		"uaight-mcp": "bin/uaight-mcp.mjs"
 	},
 	"exports": {
 		".": {
