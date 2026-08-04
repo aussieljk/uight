@@ -1,0 +1,427 @@
+/**
+ * Plugin configuration resolution. SPEC.md §4.1, §4.2, §4.5.
+ *
+ * Everything has a default (D4). `uaight.config.json` is optional and most
+ * projects never create one.
+ *
+ * Two rules this module exists to enforce:
+ *
+ *   1. Options resolve in the `config()` hook, never by mutating
+ *      `ResolvedConfig` (§4.5). Nothing here touches Vite state.
+ *   2. §4.2's two path representations are separate fields and are never
+ *      interchanged: `fixturesDirFsPath` is for the filesystem scan,
+ *      `fixturesDirGlobPath` is for emitted `import.meta.glob` patterns.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import type { StorybookSupport, UaightPluginOptions } from "../shared/types.ts";
+
+/* ------------------------------------------------------------------ *
+ * Defaults — §4.1
+ * ------------------------------------------------------------------ */
+
+export const DEFAULT_ROUTE = "/uaight";
+export const DEFAULT_FIXTURES_DIR = "src";
+export const DEFAULT_FIXTURE_FILE_SUFFIX = "fixture";
+export const DEFAULT_DECORATOR_FILE_SUFFIX = "cosmos.decorator|uaight.decorator";
+export const DEFAULT_STORYBOOK_FILE_SUFFIX = "stories";
+export const DEFAULT_CONFIG_FILE = "uaight.config.json";
+
+/** Module extensions a fixture file may use. §4.4 */
+export const FIXTURE_EXTENSIONS = ["js", "jsx", "ts", "tsx", "mdx"] as const;
+/** Decorators and CSF modules are code, never MDX. */
+export const CODE_EXTENSIONS = ["js", "jsx", "ts", "tsx"] as const;
+
+const DEFAULT_EXCLUDE = ["**/node_modules/**"];
+
+const DEFAULT_INVENTORY_INCLUDE = ["**/*.{jsx,tsx}"];
+const DEFAULT_INVENTORY_EXCLUDE = [
+	"**/node_modules/**",
+	"**/*.d.ts",
+	"**/*.test.*",
+	"**/*.spec.*",
+	"**/*.bench.*",
+	"**/__tests__/**",
+	"**/__mocks__/**",
+];
+
+/** The declared CSF subset. §13 */
+const STORYBOOK_SUPPORT_DEFAULTS: Required<
+	NonNullable<StorybookSupport["support"]>
+> = {
+	metaArgs: true,
+	storyArgs: true,
+	argTypes: true,
+	render: true,
+	metaDecorators: true,
+	storyDecorators: true,
+	globalDecorators: false,
+	parameters: "viewport-only",
+	globals: false,
+	loaders: false,
+	play: false,
+};
+
+/* ------------------------------------------------------------------ *
+ * The resolved shape
+ * ------------------------------------------------------------------ */
+
+export interface ResolvedUaightConfig {
+	root: string;
+	command: "serve" | "build";
+	route: string | false;
+
+	/** Absolute filesystem path — for the scan. §4.2 */
+	fixturesDirFsPath: string;
+	/** Vite-root-relative, leading slash — for emitted globs. §4.2 */
+	fixturesDirGlobPath: string;
+
+	fixtureFileSuffix: string;
+	decoratorFileSuffixes: string[];
+
+	/** Globs relative to the fixtures dir. Empty `include` means "everything". */
+	include: string[];
+	exclude: string[];
+	caseSensitive: boolean;
+
+	inventory: false | { include: string[]; exclude: string[] };
+
+	/** Root-relative import specifier (`/src/uaight.preview.tsx`). §4.2 */
+	previewEntry?: string;
+	/** Absolute filesystem path — it becomes a Rollup HTML input. §6.6 */
+	previewHtmlPath?: string;
+	/** Root-relative import specifier. §7.7 */
+	codecs?: string;
+
+	index: "static" | "warm" | "lazy";
+	production: "exclude" | "include" | "error";
+
+	storybook:
+		| false
+		| (Required<NonNullable<StorybookSupport["support"]>> & {
+				fileSuffix: string;
+		  });
+
+	docgen: boolean;
+
+	/** Absolute path to `uaight.config.json`, when one is in play. */
+	configFile?: string;
+}
+
+/* ------------------------------------------------------------------ *
+ * `defineUaightConfig` — §19.4
+ * ------------------------------------------------------------------ */
+
+/**
+ * Identity helper that types a `uaight.config.ts`:
+ *
+ * ```ts
+ * import { defineUaightConfig } from "uaight/vite";
+ * export default defineUaightConfig({ fixturesDir: "app" });
+ * ```
+ *
+ * A `.ts` config cannot be read synchronously by the plugin, so import it into
+ * your Vite config and pass it to `uaight()`. The file the plugin discovers on
+ * its own is `uaight.config.json` (§4.1).
+ */
+export function defineUaightConfig(
+	config: UaightPluginOptions,
+): UaightPluginOptions {
+	return config;
+}
+
+/* ------------------------------------------------------------------ *
+ * Resolution
+ * ------------------------------------------------------------------ */
+
+export interface ResolveUaightConfigOptions {
+	root: string;
+	options: UaightPluginOptions;
+	command: "serve" | "build";
+	/**
+	 * Internal. Pre-read `uaight.config.json` source, used by the watcher path
+	 * so a reload never re-reads a file mid-save (§4.5).
+	 */
+	configSource?: string;
+	/** Internal. Reports a bad config file without throwing. */
+	onProblem?: (message: string) => void;
+}
+
+export function resolveUaightConfig(
+	opts: ResolveUaightConfigOptions,
+): ResolvedUaightConfig {
+	const root = path.resolve(opts.root);
+	const configFile = findConfigFile(root, opts.options.configPath);
+
+	const fileOptions = readConfigFile(configFile, opts.configSource, (msg) => {
+		opts.onProblem?.(msg);
+	});
+
+	// Inline plugin options win over the config file: what is written in
+	// `vite.config.ts` is the more specific statement of intent.
+	const o: UaightPluginOptions = { ...fileOptions, ...opts.options };
+
+	const fixturesDir = o.fixturesDir ?? DEFAULT_FIXTURES_DIR;
+	const fixturesDirFsPath = path.resolve(root, fixturesDir);
+
+	return {
+		root,
+		command: opts.command,
+		route: normalizeRoute(o.route),
+
+		fixturesDirFsPath,
+		fixturesDirGlobPath: toGlobPath(root, fixturesDirFsPath),
+
+		fixtureFileSuffix: (o.fixtureFileSuffix ?? DEFAULT_FIXTURE_FILE_SUFFIX)
+			.replace(/^\.+/, "")
+			.trim(),
+		decoratorFileSuffixes: (o.decoratorFileSuffix ?? DEFAULT_DECORATOR_FILE_SUFFIX)
+			.split("|")
+			.map((s) => s.replace(/^\.+/, "").trim())
+			.filter(Boolean),
+
+		include: [...(o.include ?? [])],
+		exclude: [...(o.exclude ?? DEFAULT_EXCLUDE)],
+		caseSensitive: o.caseSensitive ?? true,
+
+		inventory: resolveInventory(o.inventory),
+
+		previewEntry: o.previewEntry
+			? toGlobPath(root, path.resolve(root, o.previewEntry))
+			: undefined,
+		previewHtmlPath: o.previewHtmlPath
+			? path.resolve(root, o.previewHtmlPath)
+			: undefined,
+		codecs: o.codecs ? toGlobPath(root, path.resolve(root, o.codecs)) : undefined,
+
+		index: o.index ?? "warm",
+		production: o.production ?? "exclude",
+
+		storybook: resolveStorybook(o.storybook),
+
+		docgen: o.docgen ?? false,
+
+		configFile,
+	};
+}
+
+function resolveInventory(
+	value: UaightPluginOptions["inventory"],
+): false | { include: string[]; exclude: string[] } {
+	// Default true — this is the zero-config experience (D4, §12).
+	if (value === false) return false;
+	if (value === true || value === undefined) {
+		return {
+			include: [...DEFAULT_INVENTORY_INCLUDE],
+			exclude: [...DEFAULT_INVENTORY_EXCLUDE],
+		};
+	}
+	return {
+		include: [...(value.include ?? DEFAULT_INVENTORY_INCLUDE)],
+		exclude: [...(value.exclude ?? DEFAULT_INVENTORY_EXCLUDE)],
+	};
+}
+
+function resolveStorybook(
+	value: UaightPluginOptions["storybook"],
+): ResolvedUaightConfig["storybook"] {
+	if (!value) return false;
+	if (value === true) {
+		return {
+			...STORYBOOK_SUPPORT_DEFAULTS,
+			fileSuffix: DEFAULT_STORYBOOK_FILE_SUFFIX,
+		};
+	}
+	return {
+		...STORYBOOK_SUPPORT_DEFAULTS,
+		...value.support,
+		fileSuffix: (value.fileSuffix ?? DEFAULT_STORYBOOK_FILE_SUFFIX)
+			.replace(/^\.+/, "")
+			.trim(),
+	};
+}
+
+function normalizeRoute(route: UaightPluginOptions["route"]): string | false {
+	if (route === false) return false;
+	const value = route ?? DEFAULT_ROUTE;
+	const withSlash = value.startsWith("/") ? value : `/${value}`;
+	const trimmed = withSlash.replace(/\/+$/, "");
+	return trimmed === "" ? "/" : trimmed;
+}
+
+/* ------------------------------------------------------------------ *
+ * §4.2 — the two path representations
+ * ------------------------------------------------------------------ */
+
+/**
+ * Filesystem path → Vite-root-relative glob path with a leading slash.
+ *
+ * A glob beginning with `/` resolves against the **Vite project root**, not the
+ * filesystem. Consequently a directory outside the root cannot be reached by a
+ * root-absolute glob naming its filesystem path; the caller detects that by
+ * checking for a `..` segment and reports it rather than emitting a glob that
+ * silently matches nothing (§4.2).
+ */
+export function toGlobPath(root: string, fsPath: string): string {
+	const rel = path.relative(root, fsPath).split(path.sep).join("/");
+	if (rel === "" || rel === ".") return "/";
+	return `/${rel}`;
+}
+
+/** True when the path escapes the Vite root and cannot be globbed. §4.2 */
+export function escapesRoot(globPath: string): boolean {
+	return globPath === "/.." || globPath.startsWith("/../");
+}
+
+/** Join a root-relative glob dir with a pattern relative to it. */
+export function joinGlob(dirGlobPath: string, pattern: string): string {
+	if (pattern.startsWith("/")) return pattern;
+	const base = dirGlobPath === "/" ? "" : dirGlobPath;
+	return `${base}/${pattern}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Config file — discovery, reading, safe reload (§4.5)
+ * ------------------------------------------------------------------ */
+
+function findConfigFile(
+	root: string,
+	configPath: UaightPluginOptions["configPath"],
+): string | undefined {
+	if (configPath === false) return undefined;
+	if (typeof configPath === "string") return path.resolve(root, configPath);
+	const candidate = path.join(root, DEFAULT_CONFIG_FILE);
+	return fs.existsSync(candidate) ? candidate : undefined;
+}
+
+function readConfigFile(
+	file: string | undefined,
+	preRead: string | undefined,
+	onProblem: (message: string) => void,
+): UaightPluginOptions {
+	// A pre-read source is authoritative: the watcher already has the bytes,
+	// and re-reading the file would race the editor save (§4.5).
+	if (preRead !== undefined) {
+		return parseConfigSource(preRead, file ?? DEFAULT_CONFIG_FILE, onProblem);
+	}
+	if (!file) return {};
+	let source: string;
+	try {
+		source = fs.readFileSync(file, "utf8");
+	} catch {
+		// A declared-but-missing config file is worth saying out loud; a
+		// discovered one cannot be missing, because discovery stat'd it.
+		onProblem(`[uaight] could not read ${file}`);
+		return {};
+	}
+	return parseConfigSource(source, file, onProblem);
+}
+
+function parseConfigSource(
+	source: string,
+	file: string,
+	onProblem: (message: string) => void,
+): UaightPluginOptions {
+	if (source.trim() === "") return {};
+	try {
+		const parsed: unknown = JSON.parse(source);
+		if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+			onProblem(`[uaight] ${file} must contain a JSON object`);
+			return {};
+		}
+		return parsed as UaightPluginOptions;
+	} catch (err) {
+		onProblem(`[uaight] ${file} is not valid JSON: ${(err as Error).message}`);
+		return {};
+	}
+}
+
+/**
+ * Reload after a `uaight.config.json` edit, using the content the watcher
+ * handed us rather than re-reading the file (§4.5 — a raw read races an
+ * editor save). A config that fails to parse leaves the previous one in
+ * force; a half-applied config is worse than a stale one.
+ */
+export function safeReloadConfig(
+	prev: ResolvedUaightConfig,
+	source: string,
+	options: UaightPluginOptions,
+	onProblem?: (message: string) => void,
+): ResolvedUaightConfig {
+	let failed = false;
+	const next = resolveUaightConfig({
+		root: prev.root,
+		options,
+		command: prev.command,
+		configSource: source,
+		onProblem: (message) => {
+			failed = true;
+			onProblem?.(message);
+		},
+	});
+	return failed ? prev : next;
+}
+
+/* ------------------------------------------------------------------ *
+ * Structural comparison — §4.1
+ * ------------------------------------------------------------------ */
+
+/**
+ * Structural options determine middleware and watcher wiring, which cannot be
+ * safely rebuilt in place. §4.1 names `route`, `fixturesDir`, `include`,
+ * `exclude`, `previewEntry`, `previewHtmlPath`, `codecs` and `inventory`; the
+ * file-suffix and case-sensitivity options are added here for the same reason
+ * — they decide which paths the watcher and the emitted globs cover.
+ */
+const STRUCTURAL_FIELDS = [
+	"route",
+	"fixturesDirFsPath",
+	"fixturesDirGlobPath",
+	"fixtureFileSuffix",
+	"decoratorFileSuffixes",
+	"include",
+	"exclude",
+	"caseSensitive",
+	"inventory",
+	"previewEntry",
+	"previewHtmlPath",
+	"codecs",
+	"configFile",
+] as const satisfies ReadonlyArray<keyof ResolvedUaightConfig>;
+
+/** True when moving from `a` to `b` requires a dev-server restart. §4.1 */
+export function isStructural(
+	a: ResolvedUaightConfig,
+	b: ResolvedUaightConfig,
+): boolean {
+	return STRUCTURAL_FIELDS.some((key) => !deepEqual(a[key], b[key]));
+}
+
+/** The structural fields that actually differ. Used to word the warning. */
+export function structuralDiff(
+	a: ResolvedUaightConfig,
+	b: ResolvedUaightConfig,
+): string[] {
+	return STRUCTURAL_FIELDS.filter((key) => !deepEqual(a[key], b[key]));
+}
+
+function deepEqual(a: unknown, b: unknown): boolean {
+	if (a === b) return true;
+	if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+		return false;
+	}
+	if (Array.isArray(a) !== Array.isArray(b)) return false;
+	if (Array.isArray(a) && Array.isArray(b)) {
+		return a.length === b.length && a.every((v, i) => deepEqual(v, b[i]));
+	}
+	const ak = Object.keys(a as Record<string, unknown>);
+	const bk = Object.keys(b as Record<string, unknown>);
+	if (ak.length !== bk.length) return false;
+	return ak.every((k) =>
+		deepEqual(
+			(a as Record<string, unknown>)[k],
+			(b as Record<string, unknown>)[k],
+		),
+	);
+}

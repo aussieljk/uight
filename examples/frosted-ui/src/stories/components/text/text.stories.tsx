@@ -1,0 +1,244 @@
+/**
+ * Adapted from frosted-ui — Whop's design system — and used here under the MIT
+ * licence. Copyright (c) 2023 WorkOS. Copyright (c) 2023 Whop.
+ * Full licence text: src/stories/LICENSE-frosted-ui.md
+ *
+ * Changes from upstream: imports of frosted-ui internals rewritten to the
+ * published `frosted-ui` package, and `@storybook/react` types replaced with
+ * the local shim in src/stories/csf-types.ts. Any further change to a story
+ * body is marked with a comment in place.
+ * uaight is not affiliated with Whop or frosted-ui.
+ */
+import type { Meta, StoryObj } from '../../csf-types';
+
+import React from 'react';
+
+import { Checkbox, Code, Em, Kbd, Link, Text, TextField, textPropDefs } from 'frosted-ui';
+
+// More on how to set up stories at: https://storybook.js.org/docs/react/writing-stories/introduction#default-export
+const meta = {
+  title: 'Typography/Text',
+  component: Text,
+
+  parameters: {
+    // Optional parameter to center the component in the Canvas. More info: https://storybook.js.org/docs/react/configure/story-layout
+    layout: 'centered',
+  },
+  // This component will have an automatically generated Autodocs entry: https://storybook.js.org/docs/react/writing-docs/autodocs
+  tags: ['autodocs'],
+} satisfies Meta<typeof Text>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+// More on writing stories with args: https://storybook.js.org/docs/react/writing-stories/args
+export const Default: Story = {
+  args: {
+    children: 'The quick brown fox jumps over the lazy dog.',
+    size: textPropDefs.size.default,
+  },
+};
+
+export const Size: Story = {
+  render: (args) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Text {...args} size="0">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="1">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="2">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="3">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="4">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="5">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="6">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="7">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="8">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} size="9">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+    </div>
+  ),
+};
+
+export const Weight: Story = {
+  render: (args) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Text {...args} weight="light">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} weight="regular">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} weight="medium">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} weight="semi-bold">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} weight="bold">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+    </div>
+  ),
+};
+
+export const Color: Story = {
+  render: (args) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Text {...args} color="indigo">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} color="cyan">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} color="orange">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} color="crimson">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+    </div>
+  ),
+};
+
+export const Align: Story = {
+  render: (args) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 500 }}>
+      <Text {...args} align="left">
+        Left-aligned
+      </Text>
+      <Text {...args} align="center">
+        Center-aligned
+      </Text>
+      <Text {...args} align="right">
+        Right-aligned
+      </Text>
+    </div>
+  ),
+};
+
+export const Trim: Story = {
+  render: (args) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Text
+        {...args}
+        trim="normal"
+        style={{
+          background: 'var(--gray-a2)',
+          borderTop: '1px dashed var(--gray-a7)',
+          borderBottom: '1px dashed var(--gray-a7)',
+        }}
+      >
+        Without trim
+      </Text>
+      <Text
+        {...args}
+        trim="both"
+        style={{
+          background: 'var(--gray-a2)',
+          borderTop: '1px dashed var(--gray-a7)',
+          borderBottom: '1px dashed var(--gray-a7)',
+        }}
+      >
+        With trim
+      </Text>
+    </div>
+  ),
+};
+
+export const Formatting: Story = {
+  render: (args) => (
+    <Text size="5" {...args}>
+      Look, such a helpful <Link href="#">link</Link>, an <Em>italic emphasis</Em>, a piece of computer{' '}
+      <Code>code</Code>, and even a hotkey combination <Kbd>⇧⌘A</Kbd> within the text.
+    </Text>
+  ),
+};
+
+export const FormControls: Story = {
+  name: 'With form controls',
+  render: () => (
+    <div style={{ maxWidth: 300 }}>
+      <Text size="3" render={<div />} style={{ display: 'flex', gap: 12 }}>
+        <Checkbox defaultChecked /> Composing Text with a form control like Checkbox, RadioGroup, or Switch
+        automatically centers the control with the first line of text, even when the text is multi-line.
+      </Text>
+    </div>
+  ),
+};
+
+export const HighContrast: Story = {
+  name: 'High Contrast',
+  render: (args) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Text {...args} highContrast color="indigo">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} highContrast color="cyan">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} highContrast color="orange">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+      <Text {...args} highContrast color="crimson">
+        The quick brown fox jumps over the lazy dog.
+      </Text>
+    </div>
+  ),
+};
+
+export const AsFormLabel: Story = {
+  name: 'As Form Label',
+  render: () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: 300 }}>
+      <Text size="2" weight="medium" render={<button type="button" />}>
+        as button
+      </Text>
+      {/* Using the render prop to render Text as a label element */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Text size="2" weight="medium" render={<label htmlFor="email-input" />}>
+          Email address
+        </Text>
+        <TextField.Root>
+          <TextField.Input id="email-input" placeholder="Enter your email" />
+        </TextField.Root>
+      </div>
+
+      {/* Another example with required indicator */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Text size="2" weight="medium" render={<label htmlFor="password-input" />}>
+          Password <Text color="red">*</Text>
+        </Text>
+        <TextField.Root>
+          <TextField.Input id="password-input" type="password" placeholder="Enter your password" />
+        </TextField.Root>
+      </div>
+
+      {/* Using render prop with htmlFor */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Text size="2" weight="medium" render={<label htmlFor="username-input" />}>
+          Username
+        </Text>
+        <TextField.Root>
+          <TextField.Input id="username-input" placeholder="Enter your username" />
+        </TextField.Root>
+      </div>
+    </div>
+  ),
+};

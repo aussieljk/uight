@@ -1,0 +1,49 @@
+/*
+ * Styles for the landing page only. Fixtures never see this file — they render
+ * in the frame realm, which loads src/uaight.preview.css instead (§6.4).
+ *
+ * The one exception is the inline-isolation embed further down the page: inline
+ * mode shares the host's realm, so it shares the host's CSS too (§5.2). That is
+ * a feature when you are embedding a fixture into real page chrome and a trap
+ * when you expected isolation, which is why isolation is a per-mount choice.
+ */
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	min-height: 100%;
+}
+
+.page {
+	max-width: 68rem;
+	margin: 0 auto;
+	padding: 3rem 1.5rem 6rem;
+}
+
+.stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	margin-top: 3rem;
+}
+
+.embed-frame {
+	border: 1px solid var(--gray-6);
+	border-radius: var(--radius-4);
+	overflow: hidden;
+	background: var(--color-panel);
+}
+
+.row {
+	display: flex;
+	gap: var(--space-3);
+	align-items: center;
+	flex-wrap: wrap;
+}

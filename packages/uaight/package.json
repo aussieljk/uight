@@ -1,0 +1,67 @@
+{
+	"name": "uaight",
+	"version": "1.0.0",
+	"description": "A component explorer that runs inside your application's own Vite dev server.",
+	"license": "MIT",
+	"type": "module",
+	"files": ["dist", "registry"],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./vite": {
+			"types": "./dist/vite.d.ts",
+			"import": "./dist/vite.js"
+		},
+		"./runtime": {
+			"types": "./dist/runtime.d.ts",
+			"import": "./dist/runtime.js"
+		},
+		"./chrome": {
+			"types": "./dist/chrome.d.ts",
+			"import": "./dist/chrome.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts"
+		},
+		"./styles.css": "./dist/styles.css"
+	},
+	"sideEffects": ["*.css"],
+	"scripts": {
+		"build": "bun run build:css && tsdown",
+		"build:css": "bun run scripts/build-css.ts",
+		"dev": "bun run build:css && tsdown --watch",
+		"registry": "bun run scripts/build-registry.ts",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"oxc-parser": "0.142.0",
+		"tinyglobby": "0.2.17"
+	},
+	"peerDependencies": {
+		"react": "^18 || ^19",
+		"react-dom": "^18 || ^19",
+		"vite": "^8.1"
+	},
+	"peerDependenciesMeta": {
+		"vite": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@tailwindcss/cli": "4.3.3",
+		"@types/node": "^26.1.2",
+		"@types/react": "19.2.18",
+		"@types/react-dom": "19.2.4",
+		"react": "19.2.8",
+		"react-dom": "19.2.8",
+		"tailwindcss": "4.3.3",
+		"tsdown": "0.22.14",
+		"vite": "8.1.5",
+		"vitest": "^3.2.4"
+	},
+	"engines": {
+		"node": ">=20.19.0"
+	}
+}

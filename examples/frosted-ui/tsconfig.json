@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"moduleDetection": "force",
+		"jsx": "react-jsx",
+		"types": ["vite/client"],
+
+		"strict": true,
+		"noEmit": true,
+		"skipLibCheck": true,
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+
+		/* The copied frosted-ui stories are upstream code. Style rules that
+		   would flag them are off; correctness rules stay on. */
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
+	},
+	"include": ["src", "vite.config.ts"]
+}
