@@ -29,6 +29,8 @@ no HTML file in your repository, and no third step.
 | `SPEC.md`              | The requirements document. The source of truth for behaviour         |
 | `ARCHITECTURE.md`      | The integration contract: which module owns which symbol             |
 | `NOTES.md`             | Findings from implementation, including answers to SPEC.md's Q1–Q14  |
+| `CHANGELOG.md`         | What shipped in each release, with divergences and known limitations |
+| `ROADMAP.md`           | What is left before 1.0 publishes, and what each release after holds |
 | `packages/uaight`      | The published package                                                |
 | `examples/frosted-ui`  | Demo: the explorer showing Whop's frosted-ui design system           |
 
