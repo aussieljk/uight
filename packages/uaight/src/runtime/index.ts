@@ -87,6 +87,10 @@ export {
 } from "./fixture-context.tsx";
 export type { FixtureRuntime, ViewportSource } from "./fixture-context.tsx";
 
+/* ---------------- theme, read from the host's stamp — §10.1 ---------------- */
+
+export { readUaightTheme, subscribeUaightTheme, useUaightTheme } from "./theme.ts";
+
 /* ---------------- normalization — §3.1, §13 ---------------- */
 
 export { normalizeModule, selectFixture } from "./normalize.ts";

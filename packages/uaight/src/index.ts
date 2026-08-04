@@ -25,20 +25,34 @@ export {
 	defineCodec,
 } from "./runtime/index.ts";
 
+/* ---- Theme, for a preview entry that has to match the chrome — §10.1 ---- */
+export { readUaightTheme, subscribeUaightTheme, useUaightTheme } from "./runtime/index.ts";
+
 /* ---- Shared — §19.5 ---- */
 export { parseFixtureId, serializeFixtureId } from "./shared/fixture-id.ts";
 export { matchesFilter } from "./shared/filter.ts";
-export { DEFAULT_FIXTURE } from "./shared/types.ts";
+export { DEFAULT_FIXTURE, THEME_ATTRIBUTE } from "./shared/types.ts";
+export { fixtureMetaFor, viewportFor } from "./shared/meta.ts";
 export { UAIGHT_VERSION } from "./shared/version.ts";
 
 export type { UaightChromeApiV1 } from "./ui/chrome-context.ts";
 
 export type {
+	CallSite,
+	CallSiteGroup,
 	ChromeOptions,
 	CodecEditorProps,
+	CommandPaletteItem,
+	CommandPaletteProps,
+	ComponentDoc,
+	ComponentSelection,
+	ControlPanelInputsProps,
 	ControlKind,
 	ControlPanelProps,
 	DecoratorFileIndex,
+	DocgenLimitation,
+	DocgenResolver,
+	DroppedPatchReport,
 	EditableWire,
 	EmptyStateProps,
 	ErrorStateProps,
@@ -58,6 +72,8 @@ export type {
 	InventoryListProps,
 	Patch,
 	PathSegment,
+	PropDoc,
+	ResolvedUaightTheme,
 	PreviewShellProps,
 	RegisteredInput,
 	RendererError,

@@ -22,13 +22,16 @@ import { glob } from "tinyglobby";
 import { globToRegExp } from "../shared/filter.ts";
 import type {
 	CallSite,
+	ComponentDoc,
 	DecoratorFileIndex,
+	DocgenResolver,
 	FixtureFileIndex,
 	FixtureIndex,
 	IndexProblem,
 	InventoryItem,
 } from "../shared/types.ts";
 import { groupCallSites, parseCallSites } from "./callsites.ts";
+import { createBabelDocgenResolver } from "./docgen.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
 import { CODE_EXTENSIONS, FIXTURE_EXTENSIONS, escapesRoot, joinGlob, toGlobPath } from "./config.ts";
 import { parseInventoryFile, toInventoryItems } from "./inventory.ts";
@@ -254,7 +257,9 @@ export async function scanFixtures(
 	// glob that silently matches nothing. `server.fs.allow` does not help.
 	if (escapesRoot(cfg.fixturesDirGlobPath)) {
 		problems.push({
-			kind: "unreadable",
+			// A refusal, not a failure: the directory usually reads fine, and
+			// `unreadable` described the outcome while naming the wrong cause.
+			kind: "confinement",
 			message:
 				`[uaight] fixturesDir "${cfg.fixturesDirFsPath}" is outside the Vite root ` +
 				`"${cfg.root}", so it cannot be reached by a root-relative glob. ` +
@@ -283,15 +288,21 @@ export async function scanFixtures(
 		if (entry) files.push(entry);
 	}
 
+	const docgen = docgenResolver(cfg, (message) => {
+		problems.push({ kind: "unreadable", message, files: [] });
+	});
+
 	const inventory: InventoryItem[] = [];
 	const callSiteSources: Record<string, CallSite[]> = {};
-	for (const indexed of await Promise.all(
-		inventoryPaths.map((file) => indexInventoryFile(file, cfg)),
-	)) {
+	const docs: Record<string, ComponentDoc[]> = {};
+	for (const [i, indexed] of (
+		await Promise.all(inventoryPaths.map((file) => indexInventoryFile(file, cfg, docgen)))
+	).entries()) {
 		inventory.push(...indexed.items);
 		for (const site of indexed.sites) {
 			(callSiteSources[site.globPath] ??= []).push(site);
 		}
+		if (indexed.docs) docs[toGlobPath(cfg.root, inventoryPaths[i] as string)] = indexed.docs;
 	}
 
 	const index: FixtureIndex = {
@@ -301,6 +312,7 @@ export async function scanFixtures(
 		callSites: regroup(callSiteSources, cfg),
 		callSiteSources,
 		problems,
+		...(docgen ? { docs } : {}),
 	};
 	index.problems = [...problems, ...detectCollisions(index.files)];
 	return index;
@@ -411,25 +423,74 @@ async function indexFixtureFile(
 		});
 	}
 
+	return fixtureEntry(globPath, cfg, suffix, parsed, source, csf);
+}
+
+/**
+ * One index entry from one parse. Both the initial scan and the content-change
+ * path go through here, so a field added to the index cannot reach only one of
+ * them — which is how `fileMeta` would otherwise vanish on the first edit.
+ */
+function fixtureEntry(
+	globPath: string,
+	cfg: ResolvedUaightConfig,
+	suffix: string,
+	parsed: ParsedFixtureFile,
+	source: string,
+	csf: boolean,
+): FixtureFileIndex {
 	return {
 		path: displayPathOf(globPath, cfg, suffix),
 		globPath,
 		names: parsed.names,
 		hash: hashSource(source),
 		...(csf ? { csf: true } : {}),
+		// §3.1: absent when the parser could not read the export as a static
+		// object. The runtime's own normalization still wins once the module
+		// loads; this is only what the first paint can know.
+		...(parsed.fileMeta ? { fileMeta: parsed.fileMeta } : {}),
+		...(parsed.fixtureMeta ? { fixtureMeta: parsed.fixtureMeta } : {}),
 	};
 }
 
 interface IndexedInventoryFile {
 	items: InventoryItem[];
 	sites: CallSite[];
+	/** §15 — absent unless `docgen` is on and the resolver found something. */
+	docs?: ComponentDoc[];
 }
 
 const NO_INVENTORY: IndexedInventoryFile = { items: [], sites: [] };
 
+/**
+ * Docgen rides the inventory pass rather than opening a second one: the modules
+ * a prop table describes are exactly the modules the inventory already reads,
+ * and §15.1 makes docgen off by default, so the alternative is a whole extra
+ * glob and read for a feature almost nobody has enabled.
+ *
+ * The consequence, stated plainly: with `inventory: false` there are no docs,
+ * and in a production build there are none either, because the inventory pass
+ * is development-only (§12).
+ */
+function docgenResolver(
+	cfg: ResolvedUaightConfig,
+	onProblem?: (message: string) => void,
+): DocgenResolver | null {
+	if (!cfg.docgen) return null;
+	shared ??= createBabelDocgenResolver({
+		onUnavailable: (message) => {
+			onProblem?.(message);
+		},
+	});
+	return shared;
+}
+
+let shared: DocgenResolver | undefined;
+
 async function indexInventoryFile(
 	file: string,
 	cfg: ResolvedUaightConfig,
+	docgen?: DocgenResolver | null,
 ): Promise<IndexedInventoryFile> {
 	let source: string;
 	try {
@@ -451,28 +512,72 @@ async function indexInventoryFile(
 			})
 		: [];
 
-	return { items, sites };
+	const docs = docgen
+		? await docgen.resolve({ code: source, filename: file, globPath })
+		: [];
+
+	return { items, sites, ...(docs.length ? { docs } : {}) };
 }
 
 /**
- * A relative import specifier → the display path it names, so a `Button` used
- * here can be told from a `Button` of the same name elsewhere.
+ * An import specifier → the display path it names, so a `Button` used here can
+ * be told from a `Button` of the same name elsewhere.
  *
- * Only relative specifiers are resolved. A bare specifier is a package, and an
- * aliased one (`@/components/Button`) needs Vite's resolver — which would mean
- * running the plugin container during a scan that is meant to be one cheap
- * pass. Both return null, and the caller falls back to matching by name.
+ * Relative specifiers resolve against the importing file. An aliased one
+ * (`@/components/Button`) resolves against `cfg.aliases`, which the plugin
+ * hands over from Vite's own resolved alias table — a **prefix match against
+ * the string entries, not a call into Vite's resolver.** Running the plugin
+ * container per import would turn one cheap pass into a per-file resolution
+ * storm, and the alias table alone answers the case that actually appears:
+ * `@` or `~` mapped to a source directory.
+ *
+ * What this deliberately does not do is try extensions or index files. The
+ * display path is extension-free by construction (`displayPathOf` strips one),
+ * so `@/components/Button` and `./Button.tsx` normalize to the same string
+ * without either being stat'd. A specifier naming a directory therefore
+ * resolves to that directory's path and simply fails to match any file's
+ * display path, which is the same mild miss as not resolving it at all.
+ *
+ * A bare specifier is still a package: it stays null and the caller falls back
+ * to matching by name.
  */
 function resolveSpecifier(
 	specifier: string,
 	fromFile: string,
 	cfg: ResolvedUaightConfig,
 ): string | null {
-	if (!specifier.startsWith(".")) return null;
-	const absolute = path.resolve(path.dirname(fromFile), specifier);
+	const absolute = specifier.startsWith(".")
+		? path.resolve(path.dirname(fromFile), specifier)
+		: applyAliases(specifier, cfg);
+	if (absolute === null) return null;
 	const globPath = toGlobPath(cfg.root, absolute);
 	if (escapesRoot(globPath)) return null;
 	return displayPathOf(globPath, cfg, "");
+}
+
+/**
+ * Longest-prefix match against the alias table. Longest wins so a table
+ * carrying both `@` and `@components` resolves `@components/x` with the more
+ * specific entry, which is how Vite's own resolver orders them in practice.
+ *
+ * A `find` that is not a plain string is skipped: a RegExp alias can rewrite
+ * any part of a specifier and reproducing that faithfully is the resolver.
+ * Vite's internal aliases are all RegExp, so this skips them for free.
+ */
+function applyAliases(
+	specifier: string,
+	cfg: ResolvedUaightConfig,
+): string | null {
+	let best: { find: string; replacement: string } | undefined;
+	for (const entry of cfg.aliases) {
+		// Vite matches a string alias as a prefix, but only on a path boundary:
+		// an alias of `@` must not swallow `@scope/pkg`.
+		if (specifier !== entry.find && !specifier.startsWith(`${entry.find}/`)) continue;
+		if (!best || entry.find.length > best.find.length) best = entry;
+	}
+	if (!best) return null;
+	const rest = specifier.slice(best.find.length);
+	return path.resolve(cfg.root, `${best.replacement}${rest}`);
 }
 
 function indexDecorator(
@@ -548,6 +653,7 @@ export async function rescanIncremental(
 	let inventory = index.inventory;
 	let callSites = index.callSites;
 	let callSiteSources = index.callSiteSources;
+	let docs = index.docs;
 
 	if (isFixtureFile(absolute, cfg)) {
 		files = files.filter((f) => f.globPath !== globPath);
@@ -568,11 +674,16 @@ export async function rescanIncremental(
 		inventory = inventory.filter((i) => i.globPath !== globPath);
 		const sources = { ...callSiteSources };
 		delete sources[globPath];
+		if (docs) {
+			docs = { ...docs };
+			delete docs[globPath];
+		}
 
 		if (exists) {
-			const indexed = await indexInventoryFile(absolute, cfg);
+			const indexed = await indexInventoryFile(absolute, cfg, docgenResolver(cfg));
 			inventory = [...inventory, ...indexed.items];
 			if (indexed.sites.length) sources[globPath] = indexed.sites;
+			if (indexed.docs) docs = { ...docs, [globPath]: indexed.docs };
 		}
 
 		// Re-rank against the whole retained corpus rather than patching one
@@ -594,6 +705,7 @@ export async function rescanIncremental(
 		problems: [...carried, ...detectCollisions(files)],
 	};
 	if (callSiteSources) next.callSiteSources = callSiteSources;
+	if (docs) next.docs = docs;
 	return next;
 }
 
@@ -640,13 +752,7 @@ export function applyParse(
 	const suffix =
 		csf && cfg.storybook ? cfg.storybook.fileSuffix : cfg.fixtureFileSuffix;
 
-	const entry: FixtureFileIndex = {
-		path: displayPathOf(globPath, cfg, suffix),
-		globPath,
-		names: parsed.names,
-		hash: hashSource(source),
-		...(csf ? { csf: true } : {}),
-	};
+	const entry = fixtureEntry(globPath, cfg, suffix, parsed, source, csf);
 
 	const files = sortByGlobPath([
 		...index.files.filter((f) => f.globPath !== globPath),
@@ -663,6 +769,7 @@ export function applyParse(
 		],
 	};
 	if (index.callSiteSources) next.callSiteSources = index.callSiteSources;
+	if (index.docs) next.docs = index.docs;
 	return next;
 }
 
@@ -685,6 +792,7 @@ export function serializeIndex(index: FixtureIndex): FixtureIndex {
 		inventory: index.inventory,
 		callSites: index.callSites,
 		problems: index.problems,
+		...(index.docs ? { docs: index.docs } : {}),
 	};
 }
 

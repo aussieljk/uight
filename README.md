@@ -52,8 +52,9 @@ Published as `0.0.1-canary.N` while the surface settles.
 
 ```bash
 uaight build          # a deployable static explorer → dist-uaight/
+uaight doctor         # why is my component missing: config, index, problems
 uaight storybook      # which CSF features would not survive the move
-uaight mcp            # MCP server over stdio, for a coding agent
+uaight mcp            # MCP server over stdio; finds the dev server itself
 ```
 
 ## Development
@@ -63,7 +64,9 @@ bun install
 bun run build      # compile scoped CSS, then bundle with tsdown
 bun run demo       # the frosted-ui example on http://localhost:5173/uaight
 bun run test
-bun run typecheck  # run AFTER build: uaight/client resolves types through dist
+bun run typecheck  # builds first: uaight/client resolves types through dist
+bun run check      # the whole local gate, in the order that makes it mean something
+bun run bench      # SPEC §20.3's budgets; fails on a breach
 bun run --cwd packages/uaight corpus -- --write   # refresh the golden corpus snapshot
 ```
 
@@ -77,7 +80,10 @@ bun run release --tag next  # publish under a different dist-tag
 ```
 
 Releases are `0.0.1-canary.N`. `verify` and `release` run the same gates in the same
-order, so CI and the release path cannot check different things. Three ordering rules are
+order, so CI and the release path cannot check different things. `bun run check` is the
+same gates minus the release-only ones (version lockstep, the registry, the publish dry
+run), for answering "is my change alright" without asking npm about a publish nobody
+intends. Three ordering rules are
 enforced there rather than remembered:
 
 - the build precedes the type check, because `uaight/client` resolves `RuntimeConfig`

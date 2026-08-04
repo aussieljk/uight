@@ -96,6 +96,9 @@ export function buildRuntimeConfig(
 		// production build has no detected components to attach them to.
 		callSites: inventoryEnabled && cfg.callSites ? index.callSites : [],
 		problems: index.problems,
+		// §15: absent unless `docgen` is on, so a consumer must treat "no docs"
+		// as the normal case rather than as a failure to produce them.
+		...(index.docs ? { docs: index.docs } : {}),
 	};
 }
 

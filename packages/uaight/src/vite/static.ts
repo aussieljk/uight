@@ -28,6 +28,23 @@ export { STATIC_ENV };
 const HTML_NAME = "uaight-explorer.html";
 const ENTRY_NAME = "uaight-explorer.entry.js";
 
+/**
+ * Where the scaffold lives. `node_modules/.uaight/` rather than the project
+ * root, because the root is the user's repository: a build that crashes between
+ * writing the scaffold and the `finally` that removes it used to leave two
+ * files in their working tree, which is the kind of mess a tool is not entitled
+ * to make. `node_modules/.<tool>/` is the established place for exactly this —
+ * `.vite`, `.cache`, `.bin` — it is already git-ignored everywhere, and a
+ * leftover there is invisible and harmless.
+ *
+ * A virtual HTML input would remove the files entirely. It is not taken here:
+ * Vite's HTML handling resolves `<script src>` against the document's real
+ * location and rewrites asset URLs from it, so a virtual document has to
+ * reimplement enough of that to be its own source of defects. Real files in a
+ * directory that is not the user's is the smaller, provable fix.
+ */
+const SCAFFOLD_DIR = path.join("node_modules", ".uaight");
+
 export interface BuildStaticOptions {
 	/** Project root. Defaults to the working directory. */
 	root?: string;
@@ -92,10 +109,11 @@ createRoot(container).render(
 /**
  * Build a deployable explorer.
  *
- * The scaffold is two files written next to the project's own `index.html` and
- * removed afterwards. They sit at the root rather than in a subdirectory
- * because Rollup names an HTML output by its path relative to the root, and a
- * nested input would emit `some/nested/index.html` into the site.
+ * The scaffold is two files under `node_modules/.uaight/`, removed afterwards.
+ * Rollup names an HTML output by its path relative to the root, so the emitted
+ * document lands at `node_modules/.uaight/uaight-explorer.html` inside the
+ * output directory and is moved to `index.html` — which is what the previous
+ * root-level scaffold needed a rename for too, one directory shallower.
  */
 export async function buildStatic(
 	options: BuildStaticOptions = {},
@@ -104,22 +122,15 @@ export async function buildStatic(
 	const outDir = path.resolve(root, options.outDir ?? "dist-uaight");
 	const title = options.title ?? `${path.basename(root)} — components`;
 
-	const htmlPath = path.join(root, HTML_NAME);
-	const entryPath = path.join(root, ENTRY_NAME);
-
-	for (const file of [htmlPath, entryPath]) {
-		if (fs.existsSync(file)) {
-			throw new Error(
-				`[uaight] ${path.relative(root, file)} already exists. The static build needs ` +
-					`that name for a scaffold file it writes and removes; rename yours.`,
-			);
-		}
-	}
+	const scaffoldDir = path.join(root, SCAFFOLD_DIR);
+	const htmlPath = path.join(scaffoldDir, HTML_NAME);
+	const entryPath = path.join(scaffoldDir, ENTRY_NAME);
 
 	const previous = process.env[STATIC_ENV];
 	process.env[STATIC_ENV] = "1";
 
 	try {
+		await fsp.mkdir(scaffoldDir, { recursive: true });
 		await fsp.writeFile(htmlPath, documentHtml(title));
 		await fsp.writeFile(entryPath, entryJs);
 
@@ -144,17 +155,20 @@ export async function buildStatic(
 			if (Array.isArray(output)) files += output.length;
 		}
 
-		// Rollup named the document after the scaffold; the site wants an index.
-		const emitted = path.join(outDir, HTML_NAME);
+		// Rollup named the document after the scaffold's path relative to the
+		// root; the site wants an index at the top. The now-empty scaffold
+		// directory goes with it, so the output holds no trace of how it was made.
+		const emitted = path.join(outDir, SCAFFOLD_DIR, HTML_NAME);
 		if (fs.existsSync(emitted)) {
 			await fsp.rename(emitted, path.join(outDir, "index.html"));
 		}
+		await fsp.rm(path.join(outDir, "node_modules"), { recursive: true, force: true });
 
 		return { outDir, files };
 	} finally {
 		if (previous === undefined) delete process.env[STATIC_ENV];
 		else process.env[STATIC_ENV] = previous;
-		await fsp.rm(htmlPath, { force: true });
-		await fsp.rm(entryPath, { force: true });
+		// The directory too: it is ours, so leaving it behind empty is litter.
+		await fsp.rm(scaffoldDir, { recursive: true, force: true });
 	}
 }

@@ -10,6 +10,11 @@
 
 import { createContext, useContext } from "react";
 import type {
+	CallSite,
+	CallSiteGroup,
+	CommandPaletteItem,
+	ComponentSelection,
+	DroppedPatchReport,
 	EditableWire,
 	FixtureId,
 	InputOverlay,
@@ -35,6 +40,39 @@ export interface UaightChromeApiV1 {
 		next(): void;
 		previous(): void;
 	};
+	/**
+	 * §12's detected components, which `selection` cannot express: an
+	 * `InventoryItem` has no fixture file, so it has no `FixtureId`, and
+	 * `select(id: FixtureId | null)` can neither carry it nor carry the call site
+	 * chosen for it. A sibling group rather than a widened `selection`, because
+	 * the two are genuinely different selections and widening the one method
+	 * would make every chrome component destructure a union to ask "which?".
+	 *
+	 * Selecting a component clears `selection.current`, and vice versa: one thing
+	 * renders in the preview.
+	 */
+	component: {
+		current: ComponentSelection | null;
+		/** `null` clears the component selection without selecting a fixture. */
+		select(component: InventoryItem | null, callSite?: CallSite | null): void;
+		/** Harvested usages, grouped by component name. Empty when off. */
+		callSites: CallSiteGroup[];
+	};
+	/**
+	 * The palette is the one chrome component that needs the *whole* catalogue —
+	 * fixtures, components and call sites ranked together — and it is ejectable,
+	 * so an ejected one must be able to get it from here rather than from props
+	 * the packaged layout happens to pass. `items` is already filtered and ranked
+	 * against `query`, exactly as `CommandPaletteProps` receives it.
+	 */
+	palette: {
+		open: boolean;
+		setOpen(open: boolean): void;
+		query: string;
+		setQuery(query: string): void;
+		items: CommandPaletteItem[];
+		select(item: CommandPaletteItem): void;
+	};
 	inputs: {
 		registered: RegisteredInput[];
 		overlay: InputOverlay[];
@@ -52,6 +90,8 @@ export interface UaightChromeApiV1 {
 		error: RendererError | null;
 		isolation: "frame" | "inline";
 		droppedPatches: number;
+		/** The same loss, named per input (§7.3). `droppedPatches` is its total. */
+		droppedInputs: DroppedPatchReport[];
 	};
 }
 

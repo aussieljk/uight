@@ -13,7 +13,8 @@
  * code, so it cannot disagree with what the explorer shows, and it inherits
  * §19.6's read-only guarantee wholesale — there is no tool here that writes.
  *
- *   uaight-mcp --url http://localhost:5173
+ *   uaight-mcp                  # discovers the dev server
+ *   uaight-mcp --url http://localhost:5174
  *
  * Speaks JSON-RPC 2.0 over stdio, newline-delimited, with no SDK dependency:
  * the package ships two runtime dependencies and this is not worth a third.
@@ -54,17 +55,155 @@ export interface UaightClientOptions {
 	timeout?: number;
 }
 
-export class UaightClient {
-	private readonly base: string;
-	private readonly timeout: number;
+/* ------------------------------------------------------------------ *
+ * Discovery — finding the dev server without being told a port
+ * ------------------------------------------------------------------ */
 
-	constructor(options: UaightClientOptions) {
-		this.base = options.url.replace(/\/+$/, "");
+/**
+ * Ports probed when no `--url` is given, in the order a running server is most
+ * likely to be on.
+ *
+ * Vite takes 5173 and counts up when it is busy, which is what actually happens
+ * to anyone running two projects — and it is exactly that person for whom a
+ * hard-coded 5173 fails with a connection error naming a port they never used.
+ * 4173 is `vite preview`, and 3000/8080 are the two ports a host is most likely
+ * to have pinned in their own config.
+ *
+ * Vite writes no discoverable state naming its port: there is no lock file, no
+ * `.vite/port`, and the dev server's address lives only in the process that
+ * owns it. A sweep is therefore the whole of what is possible from a separate
+ * process, and it is cheap — the probes run concurrently and a closed port
+ * refuses immediately.
+ */
+export const DISCOVERY_PORTS: readonly number[] = [
+	5173, 5174, 5175, 5176, 5177, 5178, 4173, 4174, 3000, 8080,
+];
+
+export const DISCOVERY_HOST = "http://localhost";
+
+/** Env var an agent config can set to skip discovery entirely. */
+export const URL_ENV = "UAIGHT_URL";
+
+export interface DiscoverOptions {
+	ports?: readonly number[];
+	host?: string;
+	/**
+	 * Per-probe timeout. Generous rather than tight: a live local server answers
+	 * in single-digit milliseconds, but a dev server that is mid-dependency-scan
+	 * can hold its event loop for far longer than that, and a probe that times
+	 * out on a busy server reports "not found" for a server that is right there.
+	 * The probes run concurrently, so the worst case — nothing running at all —
+	 * costs one of these, once.
+	 */
+	timeout?: number;
+	/** Injected in tests. Defaults to global `fetch`. */
+	fetchImpl?: typeof fetch;
+}
+
+/**
+ * Find a dev server that is actually running uaight.
+ *
+ * The probe is `/@uaight/health`, not a bare `GET /`: a port answering HTTP is
+ * not evidence of anything, and connecting to the wrong project's dev server
+ * and reporting its fixtures is worse than finding nothing. The response must
+ * parse as JSON and carry a `protocolVersion`, which no other server on a
+ * developer's machine will.
+ *
+ * Every candidate is probed concurrently and the **lowest port that answers**
+ * wins, so the result does not depend on which probe returned first.
+ */
+export async function discoverDevServer(
+	options: DiscoverOptions = {},
+): Promise<string | null> {
+	const host = options.host ?? DISCOVERY_HOST;
+	const ports = options.ports ?? DISCOVERY_PORTS;
+	const timeout = options.timeout ?? 1500;
+	const doFetch = options.fetchImpl ?? fetch;
+
+	const results = await Promise.all(
+		ports.map(async (port) => {
+			const base = `${host}:${port}`;
+			const controller = new AbortController();
+			const timer = setTimeout(() => controller.abort(), timeout);
+			try {
+				const response = await doFetch(`${base}/@uaight/health`, {
+					signal: controller.signal,
+				});
+				if (!response.ok) return null;
+				const body = (await response.json()) as { protocolVersion?: unknown };
+				return typeof body.protocolVersion === "number" ? base : null;
+			} catch {
+				return null;
+			} finally {
+				clearTimeout(timer);
+			}
+		}),
+	);
+
+	return results.find((base) => base !== null) ?? null;
+}
+
+/** Every place a URL can come from, most explicit first. */
+export async function resolveDevServerUrl(
+	explicit: string | undefined,
+	options: DiscoverOptions = {},
+): Promise<string> {
+	if (explicit) return explicit;
+
+	const fromEnv = process.env[URL_ENV];
+	if (fromEnv) return fromEnv;
+
+	const found = await discoverDevServer(options);
+	if (found) return found;
+
+	// Not a connection error. A connection error names one port and implies the
+	// port was the right one; this names every port that was tried and what was
+	// asked of each, which is the difference between "it is broken" and "start
+	// the dev server, or pass --url".
+	const ports = (options.ports ?? DISCOVERY_PORTS).join(", ");
+	throw new Error(
+		`no uaight dev server found. Probed ${options.host ?? DISCOVERY_HOST} on ports ` +
+			`${ports} for /@uaight/health and none answered with a uaight response.\n` +
+			`Start your dev server with uaight() in the Vite config, or pass ` +
+			`--url http://localhost:<port>, or set ${URL_ENV}.`,
+	);
+}
+
+/**
+ * The dev-server client.
+ *
+ * Its base URL may be a function, and discovery is what that exists for: an
+ * agent starts its MCP servers before the human starts a dev server, so
+ * resolving the URL eagerly at construction would fail every session that did
+ * not happen in the lucky order. The lookup runs on first use and its *result*
+ * is remembered, not its failure — so the next tool call after the dev server
+ * comes up succeeds without restarting the MCP server.
+ */
+export class UaightClient {
+	private readonly source: string | (() => Promise<string>);
+	private readonly timeout: number;
+	private resolved: string | undefined;
+
+	constructor(options: Omit<UaightClientOptions, "url"> & {
+		url: string | (() => Promise<string>);
+	}) {
+		this.source =
+			typeof options.url === "string" ? options.url.replace(/\/+$/, "") : options.url;
 		this.timeout = options.timeout ?? 5000;
 	}
 
+	/** The base URL, discovering one if that is what was configured. */
+	async base(): Promise<string> {
+		if (this.resolved !== undefined) return this.resolved;
+		const value =
+			typeof this.source === "string" ? this.source : (await this.source()).replace(/\/+$/, "");
+		this.resolved = value;
+		return value;
+	}
+
 	async get<T>(path: string): Promise<T> {
-		const url = `${this.base}/@uaight${path}`;
+		const base = await this.base();
+		const url = `${base}/@uaight${path}`;
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), this.timeout);
 		try {
@@ -77,8 +216,11 @@ export class UaightClient {
 			// The overwhelmingly likely cause is "no dev server", and saying so is
 			// more useful to an agent than relaying a connection error verbatim.
 			const reason = error instanceof Error ? error.message : String(error);
+			// A discovered base that has since gone away must not stay cached, or
+			// every later call reports the dead port instead of looking again.
+			this.resolved = undefined;
 			throw new Error(
-				`could not reach uaight at ${this.base} (${reason}). Is the dev server ` +
+				`could not reach uaight at ${base} (${reason}). Is the dev server ` +
 					`running, and is uaight() in the Vite config?`,
 			);
 		} finally {
@@ -87,12 +229,12 @@ export class UaightClient {
 	}
 
 	/** A deep link that opens one fixture in the explorer (§3.2's encoding). */
-	fixtureUrl(route: string, path: string, name?: string | null): string {
+	async fixtureUrl(route: string, path: string, name?: string | null): Promise<string> {
 		const id =
 			name === undefined || name === null
 				? `uaight:1|${encodeURIComponent(path)}`
 				: `uaight:1|${encodeURIComponent(path)}|${encodeURIComponent(name)}`;
-		return `${this.base}${route}?fixture=${encodeURIComponent(id)}`;
+		return `${await this.base()}${route}?fixture=${encodeURIComponent(id)}`;
 	}
 }
 
@@ -252,7 +394,7 @@ export const TOOLS: Tool[] = [
 			const path = stringArg(args, "path");
 			if (!path) throw new Error("path is required");
 			const route = await routeOf(client);
-			return { url: client.fixtureUrl(route, path, stringArg(args, "name") ?? null) };
+			return { url: await client.fixtureUrl(route, path, stringArg(args, "name") ?? null) };
 		},
 	},
 	{
@@ -281,11 +423,19 @@ export const TOOLS: Tool[] = [
  * The server
  * ------------------------------------------------------------------ */
 
-export interface McpServerOptions extends UaightClientOptions {
+export interface McpServerOptions extends Omit<UaightClientOptions, "url"> {
+	/**
+	 * Dev server URL. Omit it and the server discovers one — `--url` is an
+	 * override, not a requirement, because an agent has no way to know which
+	 * port the human's dev server took.
+	 */
+	url?: string;
 	/** Package version, reported in `serverInfo`. */
 	version?: string;
 	stdin?: NodeJS.ReadableStream;
 	stdout?: NodeJS.WritableStream;
+	/** Injected in tests. Passed through to discovery. */
+	discovery?: DiscoverOptions;
 }
 
 /**
@@ -344,7 +494,13 @@ export async function handleRequest(
 
 /** Run the stdio server. Resolves when stdin closes. */
 export function runMcpServer(options: McpServerOptions): Promise<void> {
-	const client = new UaightClient(options);
+	const client = new UaightClient({
+		...options,
+		// A string when `--url` was given, a lookup otherwise. Either way the
+		// server starts immediately: an agent must not have to sequence its MCP
+		// servers behind the human starting a dev server.
+		url: options.url ?? (() => resolveDevServerUrl(undefined, options.discovery)),
+	});
 	const version = options.version ?? "0.0.0";
 	// Annotated rather than inferred: `process.stdin` is a `ReadStream`, and the
 	// union of it with `ReadableStream` has no callable `on` overload in common.

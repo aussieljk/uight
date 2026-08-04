@@ -1,6 +1,6 @@
 {
-	"files": 82,
-	"fixtures": 591,
+	"files": 83,
+	"fixtures": 592,
 	"undecidable": 1,
 	"decorators": 1,
 	"problems": 0,
@@ -9,6 +9,11 @@
 	"entries": [
 		{
 			"path": "fixtures/controls",
+			"count": 1,
+			"csf": false
+		},
+		{
+			"path": "fixtures/mdx-notes",
 			"count": 1,
 			"csf": false
 		},
@@ -418,5 +423,5 @@
 			"csf": true
 		}
 	],
-	"digest": "71cea28787196afaf99ca95f8f5573de217758df348775406d9bdbff8a40de4a"
+	"digest": "2dc7e057bf552385b59c354332e2af652584d24ac3f60ccbe0c35299f693993d"
 }

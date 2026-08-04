@@ -116,7 +116,10 @@ const steps: Step[] = [
 	// committed — after it, the check compares the build against itself.
 	{ title: "Stylesheet is fresh", command: "bun", args: ["run", "build:css", "--check"], cwd: PKG },
 	{ title: "Build", command: "bun", args: ["run", "build"] },
-	{ title: "Typecheck the package", command: "bun", args: ["run", "typecheck"] },
+	// `typecheck:only`, not `typecheck`: the exposed script builds first, because
+	// running it by hand against a stale `dist` is the misleading case. Here the
+	// build is the step above, and repeating it would only cost time.
+	{ title: "Typecheck the package", command: "bun", args: ["run", "typecheck:only"] },
 	{
 		title: "Typecheck the demo",
 		command: "bun",

@@ -130,16 +130,56 @@ const KIND_RANK: Record<CommandPaletteItem["kind"], number> = {
 	"call-site": 2,
 };
 
+/**
+ * Recency, blended in.
+ *
+ * An empty ⌘K used to be a static alphabetical list, which is the one ordering
+ * that is never what the user wants: they opened the palette to go somewhere,
+ * and the best guess about where is the set of places they have just been. So
+ * an empty query is the MRU list first, then everything else in kind order.
+ *
+ * For a *short* query recency is a tiebreak rather than an ordering. Two or
+ * three characters match dozens of things about equally well, and among equals
+ * the one you opened five minutes ago is the better guess; by four characters
+ * the match itself is discriminating enough that recency would start overriding
+ * a better match, so the bonus is gone by then.
+ */
+const RECENCY_QUERY_LIMIT = 3;
+const RECENCY_WEIGHT = 30;
+
+function recencyBonus(recents: readonly string[], key: string, queryLength: number): number {
+	if (queryLength > RECENCY_QUERY_LIMIT) return 0;
+	const index = recents.indexOf(key);
+	if (index < 0) return 0;
+	// Linear decay across the MRU list: the most recent is worth the full weight
+	// and the oldest is worth roughly a tenth of it.
+	return (RECENCY_WEIGHT * (recents.length - index)) / recents.length;
+}
+
 export function rankPaletteItems(
 	items: readonly CommandPaletteItem[],
 	query: string,
 	limit = 50,
+	recents: readonly string[] = [],
 ): CommandPaletteItem[] {
 	const trimmed = query.trim();
 	if (trimmed === "") {
-		return [...items]
-			.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind])
-			.slice(0, limit);
+		const byKey = new Map(items.map((item) => [item.key, item]));
+		const recent: CommandPaletteItem[] = [];
+		const seen = new Set<string>();
+		for (const key of recents) {
+			const item = byKey.get(key);
+			// A recent that no longer exists — a deleted fixture, a renamed
+			// component — is simply not offered. The MRU list is a hint, not an
+			// index, so a stale entry costs nothing and is never repaired.
+			if (!item || seen.has(key)) continue;
+			seen.add(key);
+			recent.push(item);
+		}
+		const rest = [...items]
+			.filter((item) => !seen.has(item.key))
+			.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
+		return [...recent, ...rest].slice(0, limit);
 	}
 
 	const scored: Array<{ item: CommandPaletteItem; score: number }> = [];
@@ -149,7 +189,9 @@ export function rankPaletteItems(
 		const label = matchScore(item.label, trimmed);
 		const hint = item.hint ? matchScore(item.hint, trimmed) : null;
 		if (label === null && hint === null) continue;
-		const score = Math.max(label ?? -Infinity, (hint ?? -Infinity) - 40);
+		const score =
+			Math.max(label ?? -Infinity, (hint ?? -Infinity) - 40) +
+			recencyBonus(recents, item.key, trimmed.length);
 		scored.push({ item, score });
 	}
 

@@ -142,7 +142,7 @@ export class UaightErrorBoundary extends Component<
 		return (
 			<div
 				role="alert"
-				className="uaight-root p-3 text-[12px] leading-5 text-[var(--u-danger,#b91c1c)]"
+				className="uaight-root p-3 text-sm leading-5 text-[var(--u-danger,#b91c1c)]"
 			>
 				{error.message}
 			</div>

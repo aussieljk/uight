@@ -16,6 +16,7 @@ import type { ComponentType, ReactElement, ReactNode } from "react";
 import { applyPatches } from "../../shared/wire.ts";
 import type {
 	CodecEditorProps,
+	ControlPanelInputsProps,
 	EditableWire,
 	FixtureCodec,
 	InputOverlay,
@@ -27,7 +28,7 @@ import { pathKey } from "../../shared/wire.ts";
 // §7.7, Q6 — the editors live in their own runtime module precisely so the
 // renderer chunk never pulls them in; the UI is the only importer.
 import { builtinCodecEditors } from "../../runtime/codec-editors.tsx";
-import { FOCUS_RING, MOTION, cx } from "../cx.ts";
+import { FOCUS_RING, MOTION, SELECTABLE, SELECTED, cx } from "../cx.ts";
 import {
 	childrenOf,
 	formatJson,
@@ -39,13 +40,9 @@ import {
 	wireLabel,
 } from "../wire-view.ts";
 
-export interface ControlPanelInputsProps {
-	inputs: RegisteredInput[];
-	overlay: InputOverlay[];
-	onSet: (name: string, path: PathSegment[], value: EditableWire) => void;
-	onReset: (name?: string) => void;
-	codecs?: FixtureCodec[];
-}
+// The props of an ejectable component are published surface (§11.3), so the
+// declaration lives with the other published types and is re-exported here.
+export type { ControlPanelInputsProps } from "../../shared/types.ts";
 
 /* ------------------------------------------------------------------ *
  * Primitives
@@ -53,7 +50,7 @@ export interface ControlPanelInputsProps {
 
 const FIELD = cx(
 	"h-6 w-full min-w-0 rounded-sm border border-[var(--u-line)] bg-[var(--u-bg)] px-1.5",
-	"text-[12px] text-[var(--u-fg)] placeholder:text-[var(--u-fg-subtle)]",
+	"text-sm text-[var(--u-fg)] placeholder:text-[var(--u-fg-subtle)]",
 	"disabled:opacity-50",
 	FOCUS_RING,
 	MOTION,
@@ -63,14 +60,29 @@ function Chip({ children, title }: { children: ReactNode; title?: string }): Rea
 	return (
 		<span
 			title={title}
-			className="inline-flex h-6 items-center rounded-sm bg-[var(--u-bg-hover)] px-1.5 text-[11px] text-[var(--u-fg-muted)]"
+			className="inline-flex h-6 items-center rounded-sm bg-[var(--u-bg-hover)] px-1.5 text-xs text-[var(--u-fg-muted)]"
 		>
 			{children}
 		</span>
 	);
 }
 
-/** A text field that only reports on commit, so typing never fights the renderer. */
+/**
+ * A text field that reports every keystroke, while keeping the keystroke itself
+ * as local state.
+ *
+ * It used to report only on blur or Enter, which made §7.5's "every control is
+ * live" false for exactly the editors people use most: typing into `label` and
+ * looking at the preview showed the module default until focus moved somewhere
+ * else, with nothing on screen saying why. The reason for the delay — "typing
+ * must never fight the renderer" — is real but is answered by the `draft`
+ * state, not by withholding the patch: the panel edits the host's overlay store
+ * synchronously (§7.2 step 4 happens in the renderer, off the keystroke path),
+ * so `props.value` comes back equal to what was typed within the same commit
+ * and the effect below is a no-op. Callers that can reject a value — number,
+ * bigint, JSON — still validate before calling `onCommit`, so a half-typed
+ * `-` or `1e` simply does not produce a patch.
+ */
 function TextField(props: {
 	value: string;
 	onCommit: (next: string) => void;
@@ -89,6 +101,12 @@ function TextField(props: {
 		if (draft !== props.value) props.onCommit(draft);
 	};
 
+	/** Live. `commit` stays on blur and Enter as the backstop for a rejected draft. */
+	const edit = (next: string) => {
+		setDraft(next);
+		if (next !== props.value) props.onCommit(next);
+	};
+
 	if (props.multiline) {
 		return (
 			<textarea
@@ -96,7 +114,7 @@ function TextField(props: {
 				value={draft}
 				rows={3}
 				disabled={props.disabled}
-				onChange={(e) => setDraft(e.target.value)}
+				onChange={(e) => edit(e.target.value)}
 				onBlur={commit}
 				className={cx(FIELD, "h-auto resize-y py-1 leading-5")}
 			/>
@@ -112,7 +130,7 @@ function TextField(props: {
 			step={props.step}
 			min={props.min}
 			max={props.max}
-			onChange={(e) => setDraft(e.target.value)}
+			onChange={(e) => edit(e.target.value)}
 			onBlur={commit}
 			onKeyDown={(e) => {
 				if (e.key === "Enter") {
@@ -171,9 +189,10 @@ function Editor(props: NodeProps): ReactElement {
 							<label
 								key={`${value}-${i}`}
 								className={cx(
-									"inline-flex h-6 cursor-default items-center rounded-sm px-1.5 text-[11px]",
+									"inline-flex h-6 cursor-pointer items-center rounded-sm px-1.5 text-xs",
+									SELECTABLE,
 									active
-										? "bg-[var(--u-accent-soft)] text-[var(--u-accent)]"
+										? SELECTED
 										: "text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
 									"focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--u-accent)]",
 									MOTION,
@@ -233,7 +252,7 @@ function Editor(props: NodeProps): ReactElement {
 						disabled={disabled}
 						onClick={() => onSet(path, { t: "prim", v: "" })}
 						className={cx(
-							"h-6 rounded-sm px-1.5 text-[11px] text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
+							"h-6 rounded-sm px-1.5 text-xs text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
 							FOCUS_RING,
 							MOTION,
 						)}
@@ -285,7 +304,7 @@ function Editor(props: NodeProps): ReactElement {
 			if (typeof wire.v === "boolean" || shape === "checkbox") {
 				const checked = wire.v === true;
 				return (
-					<label className="inline-flex h-6 items-center gap-2 text-[12px] text-[var(--u-fg-muted)]">
+					<label className="inline-flex h-6 items-center gap-2 text-sm text-[var(--u-fg-muted)]">
 						<input
 							type="checkbox"
 							aria-label={label}
@@ -316,7 +335,7 @@ function Editor(props: NodeProps): ReactElement {
 								onChange={(e) => onSet(path, { t: "prim", v: Number(e.target.value) })}
 								className={cx("h-6 min-w-0 flex-1 accent-[var(--u-accent)]", FOCUS_RING)}
 							/>
-							<span className="w-10 shrink-0 text-right text-[11px] tabular-nums text-[var(--u-fg-muted)]">
+							<span className="w-10 shrink-0 text-right text-xs tabular-nums text-[var(--u-fg-muted)]">
 								{numeric}
 							</span>
 						</div>
@@ -402,7 +421,7 @@ function Branch(props: NodeProps): ReactElement {
 				aria-expanded={open}
 				onClick={() => setOpen((v) => !v)}
 				className={cx(
-					"flex h-6 w-full items-center gap-1 rounded-sm px-1 text-left text-[11px] text-[var(--u-fg-muted)]",
+					"flex h-6 w-full items-center gap-1 rounded-sm px-1 text-left text-xs text-[var(--u-fg-muted)]",
 					"hover:bg-[var(--u-bg-hover)]",
 					FOCUS_RING,
 					MOTION,
@@ -430,7 +449,7 @@ function Branch(props: NodeProps): ReactElement {
 						/>
 					))}
 					{rows.length === 0 ? (
-						<p className="py-1 text-[11px] text-[var(--u-fg-subtle)]">empty</p>
+						<p className="py-1 text-xs text-[var(--u-fg-subtle)]">empty</p>
 					) : null}
 				</div>
 			) : null}
@@ -444,7 +463,7 @@ function Node(props: NodeProps): ReactElement {
 	return (
 		<div className="flex items-start gap-2 py-0.5">
 			<span
-				className="mt-1 w-16 shrink-0 truncate text-[11px] text-[var(--u-fg-subtle)]"
+				className="mt-1 w-16 shrink-0 truncate text-xs text-[var(--u-fg-subtle)]"
 				title={props.label}
 			>
 				{props.label}
@@ -493,16 +512,16 @@ function InputRow(props: {
 			aria-label={label}
 		>
 			<div className="flex h-6 items-center gap-2">
-				<span className="truncate text-[12px] font-medium text-[var(--u-fg)]" title={input.name}>
+				<span className="truncate text-sm font-medium text-[var(--u-fg)]" title={input.name}>
 					{label}
 				</span>
-				<span className="shrink-0 text-[11px] text-[var(--u-fg-subtle)]">
+				<span className="shrink-0 text-xs text-[var(--u-fg-subtle)]">
 					{typeLabel(value)}
 				</span>
 				{disabled ? (
 					// §7.3 — an unregistered input keeps its overlay and shows greyed.
 					<span
-						className="shrink-0 text-[11px] text-[var(--u-fg-subtle)]"
+						className="shrink-0 text-xs text-[var(--u-fg-subtle)]"
 						title="This input was not registered by the latest render. Its setting is kept."
 					>
 						inactive
@@ -516,7 +535,7 @@ function InputRow(props: {
 							aria-pressed={jsonMode}
 							onClick={() => setJsonMode((v) => !v)}
 							className={cx(
-								"h-6 rounded-sm px-1.5 text-[11px]",
+								"h-6 rounded-sm px-1.5 text-xs",
 								jsonMode
 									? "bg-[var(--u-accent-soft)] text-[var(--u-accent)]"
 									: "text-[var(--u-fg-subtle)] hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)]",
@@ -533,7 +552,7 @@ function InputRow(props: {
 							onClick={() => onReset(input.name)}
 							title="Reset to this module's current default"
 							className={cx(
-								"h-6 rounded-sm px-1.5 text-[11px] text-[var(--u-accent)] hover:bg-[var(--u-bg-hover)]",
+								"h-6 rounded-sm px-1.5 text-xs text-[var(--u-accent)] hover:bg-[var(--u-bg-hover)]",
 								FOCUS_RING,
 								MOTION,
 							)}
@@ -545,7 +564,7 @@ function InputRow(props: {
 			</div>
 
 			{input.options?.description ? (
-				<p className="mb-1 text-[11px] leading-4 text-[var(--u-fg-muted)]">
+				<p className="mb-1 text-xs leading-4 text-[var(--u-fg-muted)]">
 					{input.options.description}
 				</p>
 			) : null}
@@ -618,7 +637,7 @@ function JsonEditor(props: {
 				onBlur={commit}
 				className={cx(FIELD, "h-auto resize-y py-1 leading-5", error ? "border-[var(--u-danger)]" : "")}
 			/>
-			{error ? <p className="mt-1 text-[11px] text-[var(--u-danger)]">{error}</p> : null}
+			{error ? <p className="mt-1 text-xs text-[var(--u-danger)]">{error}</p> : null}
 		</div>
 	);
 }

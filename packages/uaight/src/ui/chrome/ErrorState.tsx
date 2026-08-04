@@ -47,25 +47,25 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 	return (
 		<div className="h-full w-full overflow-auto p-6" role="alert">
 			<div className="mx-auto max-w-160">
-				<p className="text-[14px] font-medium text-[var(--u-danger)]">
+				<p className="text-base font-medium text-[var(--u-danger)]">
 					{KIND_LABEL[error.kind]}
 				</p>
 				{error.file ? (
-					<p className="mt-1 text-[11px] text-[var(--u-fg-subtle)]">{error.file}</p>
+					<p className="mt-1 text-xs text-[var(--u-fg-subtle)]">{error.file}</p>
 				) : null}
-				<p className="mt-3 text-[12px] leading-5 whitespace-pre-wrap text-[var(--u-fg)]">
+				<p className="mt-3 text-sm leading-5 whitespace-pre-wrap text-[var(--u-fg)]">
 					{error.message}
 				</p>
 
 				{props.length ? (
 					<div className="mt-4 rounded-sm border border-[var(--u-line)] bg-[var(--u-bg-sunken)] p-3">
-						<p className="text-[11px] font-medium text-[var(--u-fg)]">
+						<p className="text-xs font-medium text-[var(--u-fg)]">
 							Props this render seems to need
 						</p>
-						<p className="mt-1 text-[11px] leading-5 text-[var(--u-fg-muted)]">
+						<p className="mt-1 text-xs leading-5 text-[var(--u-fg-muted)]">
 							{props.join(", ")}
 						</p>
-						<p className="mt-2 text-[11px] leading-5 text-[var(--u-fg-subtle)]">
+						<p className="mt-2 text-xs leading-5 text-[var(--u-fg-subtle)]">
 							Detected components are rendered with no props. Write a fixture file
 							to give it the props it needs.
 						</p>
@@ -76,13 +76,13 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 					<details className="mt-4">
 						<summary
 							className={cx(
-								"cursor-default text-[11px] text-[var(--u-fg-muted)] select-none",
+								"cursor-pointer text-xs text-[var(--u-fg-muted)] select-none hover:text-[var(--u-fg)]",
 								FOCUS_RING,
 							)}
 						>
 							Component stack
 						</summary>
-						<pre className="mt-2 overflow-auto text-[11px] leading-5 text-[var(--u-fg-subtle)]">
+						<pre className="mt-2 overflow-auto text-xs leading-5 text-[var(--u-fg-subtle)]">
 							{error.componentStack}
 						</pre>
 					</details>
@@ -92,13 +92,13 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 					<details className="mt-2">
 						<summary
 							className={cx(
-								"cursor-default text-[11px] text-[var(--u-fg-muted)] select-none",
+								"cursor-pointer text-xs text-[var(--u-fg-muted)] select-none hover:text-[var(--u-fg)]",
 								FOCUS_RING,
 							)}
 						>
 							Stack
 						</summary>
-						<pre className="mt-2 overflow-auto text-[11px] leading-5 text-[var(--u-fg-subtle)]">
+						<pre className="mt-2 overflow-auto text-xs leading-5 text-[var(--u-fg-subtle)]">
 							{error.stack}
 						</pre>
 					</details>
@@ -109,7 +109,7 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 						type="button"
 						onClick={onRetry}
 						className={cx(
-							"mt-5 h-7 rounded-sm border border-[var(--u-line-strong)] px-2.5 text-[12px] text-[var(--u-fg)]",
+							"mt-5 h-7 rounded-sm border border-[var(--u-line-strong)] px-2.5 text-sm text-[var(--u-fg)]",
 							"hover:bg-[var(--u-bg-hover)]",
 							FOCUS_RING,
 							MOTION,

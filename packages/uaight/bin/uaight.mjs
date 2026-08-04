@@ -3,8 +3,9 @@
  * The uaight CLI.
  *
  *   uaight build [--out dist-uaight] [--base /] [--root .]
+ *   uaight doctor [--root .] [--json]
  *   uaight storybook [--root .]
- *   uaight mcp [--url http://localhost:5173]
+ *   uaight mcp [--url <url>]
  *
  * A thin argument parser over the Node API in `uaight/vite` and `uaight/mcp`.
  * Everything it can do is also callable from a script, which is the supported
@@ -36,12 +37,16 @@ function usage() {
     --root <dir>              Project root (default: cwd)
     --config <file>           Vite config file
 
+  uaight doctor               Why is my component missing: config, index, problems
+    --root <dir>              Project root (default: cwd)
+    --json                    Print the full report as JSON
+
   uaight storybook            Report which CSF features would not survive
     --root <dir>              Project root (default: cwd)
     --json                    Print the full report as JSON
 
   uaight mcp                  Run the MCP server over stdio
-    --url <url>               Dev server URL (default: http://localhost:5173)
+    --url <url>               Dev server URL (default: discovered)
 
   uaight --version
 `);
@@ -71,6 +76,27 @@ async function main() {
 		return;
 	}
 
+	if (command === "doctor") {
+		const { resolveUaightConfig, doctorReport, formatDoctorReport } = await import(
+			"../dist/vite.js"
+		);
+		const root = path.resolve(String(flag("root", process.cwd())));
+		// `serve` because that is the mode the question is asked in: the inventory
+		// and call-site passes are development-only, and a doctor that reported
+		// zero components for a healthy project would be its own bug report.
+		const config = resolveUaightConfig({ root, options: {}, command: "serve" });
+		const report = await doctorReport(config);
+		if (flag("json", false) === true) {
+			console.log(JSON.stringify(report, null, 2));
+		} else {
+			console.log(formatDoctorReport(report));
+		}
+		// A collision makes fixture ids ambiguous, so it is the one problem kind
+		// that should fail a CI step that runs this.
+		if (report.problems.some((p) => p.kind === "collision")) process.exitCode = 1;
+		return;
+	}
+
 	if (command === "storybook") {
 		const { resolveUaightConfig, storybookReport, formatStorybookReport } = await import(
 			"../dist/vite.js"
@@ -88,8 +114,11 @@ async function main() {
 
 	if (command === "mcp") {
 		const { runMcpServer } = await import("../dist/mcp.js");
+		const url = flag("url", undefined);
 		await runMcpServer({
-			url: String(flag("url", "http://localhost:5173")),
+			// Omitted entirely when there is no `--url`, which is what turns
+			// discovery on: nobody should have to know which port Vite took.
+			...(typeof url === "string" ? { url } : {}),
 			version,
 		});
 		return;

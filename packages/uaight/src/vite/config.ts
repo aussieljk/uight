@@ -108,6 +108,18 @@ export interface ResolvedUaightConfig {
 	/** Call-site harvesting, and how many sites to keep per component. */
 	callSites: false | { max: number };
 
+	/**
+	 * Vite's string aliases, normalized, longest-first-agnostic. Internal: it is
+	 * read by exactly one thing, the call-site pass, so that `@/components/Button`
+	 * names the same component as `../components/Button`.
+	 *
+	 * It is not a `UaightPluginOptions` field. The plugin fills it from
+	 * `userConfig.resolve.alias` in `config()` — where the initial scan runs —
+	 * and reconciles it against `configResolved`'s table afterwards, because
+	 * another plugin may have added entries in between.
+	 */
+	aliases: ResolvedAlias[];
+
 	/** Root-relative import specifier (`/src/uaight.preview.tsx`). §4.2 */
 	previewEntry?: string;
 	/** Absolute filesystem path — it becomes a Rollup HTML input. §6.6 */
@@ -162,10 +174,57 @@ export function defineUaightConfig(
  * Resolution
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Aliases — the call-site pass's half of Vite's resolver
+ * ------------------------------------------------------------------ */
+
+export interface ResolvedAlias {
+	find: string;
+	replacement: string;
+}
+
+/**
+ * Vite's `resolve.alias` in either of the two shapes it accepts — a record or
+ * an array of entries — reduced to the string ones.
+ *
+ * RegExp finds are dropped rather than approximated. A regex alias can rewrite
+ * any part of a specifier, and half-implementing that produces a *wrong* module
+ * path rather than no answer; Vite's own internal aliases are all RegExp, so
+ * dropping them also keeps the table to what the user wrote.
+ */
+export function normalizeAliases(alias: unknown): ResolvedAlias[] {
+	const out: ResolvedAlias[] = [];
+	const push = (find: unknown, replacement: unknown): void => {
+		if (typeof find !== "string" || typeof replacement !== "string") return;
+		if (find === "") return;
+		out.push({ find, replacement });
+	};
+
+	if (Array.isArray(alias)) {
+		for (const entry of alias as Array<Record<string, unknown>>) {
+			if (entry && typeof entry === "object") push(entry.find, entry.replacement);
+		}
+	} else if (alias && typeof alias === "object") {
+		for (const [find, replacement] of Object.entries(alias)) push(find, replacement);
+	}
+
+	return out.sort((a, b) => a.find.localeCompare(b.find));
+}
+
+/** True when two alias tables would resolve every specifier identically. */
+export function sameAliases(a: ResolvedAlias[], b: ResolvedAlias[]): boolean {
+	return (
+		a.length === b.length &&
+		a.every((entry, i) => entry.find === b[i]?.find && entry.replacement === b[i]?.replacement)
+	);
+}
+
 export interface ResolveUaightConfigOptions {
 	root: string;
 	options: UaightPluginOptions;
 	command: "serve" | "build";
+	/** Vite's `resolve.alias`, in whichever shape the config carries it. */
+	alias?: unknown;
 	/**
 	 * Internal. Pre-read `uaight.config.json` source, used by the watcher path
 	 * so a reload never re-reads a file mid-save (§4.5).
@@ -218,6 +277,7 @@ export function resolveUaightConfig(
 
 		inventory: resolveInventory(o.inventory),
 		callSites: resolveCallSites(o.callSites),
+		aliases: normalizeAliases(opts.alias),
 
 		previewEntry: o.previewEntry
 			? toGlobPath(root, path.resolve(root, o.previewEntry))
@@ -438,6 +498,9 @@ export function safeReloadConfig(
 		root: prev.root,
 		options,
 		command: prev.command,
+		// Aliases come from the Vite config, not from ours, so a `uaight.config.json`
+		// reload must carry the table it already has rather than lose it.
+		alias: prev.aliases,
 		configSource: source,
 		onProblem: (message) => {
 			failed = true;

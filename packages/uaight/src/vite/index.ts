@@ -29,8 +29,10 @@ import { readOnlyApi } from "./api.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
 import {
 	isStructural,
+	normalizeAliases,
 	resolveUaightConfig,
 	safeReloadConfig,
+	sameAliases,
 	structuralDiff,
 } from "./config.ts";
 import {
@@ -41,6 +43,7 @@ import {
 	rendererHandler,
 } from "./dev-route.ts";
 import { emitManifest, replaceRendererUrl } from "./manifest.ts";
+import { checkMdxSupport } from "./mdx.ts";
 import { parseFixtureFile } from "./parse.ts";
 import {
 	applyParse,
@@ -83,6 +86,12 @@ export { formatStorybookReport, storybookReport } from "./storybook-report.ts";
 export type { StorybookReport, StorybookFileReport } from "./storybook-report.ts";
 export { buildStatic } from "./static.ts";
 export type { BuildStaticOptions, BuildStaticResult } from "./static.ts";
+export { createBabelDocgenResolver } from "./docgen.ts";
+export type { BabelDocgenOptions } from "./docgen.ts";
+export { doctorReport, formatDoctorReport } from "./doctor.ts";
+export type { DoctorReport } from "./doctor.ts";
+export { checkMdxSupport } from "./mdx.ts";
+export type { MdxAdvice } from "./mdx.ts";
 export { DEV_RENDERER_URL, DEV_ENTRY_URL };
 
 const V = VIRTUAL_IDS;
@@ -114,6 +123,11 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 				root: userConfig.root ?? process.cwd(),
 				options,
 				command: env.command,
+				// The alias table the call-site pass needs. `configResolved` has the
+				// authoritative one, but the initial scan runs here — `config()` is
+				// where `production: "error"` and collisions have to be decided — so
+				// this reads what the user wrote and `configResolved` reconciles.
+				alias: userConfig.resolve?.alias,
 				onProblem: (message) => console.warn(message),
 			});
 			index = await scanFixtures(cfg);
@@ -146,9 +160,30 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 
 		// Read-only. §4.5's objection is to *mutating* ResolvedConfig; `base`
 		// and the logger cannot be known any earlier and are only read.
-		configResolved(resolved) {
+		async configResolved(resolved) {
 			base = resolved.base;
 			logger = resolved.logger;
+
+			// Aliases decide whether `@/components/Button` and
+			// `../components/Button` name the same component, and a plugin may have
+			// added an entry between `config()` and here. Rescan only when the
+			// *string* entries actually moved: Vite's own additions are all RegExp
+			// and are dropped by `normalizeAliases`, so in the ordinary case this
+			// compares equal and costs nothing.
+			const resolvedAliases = normalizeAliases(resolved.resolve.alias);
+			if (cfg.callSites && !sameAliases(cfg.aliases, resolvedAliases)) {
+				cfg = { ...cfg, aliases: resolvedAliases };
+				index = await scanFixtures(cfg);
+			}
+
+			// §14: nothing is injected and nothing is reordered — this only reads
+			// the list the user assembled and says what is wrong with it, and only
+			// when the project has `.mdx` fixtures for it to be wrong about.
+			const advice = checkMdxSupport(
+				resolved.plugins.map((plugin) => plugin.name),
+				index,
+			);
+			if (advice) logger.warn(advice.message);
 		},
 
 		buildStart() {
@@ -391,11 +426,45 @@ function isTopologyRelevant(file: string, cfg: ResolvedUaightConfig): boolean {
 	);
 }
 
+/**
+ * One line at dev-server startup, when there is something to say.
+ *
+ * A user who never opens `/uaight` currently never learns their `fixturesDir`
+ * was unreadable — the problems exist, but only on a JSON endpoint and in a UI
+ * they have no reason to visit. This is the smallest fix that closes that: a
+ * count per kind and the *first* offender's message in full, because a summary
+ * without an example tells nobody which file to look at, and a summary with
+ * eleven of them is scrollback nobody reads.
+ *
+ * `uaight doctor` prints the rest.
+ */
+export function formatProblemSummary(problems: IndexProblem[]): string | null {
+	if (problems.length === 0) return null;
+
+	const counts = new Map<IndexProblem["kind"], number>();
+	for (const problem of problems) {
+		counts.set(problem.kind, (counts.get(problem.kind) ?? 0) + 1);
+	}
+	const breakdown = [...counts]
+		.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+		.map(([kind, count]) => `${count} ${kind}`)
+		.join(", ");
+
+	const first = problems[0] as IndexProblem;
+	const rest = problems.length - 1;
+	return (
+		`[uaight] ${problems.length} index problem${problems.length === 1 ? "" : "s"} ` +
+		`(${breakdown}). ${first.message.replace(/^\[uaight\] /, "")}` +
+		`${rest > 0 ? ` (+${rest} more — run \`uaight doctor\`)` : ""}`
+	);
+}
+
 function reportProblems(
 	index: FixtureIndex,
 	logger: { warn(msg: string): void },
 ): void {
-	for (const problem of index.problems) logger.warn(problem.message);
+	const summary = formatProblemSummary(index.problems);
+	if (summary) logger.warn(summary);
 }
 
 interface Debounced<A extends unknown[]> {

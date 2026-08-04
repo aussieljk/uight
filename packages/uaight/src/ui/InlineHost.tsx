@@ -21,22 +21,37 @@ import {
 	fixtureModules,
 	inventoryModules,
 } from "virtual:uaight/runtime";
-import type { FixtureCodec } from "../shared/types.ts";
+import { THEME_ATTRIBUTE } from "../shared/types.ts";
+import type { FixtureCodec, ResolvedUaightTheme } from "../shared/types.ts";
 
 export interface InlineHostProps {
 	codecs: FixtureCodec[];
+	/**
+	 * §10.1 — stamped on this page's own `documentElement`, because inline
+	 * isolation IS this page: the preview entry's providers are in the host
+	 * realm, and `readUaightTheme()` reads `document` either way. The contract is
+	 * "the renderer document", and inline the renderer document is this one.
+	 */
+	theme: ResolvedUaightTheme;
 	onTransport: (transport: HostTransport | null) => void;
 }
 
 type Providers = ComponentType<{ children: ReactNode }> | undefined;
 
-export function InlineHost({ codecs, onTransport }: InlineHostProps): ReactElement {
+export function InlineHost({ codecs, theme, onTransport }: InlineHostProps): ReactElement {
 	const pair = useMemo(() => createDirectTransportPair(), []);
 	const [root, setRoot] = useState<HTMLElement | null>(null);
 	const [providers, setProviders] = useState<{ value: Providers } | null>(
 		config.hasPreviewEntry ? null : { value: undefined },
 	);
 	const [storybookPreview, setStorybookPreview] = useState<StorybookPreview | null>(null);
+
+	useEffect(() => {
+		document.documentElement.setAttribute(THEME_ATTRIBUTE, theme);
+		// Deliberately not removed on unmount: the attribute describes the document
+		// a preview entry is rendering into, and clearing it as the explorer goes
+		// away would flip that tree to light for as long as it outlives us.
+	}, [theme]);
 
 	useLayoutEffect(() => {
 		onTransport(pair.host);

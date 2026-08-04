@@ -5,15 +5,21 @@
  * the value. Per render the renderer produces a *fresh* default, serializes it,
  * and applies the UI's patches immutably. Everything below is a consequence:
  * opaque leaves always come from the current module, so HMR is correct by
- * construction; and a patch whose path is not in the new shape is dropped and
- * counted rather than forced.
+ * construction; and a patch whose path is not in the new shape is dropped —
+ * and named, so the panel can say which setting was lost — rather than forced.
  *
  * `src/runtime/**` belongs to another agent. Absent means skipped, not passed.
  */
 
 import { describe, expect, it } from "vitest";
 
-import type { EditableWire, FixtureCodec, Patch, Wire } from "../src/shared/types.ts";
+import type {
+	EditableWire,
+	FixtureCodec,
+	Patch,
+	PathSegment,
+	Wire,
+} from "../src/shared/types.ts";
 import { optional, present } from "./helpers/optional.ts";
 
 interface Serializer {
@@ -29,7 +35,7 @@ interface OverlayModule {
 		baseWire: Wire,
 		patches: readonly Patch[],
 		deserialize: (wire: Wire) => { ok: boolean; value: unknown },
-	): { value: unknown; dropped: number };
+	): { value: unknown; dropped: PathSegment[][] };
 }
 
 interface SerializerModule {
@@ -63,7 +69,7 @@ function apply(
 	base: unknown,
 	patches: readonly Patch[],
 	revision = 1,
-): { value: unknown; dropped: number } {
+): { value: unknown; dropped: PathSegment[][] } {
 	const s = serializer();
 	const wire = s.serialize(base, revision, { name: "props" });
 	const deserialize = (w: Wire): { ok: boolean; value: unknown } =>
@@ -79,7 +85,7 @@ describeIf("applyOverlayToValue", () => {
 			{ path: ["label"], value: prim("Edited") },
 		]);
 		expect(value).toEqual({ label: "Edited", count: 1 });
-		expect(dropped).toBe(0);
+		expect(dropped).toHaveLength(0);
 	});
 
 	it("replaces the whole value on a root-path patch (§7.3, the fixture's own setter)", () => {
@@ -115,7 +121,7 @@ describeIf("applyOverlayToValue", () => {
 			{ path: ["gone"], value: prim(1) },
 			{ path: ["label"], value: prim("Edited") },
 		]);
-		expect(dropped).toBe(1);
+		expect(dropped).toHaveLength(1);
 		expect(value).toEqual({ label: "Edited" });
 	});
 
@@ -124,7 +130,7 @@ describeIf("applyOverlayToValue", () => {
 			{ path: ["items", 0], value: prim(9) },
 			{ path: ["items", 1], value: prim(9) },
 		]);
-		expect(dropped).toBe(1);
+		expect(dropped).toHaveLength(1);
 		expect(value).toEqual({ items: [9] });
 	});
 
@@ -134,7 +140,7 @@ describeIf("applyOverlayToValue", () => {
 			{ path: ["constructor", "prototype", "polluted"], value: prim(true) },
 			{ path: ["prototype"], value: prim(true) },
 		]);
-		expect(dropped).toBe(3);
+		expect(dropped).toHaveLength(3);
 		expect(value).toEqual({ safe: 1 });
 		expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 		expect((Object.prototype as unknown as Record<string, unknown>).polluted).toBeUndefined();
@@ -149,14 +155,14 @@ describeIf("applyOverlayToValue", () => {
 				value: { t: "opaque", id: 1, label: "ƒ ()" } as unknown as Patch["value"],
 			},
 		]);
-		expect(dropped).toBe(1);
+		expect(dropped).toHaveLength(1);
 	});
 
 	it("cannot reach inside an opaque leaf", () => {
 		const { dropped } = apply({ onClick: () => {} }, [
 			{ path: ["onClick", "anything"], value: prim(1) },
 		]);
-		expect(dropped).toBe(1);
+		expect(dropped).toHaveLength(1);
 	});
 
 	it("applies patches in list order, so a later one wins", () => {
@@ -167,10 +173,20 @@ describeIf("applyOverlayToValue", () => {
 		expect(value).toEqual({ label: "second" });
 	});
 
+	it("names each dropped patch by the path it pointed at (§7.3)", () => {
+		// One of each reason a patch is dropped, so the panel can name all three.
+		const { dropped } = apply({ label: "Hi", items: [1] }, [
+			{ path: ["gone"], value: prim("x") },
+			{ path: ["items", 4], value: prim(2) },
+			{ path: ["__proto__", "polluted"], value: prim(true) },
+		]);
+		expect(dropped).toEqual([["gone"], ["items", 4], ["__proto__", "polluted"]]);
+	});
+
 	it("returns the default untouched when there is nothing to apply", () => {
 		const base = { label: "Hi" };
 		const { value, dropped } = apply(base, []);
 		expect(value).toBe(base);
-		expect(dropped).toBe(0);
+		expect(dropped).toHaveLength(0);
 	});
 });

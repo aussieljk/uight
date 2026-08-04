@@ -94,8 +94,83 @@ describeIf("parseFixtureFile — the §3.4 table", () => {
 		expect(parse("export default { get Primary() { return <B />; } };").names).toBeNull();
 	});
 
-	it("is undecidable for an identifier assigned elsewhere", () => {
-		expect(parse("const fixtures = { A: 1 };\nexport default fixtures;").names).toBeNull();
+	/*
+	 * §3.4's identifier row, as it now reads. `const fixtures = {…}; export
+	 * default fixtures` used to be undecidable — which was a decision about
+	 * effort, not about knowability: the initializer is right there in the
+	 * module. It is resolved now, and everything whose value the initializer is
+	 * *not* — `let`, `var`, an import, a destructuring pattern, a redeclaration
+	 * — stays undecidable, because in each of those the binding can hold
+	 * something other than what it was written with.
+	 */
+	describe("an identifier default export", () => {
+		it("resolves through a module-scope const", () => {
+			expect(parse("const fixtures = { A: 1, B: 2 };\nexport default fixtures;").names).toEqual([
+				"A",
+				"B",
+			]);
+		});
+
+		it("resolves through a chain of consts", () => {
+			expect(
+				parse("const a = { A: 1 };\nconst b = a;\nexport default b;").names,
+			).toEqual(["A"]);
+		});
+
+		it("resolves an exported const, which is still module scope", () => {
+			expect(
+				parse("export const fixtures = { A: 1 };\nexport default fixtures;").names,
+			).toEqual(["A"]);
+		});
+
+		it("carries the table through: a resolved non-object is a single fixture", () => {
+			expect(parse("const only = <B />;\nexport default only;").names).toEqual([null]);
+		});
+
+		it("carries the table through: a resolved object with a spread is undecidable", () => {
+			expect(
+				parse("const fixtures = { ...base, A: 1 };\nexport default fixtures;").names,
+			).toBeNull();
+		});
+
+		it("stays undecidable for let, which a later assignment can replace", () => {
+			expect(parse("let fixtures = { A: 1 };\nexport default fixtures;").names).toBeNull();
+		});
+
+		it("stays undecidable for var", () => {
+			expect(parse("var fixtures = { A: 1 };\nexport default fixtures;").names).toBeNull();
+		});
+
+		it("stays undecidable for an import, whose value is in another module", () => {
+			expect(
+				parse('import fixtures from "./elsewhere";\nexport default fixtures;').names,
+			).toBeNull();
+		});
+
+		it("stays undecidable for a destructuring pattern", () => {
+			expect(
+				parse("const { fixtures } = bundle;\nexport default fixtures;").names,
+			).toBeNull();
+		});
+
+		it("stays undecidable for a name declared twice", () => {
+			expect(
+				parse("const a = { A: 1 };\nconst a = { B: 2 };\nexport default a;").names,
+			).toBeNull();
+		});
+
+		it("stays undecidable for a const with no initializer", () => {
+			// Not valid runtime code, but a half-typed file must not hang or throw.
+			expect(parse("const fixtures;\nexport default fixtures;").names).toBeNull();
+		});
+
+		it("does not hang on a cycle", () => {
+			expect(parse("const a = b;\nconst b = a;\nexport default a;").names).toBeNull();
+		});
+
+		it("stays undecidable for a binding this module never declares", () => {
+			expect(parse("export default fixtures;").names).toBeNull();
+		});
 	});
 
 	it("lets `export const fixtureNames` win outright", () => {

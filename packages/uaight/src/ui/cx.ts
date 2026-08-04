@@ -13,10 +13,38 @@ export const FOCUS_RING =
 
 export const MOTION = "motion-safe:transition-colors motion-safe:duration-100";
 
-/** A quiet, borderless control. Borders only where whitespace cannot do the job. */
+/**
+ * Selection, told apart from focus.
+ *
+ * §10.1 spends its single accent on both, and in a keyboard-first tool with
+ * roving tabindex the two diverge constantly: you arrow focus down the tree
+ * without selecting, and the selected row is still the thing on screen. When
+ * both were a soft accent fill there was no reading which was which, so
+ * selection now takes a solid **left bar** and focus keeps the ring. They are
+ * different shapes rather than two intensities of one, which is what makes
+ * them legible at the same time.
+ *
+ * The transparent bar is always present, so selecting a row never shifts its
+ * text sideways by two pixels.
+ */
+export const SELECTABLE = "border-l-2 border-l-transparent";
+export const SELECTED =
+	"border-l-[var(--u-accent)] bg-[var(--u-accent-soft)] font-medium text-[var(--u-accent)]";
+
+/**
+ * A quiet, borderless control. Borders only where whitespace cannot do the job.
+ *
+ * Sizes come from the theme's three-step scale (§10.1) rather than arbitrary
+ * pixel values: `text-xs` is 11px, `text-sm` is 12px, `text-base` is 13px, and
+ * there is deliberately no fourth. Hierarchy is weight, tracking and colour.
+ */
 export const QUIET_BUTTON = cx(
-	"inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-[11px] text-[var(--u-fg-muted)]",
+	"inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-xs text-[var(--u-fg-muted)]",
 	"hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)] disabled:opacity-40 disabled:hover:bg-transparent",
 	FOCUS_RING,
 	MOTION,
 );
+
+/** A section heading in a sidebar or panel: quiet, and unmistakably not a row. */
+export const SECTION_LABEL =
+	"text-xs font-medium tracking-wide text-[var(--u-fg-subtle)] uppercase";

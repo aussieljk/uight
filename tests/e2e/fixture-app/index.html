@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>uaight e2e host</title>
+	</head>
+	<body>
+		<!--
+			A deliberately hostile-ish host document: the explorer's compiled CSS is
+			scoped to `.uaight-root` (SPEC §10.3), so these rules must never reach it.
+		-->
+		<style>
+			body { margin: 0; font-family: Georgia, serif; }
+			div { line-height: 3; }
+		</style>
+		<div id="root"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

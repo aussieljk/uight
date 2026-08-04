@@ -7,13 +7,24 @@
  *
  * §3.4's decision table, implemented literally:
  *
- *   | Default export                                        | Result            |
- *   | ----------------------------------------------------- | ----------------- |
- *   | Not an object literal                                 | single fixture    |
- *   | Object literal, all keys static                       | names: [...]      |
- *   | Object literal with spread, computed keys, or getters | names: null       |
- *   | Identifier assigned elsewhere                         | names: null       |
- *   | `export const fixtureNames` present                   | **Wins outright** |
+ *   | Default export                                          | Result            |
+ *   | ------------------------------------------------------- | ----------------- |
+ *   | Not an object literal                                   | single fixture    |
+ *   | Object literal, all keys static                         | names: [...]      |
+ *   | Object literal with spread, computed keys, or getters   | names: null       |
+ *   | Identifier bound to a module-scope `const` initializer  | that initializer  |
+ *   | Identifier assigned elsewhere                           | names: null       |
+ *   | `export const fixtureNames` present                     | **Wins outright** |
+ *
+ * The identifier row moved. `const fixtures = {…}; export default fixtures` is
+ * the shape half the real corpora are written in, and calling it undecidable
+ * cost every one of those files a warm-pass module execution to learn something
+ * the source says outright. The binding is resolved only when it is a
+ * module-scope `const` with an initializer and nothing reassigns it — `let`,
+ * `var`, a parameter, an import and a destructuring pattern all stay
+ * undecidable, because in each of those the initializer is not the final value.
+ * Resolution follows a chain of identifiers, so `const a = {…}; const b = a;
+ * export default b` decides too, with a cycle guard.
  *
  * **Encoding note.** A single fixture is `[null]`, exactly as §3.4's table
  * says: one entry, whose name is `null` because the module's default export is
@@ -36,6 +47,7 @@ import type {
 	Program,
 	VariableDeclaration,
 } from "oxc-parser";
+import type { FixtureFileMeta, FixtureMeta } from "../shared/types.ts";
 
 /** Where a decided name list came from. Diagnostics and parse-coverage stats. */
 export type NameSource =
@@ -57,6 +69,17 @@ export interface ParsedFixtureFile {
 	csf: boolean;
 	/** Syntax errors reported by oxc. Non-empty means `names` is untrustworthy. */
 	errors: string[];
+	/**
+	 * The `fileMeta` named export (§3.1), when it is a static object literal.
+	 *
+	 * Read here rather than only at runtime because the one consumer that needs
+	 * it — the viewport the preview opens at — has to know before the first
+	 * paint, and under `index: "static"` no module is ever executed. Absent
+	 * whenever the export is missing, dynamic, or not an object.
+	 */
+	fileMeta?: FixtureFileMeta;
+	/** The `fixtureMeta` named export (§3.1), same rules, keyed by fixture name. */
+	fixtureMeta?: Record<string, FixtureMeta>;
 }
 
 export interface ParseFixtureFileOptions {
@@ -113,6 +136,11 @@ export function parseFixtureFile(
 		return { names: null, source: "undecidable", csf, errors };
 	}
 
+	// The two metadata exports ride along with every decision, including an
+	// undecidable one: a file whose names the warm pass has to discover still
+	// has a viewport the first paint needs (§3.1).
+	const meta = readMetaExports(program);
+
 	if (csf) {
 		const names = readCsfStoryNames(program);
 		return {
@@ -120,6 +148,7 @@ export function parseFixtureFile(
 			source: names === null ? "undecidable" : "csf",
 			csf: true,
 			errors,
+			...meta,
 		};
 	}
 
@@ -131,6 +160,7 @@ export function parseFixtureFile(
 			source: declared.names === null ? "undecidable" : "fixtureNames",
 			csf: false,
 			errors,
+			...meta,
 		};
 	}
 
@@ -140,15 +170,22 @@ export function parseFixtureFile(
 	// reports the missing export when it loads, which is more useful than
 	// hiding the file.
 	if (def.kind === "absent") {
-		return { names: [null], source: "default-single", csf: false, errors };
+		return { names: [null], source: "default-single", csf: false, errors, ...meta };
 	}
 
 	// `export default function` / `class` — a component, never an object.
 	if (def.kind === "callable") {
-		return { names: [null], source: "default-single", csf: false, errors };
+		return { names: [null], source: "default-single", csf: false, errors, ...meta };
 	}
 
-	const expr = unwrapExpression(def.expression);
+	// An identifier is followed to its module-scope `const` initializer before
+	// the table is consulted, so `const fixtures = {…}; export default fixtures`
+	// decides exactly as the literal would have (§3.4).
+	const expr = resolveModuleScopeConst(unwrapExpression(def.expression), program);
+
+	if (expr === null) {
+		return { names: null, source: "undecidable", csf: false, errors, ...meta };
+	}
 
 	if (expr.type === "ObjectExpression") {
 		const names = readObjectKeys(expr);
@@ -157,17 +194,180 @@ export function parseFixtureFile(
 			source: names === null ? "undecidable" : "default-object",
 			csf: false,
 			errors,
+			...meta,
 		};
 	}
 
-	// "Identifier assigned elsewhere" — undecidable by the table, even when the
-	// binding is visible in this module. Resolving it is a warm-pass job (§3.5).
-	if (expr.type === "Identifier") {
-		return { names: null, source: "undecidable", csf: false, errors };
+	// Anything else — element, arrow, call — is a single fixture.
+	return { names: [null], source: "default-single", csf: false, errors, ...meta };
+}
+
+/* ------------------------------------------------------------------ *
+ * §3.4 — following an identifier default export
+ * ------------------------------------------------------------------ */
+
+/**
+ * Follow an identifier to the expression it was initialized with, when that is
+ * knowable from this module alone. Returns the expression to apply the table
+ * to, or `null` for undecidable.
+ *
+ * The binding qualifies only when it is a module-scope `const` with an
+ * initializer and no other module-scope declaration of the same name. `let` and
+ * `var` are refused because a later assignment — anywhere, including inside a
+ * function — replaces the value we would be reading, and finding those
+ * assignments means the scope analysis this pass exists to avoid. An import is
+ * refused because the value is in another module.
+ */
+function resolveModuleScopeConst(
+	expr: Expression,
+	program: Program,
+): Expression | null {
+	let current = expr;
+	const seen = new Set<string>();
+
+	for (let guard = 0; guard < 16; guard++) {
+		if (current.type !== "Identifier") return current;
+		const name = (current as { name: string }).name;
+		// A cycle (`const a = b; const b = a;`) is not valid runtime code, but a
+		// half-typed file can contain one and must not hang the index.
+		if (seen.has(name)) return null;
+		seen.add(name);
+
+		const init = moduleScopeConstInit(program, name);
+		if (init === null) return null;
+		current = unwrapExpression(init);
+	}
+	return null;
+}
+
+/** The initializer of a uniquely declared module-scope `const`, or `null`. */
+function moduleScopeConstInit(program: Program, name: string): Expression | null {
+	let found: Expression | null = null;
+	let count = 0;
+
+	for (const stmt of program.body) {
+		const decl =
+			stmt.type === "VariableDeclaration"
+				? (stmt as VariableDeclaration)
+				: stmt.type === "ExportNamedDeclaration" &&
+						stmt.declaration?.type === "VariableDeclaration"
+					? (stmt.declaration as VariableDeclaration)
+					: null;
+		if (!decl) continue;
+
+		for (const d of decl.declarations) {
+			// A destructuring pattern binds the name to a member of a value, not
+			// to the initializer itself.
+			if (d.id.type !== "Identifier") continue;
+			if ((d.id as { name: string }).name !== name) continue;
+			count++;
+			if (decl.kind !== "const" || !d.init) return null;
+			found = d.init;
+		}
 	}
 
-	// Anything else — element, arrow, call — is a single fixture.
-	return { names: [null], source: "default-single", csf: false, errors };
+	return count === 1 ? found : null;
+}
+
+/* ------------------------------------------------------------------ *
+ * §3.1 — `fileMeta` and `fixtureMeta`
+ * ------------------------------------------------------------------ */
+
+/**
+ * Read the two metadata exports as static object literals. Both are optional
+ * and both are display metadata, so anything the parser cannot read stays
+ * absent rather than becoming a problem: the renderer normalizes the real
+ * exports once the module loads, and its answer wins.
+ */
+function readMetaExports(program: Program): {
+	fileMeta?: FixtureFileMeta;
+	fixtureMeta?: Record<string, FixtureMeta>;
+} {
+	const out: {
+		fileMeta?: FixtureFileMeta;
+		fixtureMeta?: Record<string, FixtureMeta>;
+	} = {};
+
+	for (const stmt of program.body) {
+		if (stmt.type !== "ExportNamedDeclaration") continue;
+		if (stmt.exportKind === "type") continue;
+		const decl = stmt.declaration;
+		if (!decl || decl.type !== "VariableDeclaration") continue;
+
+		for (const d of (decl as VariableDeclaration).declarations) {
+			if (d.id.type !== "Identifier" || !d.init) continue;
+			const name = (d.id as { name: string }).name;
+			if (name !== "fileMeta" && name !== "fixtureMeta") continue;
+
+			const value = readStaticObject(unwrapExpression(d.init));
+			if (value === null) continue;
+			if (name === "fileMeta") out.fileMeta = value as FixtureFileMeta;
+			else out.fixtureMeta = value as Record<string, FixtureMeta>;
+		}
+	}
+
+	return out;
+}
+
+/**
+ * A JSON-shaped object literal, or `null`. Deliberately narrower than the
+ * call-site reader: this value is embedded in the generated runtime module and
+ * crosses a realm boundary, so nothing that is not JSON may enter it.
+ */
+function readStaticObject(expr: Expression): Record<string, unknown> | null {
+	const value = readStaticValue(expr, 0);
+	if (value === NOT_STATIC || value === null || typeof value !== "object") return null;
+	if (Array.isArray(value)) return null;
+	return value as Record<string, unknown>;
+}
+
+const NOT_STATIC = Symbol("not-static");
+const MAX_META_DEPTH = 6;
+
+function readStaticValue(expr: Expression, depth: number): unknown {
+	if (depth > MAX_META_DEPTH) return NOT_STATIC;
+	const node = unwrapExpression(expr);
+
+	switch (node.type) {
+		case "Literal": {
+			const raw = node as { value: unknown; regex?: unknown; bigint?: unknown };
+			if (raw.regex !== undefined || raw.bigint !== undefined) return NOT_STATIC;
+			return raw.value ?? null;
+		}
+		case "UnaryExpression": {
+			const unary = node as unknown as { operator: string; argument: Expression };
+			const argument = readStaticValue(unary.argument, depth + 1);
+			if (typeof argument !== "number") return NOT_STATIC;
+			return unary.operator === "-" ? -argument : unary.operator === "+" ? argument : NOT_STATIC;
+		}
+		case "ArrayExpression": {
+			const out: unknown[] = [];
+			for (const element of (node as unknown as { elements: unknown[] }).elements) {
+				if (element === null) return NOT_STATIC;
+				const item = element as { type: string };
+				if (item.type === "SpreadElement") return NOT_STATIC;
+				const value = readStaticValue(element as Expression, depth + 1);
+				if (value === NOT_STATIC) return NOT_STATIC;
+				out.push(value);
+			}
+			return out;
+		}
+		case "ObjectExpression": {
+			const out: Record<string, unknown> = {};
+			for (const prop of (node as ObjectExpression).properties) {
+				if (prop.type === "SpreadElement") return NOT_STATIC;
+				if (prop.computed || prop.kind !== "init") return NOT_STATIC;
+				const key = readStaticKeyName(prop.key);
+				if (key === null) return NOT_STATIC;
+				const value = readStaticValue(prop.value as Expression, depth + 1);
+				if (value === NOT_STATIC) return NOT_STATIC;
+				out[key] = value;
+			}
+			return out;
+		}
+		default:
+			return NOT_STATIC;
+	}
 }
 
 /* ------------------------------------------------------------------ *

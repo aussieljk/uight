@@ -85,6 +85,19 @@ export interface FixtureFileIndex {
 	hash: string;
 	/** True when the file is a Storybook CSF module rather than a fixture module. §13 */
 	csf?: boolean;
+	/**
+	 * The `fileMeta` and `fixtureMeta` named exports (§3.1), when the parser
+	 * could read them as static object literals.
+	 *
+	 * They live on the index rather than arriving over the protocol because the
+	 * only consumer that needs them — the viewport the preview opens at — has to
+	 * know before the first paint, and under `index: "static"` no module is ever
+	 * executed to send a message from. A meta the parser could not read stays
+	 * absent; the renderer still normalizes the real exports and its answer wins
+	 * once the module is loaded.
+	 */
+	fileMeta?: FixtureFileMeta;
+	fixtureMeta?: Record<string, FixtureMeta>;
 }
 
 export interface DecoratorFileIndex {
@@ -112,10 +125,20 @@ export interface FixtureIndex {
 	callSiteSources?: Record<string, CallSite[]>;
 	/** Collision and confinement problems found during the scan. §4.4 */
 	problems: IndexProblem[];
+	/**
+	 * Prop metadata, keyed by glob path. Absent unless `docgen` is on (§15.1),
+	 * so a consumer must treat "no docs" as the normal case.
+	 */
+	docs?: Record<string, ComponentDoc[]>;
 }
 
 export interface IndexProblem {
-	kind: "collision" | "unreadable" | "unparseable";
+	/**
+	 * `confinement` is a `fixturesDir` that resolves outside the Vite root — a
+	 * refusal, not a failure. It was reported as `unreadable`, which was true of
+	 * the outcome and wrong about the cause: the directory usually reads fine.
+	 */
+	kind: "collision" | "unreadable" | "unparseable" | "confinement";
 	message: string;
 	files: string[];
 }
@@ -171,6 +194,77 @@ export interface CallSiteGroup {
 	total: number;
 }
 
+/**
+ * A detected component being rendered, and the harvested usage chosen for it.
+ *
+ * A pair rather than a `FixtureId`: §12's components have no fixture file, so
+ * there is no path and name to serialize, and the call site is a second axis of
+ * the same selection — the same component with different props.
+ */
+export interface ComponentSelection {
+	component: InventoryItem;
+	callSite: CallSite | null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Prop metadata — §15
+ * ------------------------------------------------------------------ */
+
+/**
+ * One documented prop. Display metadata only: D18 stands, and nothing here is
+ * ever read to infer a control — controls are declared at the call site (§7.6).
+ */
+export interface PropDoc {
+	name: string;
+	/** The type as written, not normalized. `"'sm' | 'lg'"`, `"() => void"`. */
+	type?: string;
+	required: boolean;
+	/** The default as written in the source. */
+	defaultValue?: string;
+	description?: string;
+}
+
+export interface ComponentDoc {
+	/** Matches `InventoryItem.name`, so a doc joins to a detected component. */
+	name: string;
+	exportName: string;
+	globPath: string;
+	description?: string;
+	props: PropDoc[];
+	/** What this doc is known to be missing, carried per entry (see below). */
+	limitations?: DocgenLimitation[];
+}
+
+/**
+ * What a resolver could not see. Reported rather than hidden: a prop table that
+ * silently omits everything a component inherited is worse than one that says
+ * so, and §15.2 makes the Babel resolver's blind spot a documented limitation
+ * rather than a defect to fix later.
+ */
+export type DocgenLimitation = "inherited-props" | "generics" | "unions";
+
+/**
+ * The resolver interface §15.2 asks for: the seam the Babel implementation sits
+ * behind now and a TypeScript 7.1 implementation would sit behind later,
+ * without either being visible to a prop table.
+ *
+ * Node-side, one module at a time, never throwing — a file it cannot read
+ * returns `[]`, exactly as the inventory and call-site passes do.
+ */
+export interface DocgenResolver {
+	/** Identifies the implementation in diagnostics. `"babel"` today. */
+	name: string;
+	/** Applies to every doc this resolver produces. */
+	limitations: readonly DocgenLimitation[];
+	resolve(input: {
+		code: string;
+		/** Absolute path, for resolvers that follow imports. */
+		filename: string;
+		/** Root-relative, leading slash — the index's key (§4.2). */
+		globPath: string;
+	}): ComponentDoc[] | Promise<ComponentDoc[]>;
+}
+
 /* ------------------------------------------------------------------ *
  * Tree — §19.3
  * ------------------------------------------------------------------ */
@@ -217,6 +311,24 @@ export interface InputOverlay {
 	input: string;
 	revision: number;
 	patches: Patch[];
+}
+
+/**
+ * Patches that no longer apply to an input's current shape — §7.3, "reported
+ * once per input per revision".
+ *
+ * The paths are carried, not just a tally, because the panel's job is to name
+ * what the user lost: "`variant`, `size` and 2 more no longer apply" is
+ * actionable and "6 settings no longer apply" is not. A count is still exact
+ * — it is `paths.length` — so nothing that only wants a number has to change.
+ */
+export interface DroppedPatchReport {
+	/** The input the patches belonged to. */
+	input: string;
+	/** The registration revision they were dropped against. */
+	revision: number;
+	/** Where each dropped patch pointed, relative to the input's value. */
+	paths: PathSegment[][];
 }
 
 /* ------------------------------------------------------------------ *
@@ -299,6 +411,33 @@ export interface ViewportPreset {
 }
 
 /* ------------------------------------------------------------------ *
+ * Theme, across the realm boundary — §10.1
+ * ------------------------------------------------------------------ */
+
+/**
+ * The host stamps the resolved theme on the renderer document's
+ * `documentElement`, in both isolations, and keeps it in step:
+ *
+ * ```html
+ * <html data-uaight-theme="dark">
+ * ```
+ *
+ * An attribute rather than a message or a context, because the reader is the
+ * *preview entry* — the host application's own provider tree, which is not a
+ * fixture, does not use our hooks and in frame isolation does not share our
+ * realm. A DOM attribute is the one channel every provider can already read,
+ * it is observable with `MutationObserver`, and it adds nothing to the frozen
+ * facade. `uaight/runtime` exports `readUaightTheme` / `useUaightTheme` so a
+ * preview entry does not have to hand-roll either half.
+ *
+ * Absent means light: a host that never stamps still renders, and `system` is
+ * resolved by the host before it is stamped — the frame never re-resolves it.
+ */
+export const THEME_ATTRIBUTE = "data-uaight-theme";
+
+export type ResolvedUaightTheme = "light" | "dark";
+
+/* ------------------------------------------------------------------ *
  * Errors — §19.3
  * ------------------------------------------------------------------ */
 
@@ -366,8 +505,16 @@ export interface ControlPanelProps {
 	onSet: (name: string, path: PathSegment[], value: EditableWire) => void;
 	onReset: (name?: string) => void;
 	droppedPatches: number;
+	/** The same loss, named per input (§7.3). `droppedPatches` is its total. */
+	droppedInputs: DroppedPatchReport[];
 }
-/** §11.3 lists this as ejectable in its own right, separately from `ControlPanel`. */
+/**
+ * §11.3 lists this as ejectable in its own right, separately from `ControlPanel`.
+ *
+ * It lives here rather than beside the component because `UaightComponents`
+ * names it: an ejectable component's props are part of the published surface,
+ * and `src/ui/chrome/ControlPanelInputs.tsx` re-exports this declaration.
+ */
 export interface ControlPanelInputsProps {
 	inputs: RegisteredInput[];
 	overlay: InputOverlay[];
@@ -567,4 +714,6 @@ export interface RuntimeConfig {
 	inventory: InventoryItem[];
 	callSites: CallSiteGroup[];
 	problems: IndexProblem[];
+	/** §15 — keyed by glob path, absent unless `docgen` is on. */
+	docs?: Record<string, ComponentDoc[]>;
 }

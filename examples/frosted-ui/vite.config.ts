@@ -1,9 +1,18 @@
+import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
 import { uaight } from "uaight/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [
+		// SPEC §14: MDX is the host's bundler configuration, not a uaight
+		// feature — uaight contributes the glob pattern and the one-fixture rule
+		// and nothing else, and `src/fixtures/mdx-notes.fixture.mdx` proves the
+		// path end to end. Written first by convention; Vite sorts `pre` plugins
+		// ahead of it regardless, and `.mdx` compiles correctly either way, which
+		// is why uaight checks that an MDX plugin exists and never that it is
+		// ordered. Remove this line and the dev server says what to install.
+		mdx(),
 		react(),
 		uaight({
 			// frosted-ui ships 77 CSF files and no fixture files. Reading them

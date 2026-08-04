@@ -12,11 +12,16 @@
 export { useUaightChrome } from "../ui/chrome-context.ts";
 export type { UaightChromeApiV1 } from "../ui/chrome-context.ts";
 
-export type { ControlPanelInputsProps } from "../ui/chrome/ControlPanelInputs.tsx";
-
 export type {
+	CallSite,
+	CallSiteGroup,
 	ChromeOptions,
+	CommandPaletteItem,
+	CommandPaletteProps,
+	ComponentSelection,
+	ControlPanelInputsProps,
 	ControlPanelProps,
+	DroppedPatchReport,
 	EditableWire,
 	EmptyStateProps,
 	ErrorStateProps,

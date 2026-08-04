@@ -11,12 +11,20 @@ import type {
 	InputOptionsWire,
 	InputOverlay,
 	Patch,
+	PathSegment,
 	RendererError,
 	Wire,
 } from "./types.ts";
 
-export const PROTOCOL_VERSION = 1;
-export const SUPPORTED_PROTOCOL_VERSIONS = [1];
+/**
+ * 2 — `RESYNC.dropped` carries the dropped patch paths instead of a count
+ * (§7.3). A v1 renderer would send a number where a v2 host reads an array, so
+ * the shapes are not compatible and 1 is not in the supported list. Both halves
+ * ship in one package, so a mismatch only ever means a stale build artefact —
+ * which §16.2's version-skew panel already exists to name.
+ */
+export const PROTOCOL_VERSION = 2;
+export const SUPPORTED_PROTOCOL_VERSIONS = [2];
 
 /* ---------------- Bootstrap — not enveloped (D20) ---------------- */
 
@@ -87,8 +95,13 @@ export interface ResyncMessage {
 	name: string;
 	revision: number;
 	wire: Wire;
-	/** Patches the renderer could not apply against the current shape. */
-	dropped: number;
+	/**
+	 * Where each patch the renderer could not apply pointed, so the panel can
+	 * name the setting that was lost rather than tally it (§7.3). The count is
+	 * `dropped.length`; an empty array is the common case, since RESYNC is also
+	 * how a stale revision and a renderer-side override are announced.
+	 */
+	dropped: PathSegment[][];
 }
 export interface ResizeMessage {
 	type: "RESIZE";

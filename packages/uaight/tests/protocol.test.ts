@@ -19,6 +19,7 @@ import {
 	validateBootstrap,
 	validateEnvelope,
 } from "../src/shared/protocol.ts";
+import type { ResyncMessage } from "../src/shared/protocol.ts";
 
 const channelled = <T extends object>(m: T): T & { __uaight: typeof CHANNEL } => ({
 	__uaight: CHANNEL,
@@ -166,6 +167,25 @@ describe("validateEnvelope", () => {
 describe("version constants", () => {
 	it("advertises the negotiable set, which includes the current version", () => {
 		expect(SUPPORTED_PROTOCOL_VERSIONS).toContain(PROTOCOL_VERSION);
+	});
+
+	it("does not advertise 1, whose RESYNC carried a count where 2 carries paths", () => {
+		expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(2);
+		expect(SUPPORTED_PROTOCOL_VERSIONS).not.toContain(1);
+	});
+});
+
+describe("RESYNC", () => {
+	it("names what was lost: the paths are the payload, the count is derived", () => {
+		const message: ResyncMessage = {
+			type: "RESYNC",
+			name: "props",
+			revision: 3,
+			wire: { t: "object", v: [] },
+			dropped: [["variant"], ["items", 2, "size"]],
+		};
+		expect(message.dropped).toHaveLength(2);
+		expect(message.dropped[0]).toEqual(["variant"]);
 	});
 });
 

@@ -32,6 +32,7 @@ import {
 } from "../shared/callsites.ts";
 import { matchesFilter } from "../shared/filter.ts";
 import { fixtureIdsEqual, fixtureLabel, parseFixtureId, serializeFixtureId } from "../shared/fixture-id.ts";
+import { viewportFor } from "../shared/meta.ts";
 import { buildTree, flattenRows, flattenSelectable, searchTree } from "../shared/tree.ts";
 import { ALL_FIXTURES } from "../shared/types.ts";
 import type {
@@ -43,6 +44,7 @@ import type {
 	FixtureFileIndex,
 	FixtureId,
 	FixtureIndex,
+	InputOverlay,
 	InventoryItem,
 	PathSegment,
 	RendererError,
@@ -52,23 +54,33 @@ import type {
 } from "../shared/types.ts";
 import type { HostTransport } from "../runtime/index.ts";
 
+import { ChipStrip } from "./ChipStrip.tsx";
+import type { Chip } from "./ChipStrip.tsx";
 import { UaightChromeContext } from "./chrome-context.ts";
 import type { UaightChromeApiV1 } from "./chrome-context.ts";
 import { ControlPanelSlots } from "./chrome/ControlPanel.tsx";
 import { resolveComponents } from "./chrome/defaults.ts";
 import {
+	CONTROL_PANEL_WIDTH,
 	INVENTORY_NOTICE_KEY,
 	INVENTORY_SAFETY_NOTICE,
-	KEYMAP,
+	PANE_MAX_WIDTH,
+	PANE_MIN_WIDTH,
 	SEARCH_ATTR,
+	SIDEBAR_WIDTH,
 	ROOT_CLASS,
+	VIEWPORT_INLINE_REASON,
 	VIEWPORT_PRESETS,
 } from "./constants.ts";
-import { FOCUS_RING, MOTION, QUIET_BUTTON, cx } from "./cx.ts";
+import { FOCUS_RING, MOTION, QUIET_BUTTON, SECTION_LABEL, cx } from "./cx.ts";
 import { FrameHost } from "./FrameHost.tsx";
+import { HelpDialog } from "./HelpDialog.tsx";
+import { openInEditor } from "./open-in-editor.ts";
+import { PaneResizer } from "./PaneResizer.tsx";
 import { buildPaletteItems, rankPaletteItems } from "./palette.ts";
 import { useUaightDefaults } from "./provider-context.ts";
 import { useRouterBinding } from "./router.ts";
+import { pushRecent, readSession, sessionKey, writeSession } from "./session.ts";
 import { decodeOverlays, encodeOverlays } from "./share.ts";
 import { createOverlayStore, useOverlayState } from "./store.ts";
 import { ensureStyles, readNonce } from "./styles.ts";
@@ -262,6 +274,25 @@ export default function UaightUI(props: UaightProps): ReactElement {
 
 	const isolation = props.isolation ?? "frame";
 	const chrome = resolveChrome(props.chrome);
+
+	/* ---- where you were, for the length of the tab (`ui/session.ts`) ---- */
+	const storeKey = useMemo(
+		() =>
+			sessionKey(
+				typeof window === "undefined" ? "" : window.location.pathname,
+				props.routerId ?? mountId,
+			),
+		[props.routerId, mountId],
+	);
+	// Read once. Everything below owns its slice of the session from here on, so
+	// re-reading would fight the state that was seeded from it.
+	const restored = useMemo(() => readSession(storeKey), [storeKey]);
+	const remember = useCallback(
+		(patch: Parameters<typeof writeSession>[1]) => {
+			writeSession(storeKey, patch);
+		},
+		[storeKey],
+	);
 
 	/* ---- host document stylesheet (§10.3, §6.7) ---- */
 	useInsertionEffect(() => {
@@ -465,6 +496,52 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		[mode, routerOwned, routerWrite, onSelectProp],
 	);
 
+	/** `component.select(null)` on the facade — back to no component, no fixture. */
+	const clearComponent = useCallback(() => {
+		setSelectedComponent(null);
+		setSelectedSite(null);
+	}, []);
+
+	/**
+	 * Restore the last selection — once, and only into a vacuum.
+	 *
+	 * §5.4's precedence is untouched: `selected` and `fixture` are the caller's
+	 * and are never overwritten; a router-owned URL parameter already names a
+	 * fixture, so the deep link wins; and the restore is skipped entirely while
+	 * the binding is still resolving, because "no parameter yet" and "no
+	 * parameter" look identical for one render and guessing wrong would replace a
+	 * shared link with yesterday's selection.
+	 *
+	 * It writes with `replace`, not `push`: reopening a tab is not a navigation,
+	 * and a restored selection must not put an entry in the back button that
+	 * takes the user to a blank explorer.
+	 */
+	const didRestore = useRef(false);
+	useEffect(() => {
+		if (didRestore.current) return;
+		if (mode !== "local" && mode !== "router") {
+			didRestore.current = true;
+			return;
+		}
+		if (mode === "router" && binding.pending) return;
+		didRestore.current = true;
+		if (selection) return;
+		const saved = restored.selection ? parseFixtureId(restored.selection) : null;
+		if (!saved) return;
+		if (mode === "router" && routerOwned) {
+			routerWrite(serializeFixtureId(saved), { replace: true });
+		} else {
+			setLocalSelection(saved);
+		}
+	}, [mode, binding.pending, selection, restored.selection, routerOwned, routerWrite]);
+
+	useEffect(() => {
+		// A component selection is not a `FixtureId` and has no serialization
+		// (§19.3), so it is not what gets remembered; the fixture underneath it is.
+		if (!didRestore.current) return;
+		remember({ selection: selection ? serializeFixtureId(selection) : null });
+	}, [selection, remember]);
+
 	/**
 	 * The usages of the selected component, harvested from the project's own
 	 * source. This is what turns §12's list of names into something worth
@@ -517,7 +594,17 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	);
 
 	// Groups are expanded by default, so the backing state is what is CLOSED.
-	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
+	// Restored from the session: a reload that re-opens every directory in an
+	// 82-file corpus has thrown away work, and Q14's "not persisted" is an answer
+	// about control VALUES, which HMR can reshape. A collapsed directory cannot
+	// go stale — at worst it names a key that no longer exists, and an unknown
+	// key in this set is inert.
+	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+		() => new Set(restored.collapsed),
+	);
+	useEffect(() => {
+		remember({ collapsed: [...collapsed] });
+	}, [collapsed, remember]);
 	const expanded = useMemo(() => {
 		const keys = new Set<string>();
 		const walk = (nodes: readonly TreeNode[]) => {
@@ -763,8 +850,45 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		stateWrite(encoded, { replace: true });
 	}, [shareState, stateOwned, stateWrite, overlayState.overlays]);
 
-	/* ---- viewport — §6.5 ---- */
-	const [viewport, setViewport] = useState<ViewportPreset | null>(null);
+	/* ---- viewport — §6.5, §3.1 ---- */
+
+	/**
+	 * Two sources, and the rule between them is stickiness.
+	 *
+	 * `undefined` means the user has not chosen: the fixture's own `fileMeta` /
+	 * `fixtureMeta` viewport applies (§3.1), and when it has none that is Fit,
+	 * which is what the preview did before. `null` and a preset are both
+	 * *choices* — including choosing Fit — and a choice survives changing
+	 * fixture, because the whole reason to pin 375px is to walk a list of
+	 * components at 375px. Resetting to Fit on every selection made the control
+	 * useless for the one job it exists to do.
+	 *
+	 * The meta rides on the index rather than arriving as a message precisely so
+	 * this is known before the first paint: under `index: "static"` no module is
+	 * executed, and a viewport applied after the preview opened would be a resize
+	 * the user watches happen.
+	 */
+	const [manualViewport, setManualViewport] = useState<ViewportPreset | null | undefined>(
+		undefined,
+	);
+	const fixtureViewport = useMemo<ViewportPreset | null>(() => {
+		const id = resolution.target ?? selection;
+		if (!id) return null;
+		const file = files.find((f) => f.path === id.path);
+		const wanted = file ? viewportFor(file, id.name) : undefined;
+		if (!wanted) return null;
+		// Name it after the preset it matches, so the toolbar shows the row as
+		// pressed rather than showing nothing pressed at a preset's dimensions.
+		const preset = VIEWPORT_PRESETS.find(
+			(p) => p.width === wanted.width && p.height === wanted.height,
+		);
+		return preset ?? { name: "Fixture", width: wanted.width, height: wanted.height };
+	}, [resolution.target, selection, files]);
+
+	const viewport = manualViewport === undefined ? fixtureViewport : manualViewport;
+	const setViewport = useCallback((next: ViewportPreset | null) => {
+		setManualViewport(next);
+	}, []);
 	const viewportSupported = isolation === "frame";
 	const effectiveViewport = viewportSupported && chrome.viewport ? viewport : null;
 
@@ -772,6 +896,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	const setInput = useCallback(
 		(name: string, path: PathSegment[], value: EditableWire) => {
 			const overlay = store.set(name, path, value);
+			console.log("[dbg] setInput", name, JSON.stringify(path), JSON.stringify(overlay), "transport?", !!transport);
 			if (overlay && transport) {
 				transport.send({
 					type: "OVERLAY",
@@ -784,24 +909,184 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		[store, transport],
 	);
 
+	/**
+	 * Transient status, with one optional action. SPEC.md §10.1.
+	 *
+	 * Non-modal and in the layout rather than floating over the preview, because
+	 * the preview is the thing the user is looking at; it is a `role="status"`
+	 * region so a screen reader is told, and its action is a real button in the
+	 * tab order rather than a gesture. `id` exists so an identical message shown
+	 * twice restarts the timer instead of appearing not to have happened.
+	 */
+	interface Toast {
+		id: number;
+		message: string;
+		tone: "info" | "danger";
+		action?: { label: string; run: () => void };
+	}
+	const [toast, setToast] = useState<Toast | null>(null);
+	const toastId = useRef(0);
+	const showToast = useCallback((next: Omit<Toast, "id">) => {
+		toastId.current += 1;
+		setToast({ ...next, id: toastId.current });
+	}, []);
+
+	// Long enough to reach by keyboard from wherever focus happens to be, which
+	// is the constraint a toast with an action has and a toast without one does
+	// not. It never steals focus, so the only cost of the delay is a line of text.
+	useEffect(() => {
+		if (!toast) return;
+		const handle = window.setTimeout(
+			() => setToast((current) => (current?.id === toast.id ? null : current)),
+			toast.action ? 12_000 : 4_000,
+		);
+		return () => window.clearTimeout(handle);
+	}, [toast]);
+
+	// Read at reset time rather than closed over, so the callback stays stable.
+	const overlaysRef = useRef<InputOverlay[]>(overlayState.overlays);
+	overlaysRef.current = overlayState.overlays;
+
+	const sendOverlay = useCallback(
+		(overlay: InputOverlay, patches = overlay.patches) => {
+			transport?.send({
+				type: "OVERLAY",
+				name: overlay.input,
+				revision: overlay.revision,
+				patches,
+			});
+		},
+		[transport],
+	);
+
+	/**
+	 * `r` and "Reset all" both land here, and both used to be final: the values
+	 * are not persisted (Q14) and nothing kept a history, so one mis-typed key
+	 * over the tree destroyed however long the user had spent tuning. The snapshot
+	 * is taken before the store is cleared and handed to the toast, which is the
+	 * cheapest possible undo — one step, one action, gone when it expires.
+	 */
 	const resetInput = useCallback(
 		(name?: string) => {
+			const snapshot = overlaysRef.current
+				.filter((o) => (name === undefined || o.input === name) && o.patches.length > 0)
+				.map((o) => ({ ...o, patches: [...o.patches] }));
+
 			const cleared = store.reset(name);
-			if (!transport) return;
-			if (name === undefined) {
-				transport.send({ type: "SET_OVERLAYS", overlays: [] });
+			if (transport) {
+				if (name === undefined) transport.send({ type: "SET_OVERLAYS", overlays: [] });
+				for (const overlay of cleared) sendOverlay(overlay, []);
 			}
-			for (const overlay of cleared) {
-				transport.send({
-					type: "OVERLAY",
-					name: overlay.input,
-					revision: overlay.revision,
-					patches: [],
-				});
-			}
+			if (snapshot.length === 0) return;
+
+			const count = snapshot.reduce((total, o) => total + o.patches.length, 0);
+			showToast({
+				message:
+					name === undefined
+						? `Reset ${count} ${count === 1 ? "setting" : "settings"}.`
+						: `Reset ${name}.`,
+				tone: "info",
+				action: {
+					label: "Undo",
+					run: () => {
+						// §7.3 prunes the snapshot against the CURRENT registration, so an
+						// undo after an HMR restores what still fits and silently drops
+						// what does not — the alternative is patching a shape that is gone.
+						for (const overlay of store.restore(snapshot)) sendOverlay(overlay);
+						setToast(null);
+					},
+				},
+			});
 		},
-		[store, transport],
+		[store, transport, sendOverlay, showToast],
 	);
+
+	/* ---- clipboard, with an answer ---- */
+
+	/**
+	 * "Copy link" was fire-and-forget, and its `execCommand` fallback — which
+	 * exists because a dev server on a LAN address is not a secure context and
+	 * `navigator.clipboard` refuses there — could fail into the console and
+	 * nowhere else. A copy button that does nothing visible is indistinguishable
+	 * from a copy button that worked, so both outcomes are now stated: the label
+	 * flips for a moment on success, and a failure says so in the status region
+	 * with the reason, which is almost always the origin.
+	 */
+	const [copied, setCopied] = useState<string | null>(null);
+	const copiedTimer = useRef(0);
+	useEffect(
+		() => () => {
+			window.clearTimeout(copiedTimer.current);
+		},
+		[],
+	);
+
+	const copy = useCallback(
+		async (key: string, text: string, what: string) => {
+			if (await copyText(text)) {
+				setCopied(key);
+				window.clearTimeout(copiedTimer.current);
+				copiedTimer.current = window.setTimeout(() => setCopied(null), 1500);
+				return;
+			}
+			showToast({
+				tone: "danger",
+				message: `Could not copy ${what}. The clipboard needs a secure context — this page is ${window.location.protocol}//${window.location.host}.`,
+			});
+		},
+		[showToast],
+	);
+
+	/**
+	 * A call-site chip names a file, a line and a column, and until now that was
+	 * where it stopped. Vite's dev server already mounts `/__open-in-editor`, so
+	 * the chip can finish the sentence. The static build has no such endpoint and
+	 * says so rather than failing quietly (`ui/open-in-editor.ts`).
+	 */
+	const openSite = useCallback(
+		async (site: CallSite) => {
+			const result = await openInEditor(site);
+			if (result === "opened") return;
+			showToast({
+				tone: "danger",
+				message:
+					result === "unavailable"
+						? `${callSiteLabel(site)} — opening in an editor needs the Vite dev server; this build does not have one.`
+						: `${callSiteLabel(site)} — the dev server could not launch an editor. Set $EDITOR, or open the file yourself.`,
+			});
+		},
+		[showToast],
+	);
+
+	/* ---- pane widths and the inventory disclosure — §10.1, `ui/session.ts` ---- */
+	const [sidebarWidth, setSidebarWidth] = useState(
+		() => restored.sidebarWidth ?? SIDEBAR_WIDTH,
+	);
+	const [panelWidth, setPanelWidth] = useState(
+		() => restored.panelWidth ?? CONTROL_PANEL_WIDTH,
+	);
+	const [inventoryOpen, setInventoryOpen] = useState(() => restored.inventoryOpen);
+
+	const resizeSidebar = useCallback(
+		(width: number) => {
+			setSidebarWidth(width);
+			remember({ sidebarWidth: width });
+		},
+		[remember],
+	);
+	const resizePanel = useCallback(
+		(width: number) => {
+			setPanelWidth(width);
+			remember({ panelWidth: width });
+		},
+		[remember],
+	);
+	const toggleInventory = useCallback(() => {
+		setInventoryOpen((open) => {
+			remember({ inventoryOpen: !open });
+			return !open;
+		});
+	}, [remember]);
 
 	/* ---- codecs (§7.7) — loaded lazily so editors stay out of the first paint ---- */
 	const [loadedCodecs, setLoadedCodecs] = useState<FixtureCodec[] | undefined>(undefined);
@@ -822,6 +1107,84 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		[defaults.codecs, loadedCodecs],
 	);
 
+	/**
+	 * The §12 safety notice — once per SESSION, at the moment it describes.
+	 *
+	 * It was dismissed forever per browser, which is the wrong lifetime for what
+	 * it says: rendering a detected component runs the component's real code, and
+	 * frame isolation contains DOM, CSS and global listeners but not network,
+	 * storage, cookies or backend effects. A permanent dismissal means the second
+	 * project, the second corpus and the next person at the keyboard never see it.
+	 * It also showed as soon as an inventory existed — a banner above an explorer
+	 * where nothing had been clicked — rather than on the first component actually
+	 * rendered, which is when the warning is about something.
+	 *
+	 * The text is used VERBATIM (§12) and is not re-worded here.
+	 */
+	const [noticeSeen, setNoticeSeen] = useState(() => {
+		try {
+			return window.sessionStorage.getItem(INVENTORY_NOTICE_KEY) === "seen";
+		} catch {
+			return false;
+		}
+	});
+	const showNotice = inventoryEnabled && !noticeSeen && selectedComponent !== null;
+	const dismissNotice = () => {
+		setNoticeSeen(true);
+		try {
+			window.sessionStorage.setItem(INVENTORY_NOTICE_KEY, "seen");
+		} catch {
+			/* private mode; the notice simply reappears */
+		}
+	};
+
+	/* ---- command palette — ⌘K ---- */
+
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [paletteQuery, setPaletteQuery] = useState("");
+
+	const paletteItems = useMemo(
+		() =>
+			buildPaletteItems({
+				nodes: fixtureNodes,
+				inventory: inventoryItems,
+				callSites: index.callSites,
+			}),
+		[fixtureNodes, inventoryItems, index.callSites],
+	);
+	/**
+	 * The MRU list behind an empty ⌘K. Persisted with the rest of the session, so
+	 * it survives the reload that a fixture edit causes; a key naming something
+	 * that no longer exists is skipped by the ranker rather than repaired here.
+	 */
+	const [recents, setRecents] = useState<string[]>(() => restored.recents);
+	const rankedItems = useMemo(
+		() => rankPaletteItems(paletteItems, paletteQuery, 50, recents),
+		[paletteItems, paletteQuery, recents],
+	);
+
+	const closePalette = useCallback(() => {
+		setPaletteOpen(false);
+		setPaletteQuery("");
+	}, []);
+
+	const onPaletteSelect = useCallback(
+		(item: CommandPaletteItem) => {
+			closePalette();
+			setRecents((prev) => {
+				const next = pushRecent(prev, item.key);
+				remember({ recents: next });
+				return next;
+			});
+			if (item.kind === "fixture" && item.fixture) {
+				select(item.fixture);
+				return;
+			}
+			if (item.component) selectComponent(item.component, item.callSite ?? null);
+		},
+		[closePalette, select, selectComponent, remember],
+	);
+
 	/* ---- the facade — §19.3 ---- */
 	const api = useMemo<UaightChromeApiV1>(
 		() => ({
@@ -832,6 +1195,24 @@ export default function UaightUI(props: UaightProps): ReactElement {
 				search: (q: string) => searchTree(mergedNodes, q),
 			},
 			inventory: { components: inventoryItems, enabled: inventoryEnabled },
+			component: {
+				current: selectedComponent
+					? { component: selectedComponent, callSite: selectedSite }
+					: null,
+				select: (item, site) => {
+					if (item) selectComponent(item, site ?? null);
+					else clearComponent();
+				},
+				callSites: index.callSites,
+			},
+			palette: {
+				open: paletteOpen,
+				setOpen: setPaletteOpen,
+				query: paletteQuery,
+				setQuery: setPaletteQuery,
+				items: rankedItems,
+				select: onPaletteSelect,
+			},
 			selection: {
 				current: selection,
 				select,
@@ -855,6 +1236,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 				error,
 				isolation,
 				droppedPatches: overlayState.dropped,
+				droppedInputs: overlayState.droppedInputs,
 			},
 		}),
 		[
@@ -863,6 +1245,15 @@ export default function UaightUI(props: UaightProps): ReactElement {
 			toggle,
 			inventoryItems,
 			inventoryEnabled,
+			selectedComponent,
+			selectedSite,
+			selectComponent,
+			clearComponent,
+			index.callSites,
+			paletteOpen,
+			paletteQuery,
+			rankedItems,
+			onPaletteSelect,
 			selection,
 			select,
 			step,
@@ -875,59 +1266,6 @@ export default function UaightUI(props: UaightProps): ReactElement {
 			error,
 			isolation,
 		],
-	);
-
-	/* ---- first-run inventory notice — §12 ---- */
-	const [noticeDismissed, setNoticeDismissed] = useState(() => {
-		try {
-			return window.localStorage.getItem(INVENTORY_NOTICE_KEY) === "seen";
-		} catch {
-			return false;
-		}
-	});
-	const dismissNotice = () => {
-		setNoticeDismissed(true);
-		try {
-			window.localStorage.setItem(INVENTORY_NOTICE_KEY, "seen");
-		} catch {
-			/* private mode; the notice simply reappears */
-		}
-	};
-
-	/* ---- command palette — ⌘K ---- */
-
-	const [paletteOpen, setPaletteOpen] = useState(false);
-	const [paletteQuery, setPaletteQuery] = useState("");
-
-	const paletteItems = useMemo(
-		() =>
-			buildPaletteItems({
-				nodes: fixtureNodes,
-				inventory: inventoryItems,
-				callSites: index.callSites,
-			}),
-		[fixtureNodes, inventoryItems, index.callSites],
-	);
-	const rankedItems = useMemo(
-		() => rankPaletteItems(paletteItems, paletteQuery),
-		[paletteItems, paletteQuery],
-	);
-
-	const closePalette = useCallback(() => {
-		setPaletteOpen(false);
-		setPaletteQuery("");
-	}, []);
-
-	const onPaletteSelect = useCallback(
-		(item: CommandPaletteItem) => {
-			closePalette();
-			if (item.kind === "fixture" && item.fixture) {
-				select(item.fixture);
-				return;
-			}
-			if (item.component) selectComponent(item.component, item.callSite ?? null);
-		},
-		[closePalette, select, selectComponent],
 	);
 
 	/* ---- keyboard — §10.1 ---- */
@@ -1038,7 +1376,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 	const host =
 		isolation === "inline" ? (
 			<Suspense fallback={null}>
-				<InlineHost codecs={codecs} onTransport={handleTransport} />
+				<InlineHost codecs={codecs} theme={theme} onTransport={handleTransport} />
 			</Suspense>
 		) : (
 			<FrameHost
@@ -1050,6 +1388,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 				initialOverlays={overlayState.overlays}
 				previewDocumentUrl={props.previewDocumentUrl}
 				title={selection ? `Preview: ${fixtureLabel(selection)}` : "Preview"}
+				theme={theme}
 				onTransport={handleTransport}
 				onContentHeight={autoHeight ? setContentHeight : undefined}
 				onBootstrapError={setError}
@@ -1061,6 +1400,57 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		: selection
 			? fixtureLabel(selection)
 			: "";
+
+	/**
+	 * §12's list of names, made selectable: each chip after the first is a real
+	 * usage of this component found in the project's own source. "No props" stays
+	 * first and reachable — it is the honest rendering of a component nobody has
+	 * given props to — but it is no longer the default, because that default was
+	 * a click, a crash and a regex over the stack trace.
+	 */
+	const siteChips = useMemo<Chip[]>(() => {
+		if (!selectedComponent) return [];
+		return [
+			{
+				key: "no-props",
+				label: "No props",
+				title: `Render ${selectedComponent.name} with nothing passed to it`,
+				selected: selectedSite === null,
+				onSelect: () => setSelectedSite(null),
+			},
+			...componentSites.map((site) => ({
+				key: `${site.globPath}:${site.line}:${site.column}`,
+				label: callSiteSummary(site),
+				title: `${callSiteLabel(site)} — ${site.dynamic.length ? `${site.dynamic.length} prop(s) could not be read statically` : "all props read statically"}`,
+				selected:
+					selectedSite?.globPath === site.globPath &&
+					selectedSite?.line === site.line &&
+					selectedSite?.column === site.column,
+				onSelect: () => setSelectedSite(site),
+			})),
+		];
+	}, [selectedComponent, selectedSite, componentSites]);
+
+	const variantChips = useMemo<Chip[]>(() => {
+		if (!variants) return [];
+		return [
+			{
+				key: "all",
+				label: "All",
+				title: "Every fixture in this file, as one page",
+				selected: selection?.name === ALL_FIXTURES,
+				onSelect: () => select(variants.all),
+			},
+			...variants.children.map((child) => ({
+				key: child.key,
+				label: child.label,
+				selected: fixtureIdsEqual(child.fixture, selection),
+				onSelect: () => {
+					if (child.fixture) select(child.fixture);
+				},
+			})),
+		];
+	}, [variants, selection, select]);
 
 	return (
 		<UaightChromeContext.Provider value={api}>
@@ -1076,7 +1466,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 						// inline custom properties below are the same values, so a mount
 						// with `theme="system"` cannot disagree with the media query.
 						theme === "dark" ? "uaight-theme-dark" : "uaight-theme-light",
-						"relative flex min-h-0 w-full flex-col bg-[var(--u-bg)] text-[12px] text-[var(--u-fg)] antialiased",
+						"relative flex min-h-0 w-full flex-col bg-[var(--u-bg)] text-sm text-[var(--u-fg)] antialiased",
 						props.className,
 					)}
 					style={{
@@ -1086,10 +1476,13 @@ export default function UaightUI(props: UaightProps): ReactElement {
 						...props.style,
 					}}
 				>
-					{inventoryEnabled && !noticeDismissed ? (
-						<div className="flex shrink-0 items-start gap-3 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-2">
+					{showNotice ? (
+						<div
+							role="note"
+							className="flex shrink-0 items-start gap-3 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-2"
+						>
 							{/* §12 — verbatim. */}
-							<p className="min-w-0 flex-1 text-[11px] leading-4 text-[var(--u-fg-muted)]">
+							<p className="min-w-0 flex-1 text-xs leading-4 text-[var(--u-fg-muted)]">
 								{INVENTORY_SAFETY_NOTICE}
 							</p>
 							<button type="button" onClick={dismissNotice} className={QUIET_BUTTON}>
@@ -1100,44 +1493,96 @@ export default function UaightUI(props: UaightProps): ReactElement {
 
 					<div className="flex min-h-0 w-full flex-1">
 						{showTree ? (
-							<aside className="flex w-60 shrink-0 flex-col border-r border-[var(--u-line)] bg-[var(--u-bg-sunken)]">
-								<div className="flex h-9 shrink-0 items-center gap-2 px-3">
-									<span className="text-[12px] font-medium text-[var(--u-fg)]">uaight</span>
-									<span className="text-[11px] tabular-nums text-[var(--u-fg-subtle)]">
-										{selectable.length}
-									</span>
-									<button
-										type="button"
-										aria-expanded={helpOpen}
-										onClick={() => setHelpOpen((v) => !v)}
-										title="Keyboard shortcuts (?)"
-										className={cx(QUIET_BUTTON, "ml-auto")}
-									>
-										?
-									</button>
-								</div>
+							<>
+								<aside
+									style={{ width: sidebarWidth }}
+									className="flex min-w-0 shrink-0 flex-col bg-[var(--u-bg-sunken)]"
+								>
+									<div className="flex h-9 shrink-0 items-center gap-2 px-3">
+										<span className="text-sm font-medium text-[var(--u-fg)]">uaight</span>
+										<span className="text-xs tabular-nums text-[var(--u-fg-subtle)]">
+											{selectable.length}
+										</span>
+										<button
+											type="button"
+											aria-expanded={helpOpen}
+											aria-haspopup="dialog"
+											onClick={() => setHelpOpen((v) => !v)}
+											title="Keyboard shortcuts (?)"
+											className={cx(QUIET_BUTTON, "ml-auto")}
+										>
+											?
+										</button>
+									</div>
 
-								<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-									<FixtureTree
-										nodes={fixtureNodes}
-										selected={selectedComponent ? null : selection}
-										onSelect={select}
-										search={chrome.search}
-									/>
+									<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+										<FixtureTree
+											nodes={fixtureNodes}
+											selected={selectedComponent ? null : selection}
+											onSelect={select}
+											search={chrome.search}
+										/>
 
-									{inventoryItems.length ? (
-										<div className="max-h-56 shrink-0 overflow-auto border-t border-[var(--u-line)]">
-											<p className="sticky top-0 bg-[var(--u-bg-sunken)] px-2 pt-2 pb-1 text-[11px] font-medium text-[var(--u-fg-muted)]">
-												Components
-											</p>
-											<InventoryList
-												components={inventoryItems}
-												onSelect={selectComponent}
-											/>
-										</div>
-									) : null}
-								</div>
-							</aside>
+										{inventoryItems.length ? (
+											// §12's detected components were a fixed-height scroll box
+											// under the tree with a sticky label, which reads as a list
+											// that has been cut off rather than as a section. A
+											// disclosure with a count says how many there are and gets
+											// out of the way of the tree when it is not wanted.
+											<div className="shrink-0 border-t border-[var(--u-line)]">
+												<button
+													type="button"
+													aria-expanded={inventoryOpen}
+													aria-controls={`${mountId}-inventory`}
+													onClick={toggleInventory}
+													className={cx(
+														"flex h-7 w-full cursor-pointer items-center gap-1.5 px-2 text-left",
+														"hover:bg-[var(--u-bg-hover)]",
+														FOCUS_RING,
+														MOTION,
+													)}
+												>
+													<svg
+														viewBox="0 0 12 12"
+														aria-hidden="true"
+														className={cx(
+															"size-3 shrink-0 fill-current text-[var(--u-fg-subtle)]",
+															"motion-safe:transition-transform motion-safe:duration-100",
+															inventoryOpen ? "rotate-90" : "",
+														)}
+													>
+														<path d="M4.5 2.5 8 6l-3.5 3.5z" />
+													</svg>
+													<span className={SECTION_LABEL}>Components</span>
+													<span className="ml-auto text-xs tabular-nums text-[var(--u-fg-subtle)]">
+														{inventoryItems.length}
+													</span>
+												</button>
+												{inventoryOpen ? (
+													<div
+														id={`${mountId}-inventory`}
+														className="uaight-scroll max-h-64"
+													>
+														<InventoryList
+															components={inventoryItems}
+															onSelect={selectComponent}
+														/>
+													</div>
+												) : null}
+											</div>
+										) : null}
+									</div>
+								</aside>
+								<PaneResizer
+									pane="left"
+									width={sidebarWidth}
+									min={PANE_MIN_WIDTH}
+									max={PANE_MAX_WIDTH}
+									initial={SIDEBAR_WIDTH}
+									label="Sidebar width"
+									onWidth={resizeSidebar}
+								/>
+							</>
 						) : null}
 
 						<PreviewShell
@@ -1147,17 +1592,17 @@ export default function UaightUI(props: UaightProps): ReactElement {
 								chrome.toolbar ? (
 									<Toolbar>
 										<span
-											className="min-w-0 truncate text-[12px] text-[var(--u-fg)]"
+											className="min-w-0 truncate text-sm font-medium text-[var(--u-fg)]"
 											title={
 												selection
 													? selection.path
 													: (selectedComponent?.path ?? undefined)
 											}
 										>
-											{label || " "}
+											{label || " "}
 										</span>
 										{selectedComponent ? (
-											<span className="shrink-0 text-[11px] text-[var(--u-fg-subtle)]">
+											<span className="shrink-0 text-xs text-[var(--u-fg-subtle)]">
 												detected component
 											</span>
 										) : null}
@@ -1165,11 +1610,16 @@ export default function UaightUI(props: UaightProps): ReactElement {
 											{shareState ? (
 												<button
 													type="button"
-													onClick={() => void copyText(window.location.href)}
+													onClick={() =>
+														void copy("link", window.location.href, "the link")
+													}
 													title="Copy a link to this fixture, including the current control values"
-													className={QUIET_BUTTON}
+													className={cx(
+														QUIET_BUTTON,
+														copied === "link" ? "text-[var(--u-accent)]" : "",
+													)}
 												>
-													Copy link
+													{copied === "link" ? "Copied" : "Copy link"}
 												</button>
 											) : null}
 											{chrome.viewport ? (
@@ -1180,92 +1630,93 @@ export default function UaightUI(props: UaightProps): ReactElement {
 													supported={viewportSupported}
 												/>
 											) : null}
+											{/* §5.2 — a bare lowercase "frame" read like debug output
+											    while carrying the reason the viewport buttons beside it
+											    are disabled. As a labelled badge it says what it is,
+											    and points at that explanation. */}
 											<span
-												className="text-[11px] text-[var(--u-fg-subtle)]"
+												className={cx(
+													"inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs",
+													isolation === "frame"
+														? "border-[var(--u-line)] text-[var(--u-fg-muted)]"
+														: "border-[var(--u-line-strong)] text-[var(--u-fg)]",
+												)}
+												aria-describedby={
+													isolation === "inline" && chrome.viewport
+														? "uaight-viewport-hint"
+														: undefined
+												}
 												title={
 													isolation === "frame"
 														? "Rendering in a separate realm. Same origin — this is isolation, not a sandbox."
-														: "Rendering in this page's realm."
+														: VIEWPORT_INLINE_REASON
 												}
 											>
-												{isolation}
+												<span className={SECTION_LABEL}>Isolation</span>
+												<span className="font-medium">
+													{isolation === "frame" ? "Frame" : "Inline"}
+												</span>
 											</span>
 										</div>
-										</Toolbar>
+									</Toolbar>
 								) : undefined
 							}
 							subToolbar={
 								chrome.toolbar && selectedComponent && componentSites.length ? (
-									// §12's list of names, made selectable: each chip is a real
-									// usage of this component found in the project's own source.
-									<div
-										role="tablist"
-										aria-label={`Usages of ${selectedComponent.name}`}
-										className="flex items-center gap-1 overflow-x-auto px-3 py-1"
-									>
-										<VariantChip
-											label="No props"
-											selected={selectedSite === null}
-											onSelect={() => setSelectedSite(null)}
-										/>
-										<span className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]" />
-										{componentSites.map((site) => (
-											<VariantChip
-												key={`${site.globPath}:${site.line}:${site.column}`}
-												label={callSiteSummary(site)}
-												title={`${callSiteLabel(site)} — ${site.dynamic.length ? `${site.dynamic.length} prop(s) could not be read statically` : "all props read statically"}`}
-												selected={
-													selectedSite?.globPath === site.globPath &&
-													selectedSite?.line === site.line &&
-													selectedSite?.column === site.column
-												}
-												onSelect={() => setSelectedSite(site)}
-											/>
-										))}
-										<button
-											type="button"
-											onClick={() =>
-												void copyText(
-													formatFixtureModule(
-														selectedComponent.name,
-														selectedSite ? [selectedSite] : componentSites,
-														{ importFrom: `./${selectedComponent.path.split("/").pop() ?? ""}` },
-													),
-												)
-											}
-											title="Copy these usages as a fixture file. uaight never writes files itself (§1.4)."
-											className={cx(QUIET_BUTTON, "ml-auto shrink-0")}
-										>
-											Copy as fixture
-										</button>
-									</div>
+									<ChipStrip
+										label={`Usages of ${selectedComponent.name}`}
+										chips={siteChips}
+										dividerAfter={1}
+										trailing={
+											<>
+												{selectedSite ? (
+													<button
+														type="button"
+														onClick={() => void openSite(selectedSite)}
+														title={`Open ${callSiteLabel(selectedSite)} in your editor`}
+														className={QUIET_BUTTON}
+													>
+														Open source
+													</button>
+												) : null}
+												<button
+													type="button"
+													onClick={() =>
+														void copy(
+															"fixture",
+															formatFixtureModule(
+																selectedComponent.name,
+																selectedSite ? [selectedSite] : componentSites,
+																{
+																	importFrom: `./${selectedComponent.path.split("/").pop() ?? ""}`,
+																},
+															),
+															"the fixture",
+														)
+													}
+													title="Copy these usages as a fixture file. uaight never writes files itself (§1.4)."
+													className={cx(
+														QUIET_BUTTON,
+														copied === "fixture" ? "text-[var(--u-accent)]" : "",
+													)}
+												>
+													{copied === "fixture" ? "Copied" : "Copy as fixture"}
+												</button>
+											</>
+										}
+									/>
 								) : chrome.toolbar && variants ? (
-									<div
-										role="tablist"
-										aria-label={`Fixtures in ${selection?.path ?? ""}`}
-										className="flex items-center gap-1 overflow-x-auto px-3 py-1"
-									>
-										<VariantChip
-											label="All"
-											selected={selection?.name === ALL_FIXTURES}
-											onSelect={() => select(variants.all)}
-										/>
-										<span className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]" />
-										{variants.children.map((child) => (
-											<VariantChip
-												key={child.key}
-												label={child.label}
-												selected={fixtureIdsEqual(child.fixture, selection)}
-												onSelect={() => child.fixture && select(child.fixture)}
-											/>
-										))}
-									</div>
+									<ChipStrip
+										label={`Fixtures in ${selection?.path ?? ""}`}
+										chips={variantChips}
+										dividerAfter={1}
+									/>
 								) : undefined
 							}
 						>
 							<div className="relative flex h-full min-h-0 w-full flex-col">
 								{resolution.note ? (
-									<p className="shrink-0 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-1 text-[11px] text-[var(--u-fg-muted)]">
+									<p className="shrink-0 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-1 text-xs text-[var(--u-fg-muted)]">
 										{resolution.note}
 									</p>
 								) : null}
@@ -1293,15 +1744,73 @@ export default function UaightUI(props: UaightProps): ReactElement {
 						</PreviewShell>
 
 						{showControls ? (
-							<aside className="w-72 shrink-0 border-l border-[var(--u-line)] bg-[var(--u-bg-sunken)]">
-								<ControlPanel
-									inputs={overlayState.registered}
-									overlay={overlayState.overlays}
-									onSet={setInput}
-									onReset={resetInput}
-									droppedPatches={overlayState.dropped}
+							<>
+								<PaneResizer
+									pane="right"
+									width={panelWidth}
+									min={PANE_MIN_WIDTH}
+									max={PANE_MAX_WIDTH}
+									initial={CONTROL_PANEL_WIDTH}
+									label="Control panel width"
+									onWidth={resizePanel}
 								/>
-							</aside>
+								<aside
+									style={{ width: panelWidth }}
+									className="min-w-0 shrink-0 bg-[var(--u-bg-sunken)]"
+								>
+									<ControlPanel
+										inputs={overlayState.registered}
+										overlay={overlayState.overlays}
+										onSet={setInput}
+										onReset={resetInput}
+										droppedPatches={overlayState.dropped}
+										droppedInputs={overlayState.droppedInputs}
+									/>
+								</aside>
+							</>
+						) : null}
+					</div>
+
+					{/* Transient status. In the layout rather than over the preview, and
+					    never focus-stealing: its action is a real button one Tab away. */}
+					<div
+						role="status"
+						aria-live="polite"
+						className={cx(
+							"flex shrink-0 items-center gap-3 border-t border-[var(--u-line)] px-3",
+							toast ? "h-7" : "h-0 overflow-hidden border-t-0",
+						)}
+					>
+						{toast ? (
+							<>
+								<span
+									className={cx(
+										"min-w-0 flex-1 truncate text-xs",
+										toast.tone === "danger"
+											? "text-[var(--u-danger)]"
+											: "text-[var(--u-fg-muted)]",
+									)}
+								>
+									{toast.message}
+								</span>
+								{toast.action ? (
+									<button
+										type="button"
+										onClick={toast.action.run}
+										className={cx(QUIET_BUTTON, "shrink-0 font-medium text-[var(--u-accent)]")}
+									>
+										{toast.action.label}
+									</button>
+								) : null}
+								<button
+									type="button"
+									onClick={() => setToast(null)}
+									aria-label="Dismiss"
+									className={cx(QUIET_BUTTON, "shrink-0")}
+								>
+									×
+								</button>
+							</>
 						) : null}
 					</div>
 
@@ -1314,28 +1823,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 						onClose={closePalette}
 					/>
 
-					{helpOpen ? (
-						<div className="absolute right-3 bottom-3 z-30 w-64 rounded-sm border border-[var(--u-line-strong)] bg-[var(--u-bg)] p-3">
-							<p className="mb-2 text-[12px] font-medium text-[var(--u-fg)]">Keyboard</p>
-							<dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-								{KEYMAP.map((item) => (
-									<div key={item.keys} className="contents">
-										<dt className="text-[11px] whitespace-nowrap text-[var(--u-fg)]">
-											{item.keys}
-										</dt>
-										<dd className="text-[11px] text-[var(--u-fg-muted)]">{item.action}</dd>
-									</div>
-								))}
-							</dl>
-							<button
-								type="button"
-								onClick={() => setHelpOpen(false)}
-								className={cx(QUIET_BUTTON, "mt-2", FOCUS_RING, MOTION)}
-							>
-								Close
-							</button>
-						</div>
-					) : null}
+					<HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 				</div>
 			</ControlPanelSlots.Provider>
 		</UaightChromeContext.Provider>
@@ -1348,14 +1836,18 @@ export default function UaightUI(props: UaightProps): ReactElement {
 
 /**
  * `navigator.clipboard` needs a secure context, which a dev server on a LAN
- * address is not. The textarea fallback is the only thing that works there, and
- * "copy" silently doing nothing is a bad way to learn about origins.
+ * address is not. The textarea fallback is the only thing that works there.
+ *
+ * Returns whether it worked, because "copy" silently doing nothing is a bad way
+ * to learn about origins — the caller turns the answer into something visible.
+ * `execCommand` reports failure by returning `false` as well as by throwing, and
+ * both were being ignored.
  */
-async function copyText(text: string): Promise<void> {
+async function copyText(text: string): Promise<boolean> {
 	try {
 		if (navigator.clipboard?.writeText) {
 			await navigator.clipboard.writeText(text);
-			return;
+			return true;
 		}
 	} catch {
 		/* fall through to the legacy path */
@@ -1368,40 +1860,11 @@ async function copyText(text: string): Promise<void> {
 		area.style.opacity = "0";
 		document.body.appendChild(area);
 		area.select();
-		document.execCommand("copy");
+		const ok = document.execCommand("copy");
 		document.body.removeChild(area);
+		return ok;
 	} catch (error) {
 		console.error("[uaight] could not copy to the clipboard.", error);
+		return false;
 	}
-}
-
-/* ------------------------------------------------------------------ *
- * Variant chips — the fixtures of the selected file, in the toolbar
- * ------------------------------------------------------------------ */
-
-function VariantChip(props: {
-	label: string;
-	selected: boolean;
-	onSelect: () => void;
-	title?: string;
-}): ReactElement {
-	return (
-		<button
-			type="button"
-			role="tab"
-			aria-selected={props.selected}
-			onClick={props.onSelect}
-			title={props.title ?? props.label}
-			className={cx(
-				"h-5 shrink-0 rounded-sm px-1.5 text-[11px] whitespace-nowrap",
-				props.selected
-					? "bg-[var(--u-accent-soft)] text-[var(--u-accent)]"
-					: "text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
-				FOCUS_RING,
-				MOTION,
-			)}
-		>
-			{props.label}
-		</button>
-	);
 }

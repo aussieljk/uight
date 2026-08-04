@@ -1195,3 +1195,770 @@ id handling, progressive disclosure, the full control panel (text, select,
 radio, range, checkbox) with an edit round-tripping into the frame, `Reset` /
 `Reset all` appearing on edit, and the inventory section listing detected
 components.
+
+---
+
+## The contract pass — decisions taken before the v1.2 freeze
+
+Everything below changes a published type or the host↔renderer protocol, so it
+had to land before §11.4's facade freezes. Recorded here because each one was a
+judgement call with a live alternative.
+
+### Q11 — what goes on `UaightChromeApiV1`
+
+**Answered.** Two groups were added and nothing else. The test applied was the
+one the freeze implies: *would a chrome component be unable to do its job
+without it?* Anything that failed that test stays off, permanently.
+
+**`component: { current, select, callSites }`.** §12's detected components were
+unroutable local state, and the reason is a type: `selection.select` is
+`(id: FixtureId | null) => void`, an `InventoryItem` has no fixture file and so
+no path-and-name to serialize, and the call site chosen for it is a second axis
+of the same selection. Widening `selection` to a union was rejected — the two
+really are different selections, and every consumer would then destructure a
+union to ask which one it got. `select(null)` clears the component without
+selecting a fixture, which is the case local state could not express at all.
+`callSites` sits in this group rather than beside `inventory` because a call
+site is a usage *of* a detected component; the palette is not its only reader.
+
+**`palette: { open, setOpen, query, setQuery, items, select }`.** The palette is
+ejectable and needs the whole catalogue — fixtures, components and call sites
+ranked together. Today it receives that as props from the packaged layout, which
+is exactly the arrangement ejection is supposed to survive. `items` is already
+filtered and ranked, matching `CommandPaletteProps`, so an ejected palette does
+not reimplement ranking to stay consistent with the packaged one.
+
+Deliberately **not** added: the fixture index itself, the transport, the
+serializer, the codec list, HMR state. All of them are §19.7 implementation, and
+a frozen facade that exposes them freezes them too.
+
+### `RESYNC` carries paths — protocol 2
+
+§7.3 asks for the loss to be "reported once per input per revision"; the
+deduplication was right and the payload was not. `RESYNC.dropped` was a count,
+so the panel could only aggregate — *"6 settings no longer apply"* — which tells
+the user something is wrong and nothing about what. It now carries the dropped
+patch **paths**; the message already carries the input's name, so together they
+name the setting. The count is `dropped.length`, so nothing that only wanted a
+number lost anything.
+
+That is a shape change in both directions, so `PROTOCOL_VERSION` is 2 and 1 is
+not in the supported set. Both halves ship in one package, so the only way to
+meet a v1 renderer is a stale build artefact — which §16.2's version-skew panel
+already exists to name, and which is better than reading an array as a number.
+
+The host store keeps the same accounting rule and gains `droppedInputs:
+DroppedPatchReport[]` beside the existing total, populated from both places a
+patch can die: the renderer's report, and the host's own prune on
+re-registration.
+
+### Fixture-driven viewport defaults — the index, not a message
+
+`fileMeta.viewport` and `fixtureMeta.viewport` are §3.1 named exports the static
+index never saw. Two ways to fix it, and the choice is forced by
+`index: "static"`: under it no fixture module is ever executed, so there is
+nothing running to send a message *from*, and the viewport is needed **before
+the first paint** — a message would arrive after the preview had already opened
+at Fit and then resize it, which is worse than not honouring it. So the meta
+rides on `FixtureFileIndex` as `fileMeta` and `fixtureMeta`, named after the
+exports they mirror, populated by the parser when they are static object
+literals and absent when they are not. The renderer still normalizes the real
+exports and its answer wins once the module has loaded; the index's copy is a
+head start, not a second source of truth.
+
+`shared/meta.ts` owns the precedence — fixture, then file, then Fit — because
+three consumers ask (tree, preview, renderer) and one of them getting it wrong
+would be invisible.
+
+### The theme stamp
+
+`THEME_ATTRIBUTE = "data-uaight-theme"` on the renderer document's
+`documentElement`, values `"light"` and `"dark"`, absent meaning light. An
+attribute rather than a message, a context or a prop, because the reader is the
+*preview entry* — the host application's own provider tree, which is not a
+fixture, does not use our hooks, and in frame isolation does not share our
+realm. A DOM attribute is the one channel every provider can already read, it is
+observable, and it adds nothing to the frozen facade. `system` is resolved by
+the host before it is stamped; the frame never re-resolves it, so the two realms
+cannot disagree. `uaight/runtime` exports `readUaightTheme`,
+`subscribeUaightTheme` and `useUaightTheme` so a preview entry does not
+hand-roll a `MutationObserver`.
+
+### Q12 — the docgen interface, without the spike
+
+The TypeScript 7.1 route is not attempted here; §15.2's three gates are
+unchanged and still open. What ships is the seam, so v1.3 is an implementation
+swap rather than a contract change: `DocgenResolver` (`name`, `limitations`,
+`resolve`), producing `ComponentDoc[]` of `PropDoc`, carried on the index and
+the runtime config as `docs`, keyed by glob path and absent unless `docgen` is
+on. `DocgenLimitation` is reported per resolver and per entry rather than hidden
+— a prop table that silently omits everything a component inherited is worse
+than one that says it did, and `"inherited-props"` is precisely the Babel
+resolver's documented blind spot.
+
+D18 is unaffected: these are display metadata, and nothing in the type surface
+can be read to infer a control.
+
+### `IndexProblem.kind: "confinement"`
+
+An out-of-root `fixturesDir` was reported as `unreadable`: true of the outcome,
+wrong about the cause, since the directory usually reads fine. It is a refusal,
+and now says so.
+
+### `ControlPanelInputsProps` moved to `shared/types.ts`
+
+§11.3 lists `ControlPanelInputs` as ejectable in its own right, so its props are
+published surface and belong with the rest of it. The component file re-exports
+the declaration, so every existing import keeps resolving.
+
+---
+
+## The chrome pass — the explorer as something to live in
+
+The contract pass above settled the types. This one spends them, and everything
+below is a judgement about what a keyboard-first tool owes someone who has it
+open all day rather than for a screenshot.
+
+### The tree is virtualized, and search is why
+
+`FixtureTree` mapped every row, which was fine: files are leaves, so a collapsed
+corpus is a few dozen rows. Search is not that case. Searching sets
+`forceOpen: true`, which expands *everything* — every directory and every file's
+fixtures — so the demo's 591 fixtures across 82 files become hundreds of rows,
+rebuilt and re-rendered on every keystroke.
+
+Two fixes were available. Capping the result with a "47 more" row is less code
+and was rejected: the row somebody is hunting for is as likely to be 60th as 6th,
+and a search that hides matches is a worse tool than a slow one. So the list is
+windowed, above a threshold (`VIRTUALIZE_ABOVE = 120`) the non-search case never
+reaches — which means the ordinary tree is byte-for-byte what it was.
+
+The parts worth recording are the ARIA ones, because a naive virtual list breaks
+all of them:
+
+- The padding standing in for the rows outside the window goes on the **scroll
+  container itself**, not on spacer elements. `role="tree"` owns its `treeitem`
+  children and a spacer `div` between them is a stranger in that relationship.
+- `aria-setsize` and `aria-posinset` are **stated**, because a windowed list has
+  fewer DOM children than rows and nothing could count them correctly.
+- Roving focus goes through the scroll offset, not through `scrollIntoView`: the
+  row `ArrowDown` wants may not exist yet. `focusRow` scrolls by index, and a
+  `useLayoutEffect` focuses the element on the render where it appears.
+
+### Selection and focus are different shapes now
+
+Both were the accent — selection as `--u-accent-soft` fill, focus as the ring —
+and in a tool where roving tabindex means they diverge constantly, two
+intensities of one colour is not a distinction. Selection took a solid **left
+bar** (`SELECTABLE` / `SELECTED` in `ui/cx.ts`), focus kept the ring. The
+transparent bar is always present so selecting a row never shifts its text
+sideways by two pixels.
+
+### One overlay, one dismissal model
+
+The palette was a `role="dialog"` with `aria-modal`, a backdrop and Escape; the
+help panel was a bare floating `div` with none of the three, pinned bottom-right
+over the region fixtures render into. That is two dismissal models in one tool,
+which is a defect rather than a styling difference: learning that Escape closes
+the palette taught a user nothing about the help panel, and a screen reader was
+told one was modal and the other was a paragraph that appeared. `ui/Overlay.tsx`
+now owns backdrop click, Escape, the Tab trap and focus restoration, and both
+surfaces use it. `aria-modal` is a claim about the rest of the page that nothing
+enforces for the Tab key, so the trap is real code.
+
+### `r` is undoable, and the undo is deliberately one step
+
+`r` wiped every tuned control with no way back — the values are not persisted
+(Q14) and nothing kept history, so a mis-typed `r` over the tree was final. The
+fix is not an undo stack. `OverlayStore.restore()` takes one snapshot the caller
+kept and re-applies it against the **current** registration, pruned by the same
+§7.3 rule as any other patch: an undo after an HMR restores what still fits and
+drops what does not, which is the honest answer. It does not re-report the drop
+— that loss was already accounted for when the shape changed, and an undo is not
+a new one.
+
+The toast carrying it is in the layout rather than floating over the preview, is
+`role="status"`, never takes focus, and lives for 12 seconds when it has an
+action — long enough to Tab to from wherever focus happens to be, which is the
+constraint a toast with a button has and one without does not.
+
+### Navigation persists; Q14 still stands
+
+Q14 answered "should overlay state persist across reloads" with no. That is an
+answer about **values**, and the reasoning — HMR can reshape the module under
+them — does not transfer to navigation. A collapsed directory cannot go stale;
+at worst it names a key that no longer exists, and an unknown key in that set is
+inert. So `ui/session.ts` keeps the collapsed set, the last selection, the
+palette MRU list, the two pane widths and the inventory disclosure in
+`sessionStorage`, keyed by route *and* mount for the same reason `routerId`
+exists.
+
+`sessionStorage` rather than `localStorage` throughout, including §12's safety
+notice: a tab is long enough to survive HMR, a restart and a refresh, and short
+enough that nothing accumulates on the user's machine forever. §5.4 is untouched
+— the restore runs once, only into a vacuum, waits for the router binding to
+resolve rather than guessing during the render where "no parameter yet" and "no
+parameter" look identical, and writes with `replace` because reopening a tab is
+not a navigation.
+
+### The safety notice was dismissed for the wrong lifetime
+
+`INVENTORY_NOTICE_KEY` lived in `localStorage`, so §12's warning — that rendering
+a detected component runs real code with real network, storage and backend
+effects — appeared once per browser, ever. It also appeared as soon as an
+inventory existed, above an explorer nobody had clicked anything in. It is now
+per tab and shown on the first detected component actually rendered, which is the
+moment it is about. The text is unchanged: §12 says verbatim.
+
+### Detected components, finished
+
+Three dead ends in one flow, all of them now closed:
+
+- **The first render.** It defaulted to "No props", which for most components is
+  a click, a crash and a regex over the stack trace. It defaults to the first
+  harvested call site — the most distinct real usage — and "No props" stays as an
+  explicit chip, because it is the honest rendering of a component nobody has
+  given props to.
+- **The chips.** Each `CallSite` carries `globPath`, `line` and `column`, which
+  is exactly the argument Vite's `/__open-in-editor` takes. "Open source" acts on
+  the selected chip rather than nesting a button inside a `role="tab"`, and it
+  distinguishes *no endpoint* (the static build) from *the editor would not
+  launch*, because those need different words. §1.4's "no file-writing endpoint"
+  is about us writing files; handing a path to an editor the user is already
+  running is not that.
+- **The strip.** It carried `role="tablist"` and implemented none of the tab
+  pattern — arrows worked only because the explorer's handler was listening
+  several elements up. `ui/ChipStrip.tsx` does roving tabindex, automatic
+  activation (which is what stepping variants already did), `Home`/`End`, and a
+  gradient at each end that appears only when there is something past it.
+
+### Viewport: manual choice is sticky, the fixture's is a default
+
+The viewport reset to Fit on every selection, which defeats the only reason to
+pin 375px — walking a list of components at 375px. The state is now
+`ViewportPreset | null | undefined`: `undefined` means the user has not chosen
+and the fixture's own `fileMeta` / `fixtureMeta` viewport applies (§3.1, via
+`shared/meta.ts`); `null` and a preset are both *choices*, including choosing
+Fit, and a choice survives changing fixture. A fixture viewport that matches a
+preset is named after it, so the toolbar shows a row pressed rather than showing
+nothing pressed at a preset's dimensions.
+
+### The type scale was flat, and the fix was not another size
+
+Almost everything was `text-[11px]` or `text-[12px]`, with `14px` on two titles,
+so a section header, a group row and a leaf looked alike. The arbitrary values
+are gone in favour of the theme's three steps (`text-xs` 11, `text-sm` 12,
+`text-base` 13) — which is the point of §10.1 declaring `--text-*: initial` and
+then three sizes: a fourth size was never available, it was just spelled in a way
+Tailwind could not stop. Hierarchy is weight, tracking and colour instead
+(`SECTION_LABEL`), and the two 14px titles became 13px medium.
+
+### What did not change, and why
+
+- **`CommandPaletteProps` and `InventoryListProps` still receive props.** The
+  facade now carries the same data (`palette`, `component`, `inventory`), which
+  is what an *ejected* copy needs — it can drop the props entirely and read the
+  facade. The packaged layout keeps passing them because those props are the
+  published ejection contract (§19.5) and the two sources are the same values;
+  making the packaged components ignore their own props would leave a published
+  type that does nothing.
+- **No published type was widened.** The named-drop notice reads
+  `ControlPanelProps.droppedInputs`, which the contract pass added; the tree's
+  virtualization is internal; the resizers, the overlay primitive, the chip strip
+  and the help dialog are all `src/ui/*`, not `src/ui/chrome/*`, so nothing
+  ejectable gained a prop.
+- **The chrome bundle is 55.6 KB gzipped**, up from 41.2. Inside §20.3's 90 KB,
+  and now the metric most likely to fail first.
+
+---
+
+## Plugin, CLI and CI pass
+
+Node-side work: path aliases at call sites, the static build's scaffold, portless
+MCP, `uaight doctor`, terminal problem reporting, measured budgets, MDX, and the
+§3.4 identifier row.
+
+### §3.4 — the identifier row changed, and the decision table with it
+
+`const fixtures = {…}; export default fixtures` was undecidable. That was a
+decision about effort rather than about knowability: the initializer is written
+down in the same module, three statements up. It now resolves, and the table in
+SPEC §3.4 and in `src/vite/parse.ts` gains a row above the old one:
+
+| Default export                                         | Result           |
+| ------------------------------------------------------ | ---------------- |
+| Identifier bound to a module-scope `const` initializer | that initializer |
+| Identifier assigned elsewhere                          | `names: null`    |
+
+The binding qualifies only when it is a module-scope `const`, has an
+initializer, and is the only module-scope declaration of that name. `let`, `var`,
+an import, a destructuring pattern and a redeclaration all stay undecidable —
+in every one of them the initializer is not the final value, and finding out
+what is would need the scope analysis this pass exists to avoid. Chains resolve
+(`const a = {…}; const b = a; export default b`) with a cycle guard, because a
+half-typed file can contain `const a = b; const b = a` and must not hang.
+
+Once resolved, the *rest* of the table applies unchanged: a resolved object with
+a spread is still undecidable, a resolved element is still a single fixture.
+That is what keeps this one row rather than a second table.
+
+**It did not move the corpus.** frosted-ui's 83 files still report exactly one
+undecidable file, because they are CSF modules and the undecidable one is
+undecidable for a different reason. The win is for handwritten fixture files,
+which is where the shape appears — it is worth having, and it is not worth
+claiming a number for.
+
+### §3.1 — `fileMeta` and `fixtureMeta` reach the index
+
+Both are read by `parseFixtureFile` when they are static object literals and
+carried on `FixtureFileIndex`. They are on the index rather than in a protocol
+message for the reason the contract pass gave: the only consumer that needs them
+is the viewport the preview opens at, which has to know before first paint, and
+under `index: "static"` no module is ever executed to send a message from.
+
+The reader is deliberately narrower than the call-site reader — JSON only, no
+identifiers, no template interpolation. The value is embedded in the generated
+runtime module and crosses a realm boundary; anything that is not JSON must not
+enter it. Anything unreadable stays absent, and the renderer's normalization of
+the real export wins once the module loads.
+
+The one thing worth flagging for a future editor: both the initial scan and the
+content-change path build index entries, and an earlier version of this change
+added the fields to only one of them, so `fileMeta` vanished on the first edit.
+Both now go through `fixtureEntry()`, and `tests/scan.test.ts` asserts the
+rescan case specifically.
+
+### Aliases at call sites — a prefix match, not the resolver
+
+Call sites were name-matched, and `@/components/Button` never resolved because
+doing it "properly" means running Vite's plugin container per import inside a
+scan that is meant to be one cheap pass. It resolves now by prefix-matching
+against the alias table, which costs a string comparison per import.
+
+Three details that are not obvious:
+
+- **RegExp finds are dropped, not approximated.** A regex alias can rewrite any
+  part of a specifier, and a half-implementation produces a *wrong* module path
+  rather than no answer. Vite's own internal aliases are all RegExp, so dropping
+  them also reduces the table to what the user wrote.
+- **A string alias matches on a path boundary.** An alias of `@` must not
+  swallow `@acme/ui`, which is a package.
+- **No extension probing and no index-file resolution.** The display path is
+  extension-free by construction, so `@/components/Button` and `./Button.tsx`
+  normalize to the same string without either being stat'd. A specifier naming a
+  directory resolves to that directory's path and simply matches no file, which
+  is the same mild miss as not resolving it at all.
+
+**Where the table comes from is a compromise.** The initial scan runs in
+`config()`, because that is where `production: "error"` and collisions must be
+decided; the authoritative alias table only exists at `configResolved`. So
+`config()` reads `userConfig.resolve.alias` and `configResolved` compares the
+resolved table against it, rescanning only if the *string* entries actually
+differ. In the ordinary case they do not — Vite's additions are all RegExp — so
+the second scan almost never happens, and when a plugin really did add an alias
+the index is right rather than nearly right.
+
+### The static build no longer writes into the project root
+
+`uaight build` wrote `uaight-explorer.html` and `uaight-explorer.entry.js` next
+to the user's own `index.html` and removed them in a `finally`. A crash in
+between left both in their working tree — `.gitignore` covered it, which is a
+plaster, not a fix.
+
+They live under `node_modules/.uaight/` now, which is the established place for
+this (`.vite`, `.cache`, `.bin`), is git-ignored everywhere already, and makes a
+leftover invisible and harmless. Rollup names an HTML output by its path
+relative to the root, so the emitted document lands at
+`node_modules/.uaight/uaight-explorer.html` inside the output directory and is
+moved to `index.html` — one directory deeper than the rename the old placement
+already needed. The now-empty `node_modules` tree is removed from the output, so
+the site carries no trace of how it was made.
+
+The virtual-HTML-input route stays rejected, and ROADMAP's reason stands: Vite
+resolves `<script src>` against the document's real location and rewrites asset
+URLs from it, so a virtual document has to reimplement enough of that to become
+its own source of defects.
+
+A side benefit worth naming: the build no longer has to *reserve* two filenames
+in the user's root, so it no longer refuses to run because they happen to own a
+file called `uaight-explorer.html`.
+
+### MCP is portless, and discovery is lazy
+
+`--url http://localhost:5173` was a default that is wrong for everybody running
+two projects — Vite takes 5174 for the second — and the failure it produced was
+a connection error naming a port the human never used.
+
+The probe is `/@uaight/health`, not `GET /`. A port answering HTTP is not
+evidence of anything, and attaching to the wrong project's dev server and
+reporting its fixtures is worse than finding nothing; the response has to parse
+as JSON and carry a numeric `protocolVersion`. Every candidate is probed
+concurrently and the lowest answering port wins, so the answer does not depend
+on which probe returned first.
+
+**Discovery is deferred to first use, not done at startup.** An agent starts its
+MCP servers before the human starts a dev server, so resolving eagerly would
+fail every session that happened in that order. The *result* is cached and the
+*failure* is not, so the next tool call after the dev server comes up succeeds
+without restarting anything.
+
+Failure is a message naming every port probed, what was asked of each, and the
+three ways to fix it (`--url`, `UAIGHT_URL`, start the server). ROADMAP's
+observation that MCP has no screenshot tool is untouched by any of this.
+
+**Vite writes no discoverable state naming its port** — no lock file, no
+`.vite/port`; the address lives only in the process that owns it. A sweep is
+therefore the whole of what is possible from a separate process. That is a
+finding, not a shortcut.
+
+### `uaight doctor`
+
+`/@uaight/config.json` already answered "why is my fixture not found", to a
+client that can reach a running dev server. That is the wrong shape for the
+moment the question is asked: the tree is empty, so the explorer is exactly what
+the user does not trust, and "open the explorer to find out why the explorer is
+empty" is a loop.
+
+`uaight doctor` runs the same scan from a shell against a project that need not
+be serving, and prints the resolved config, both of §4.2's path representations,
+the patterns actually emitted, the counts, the feature flags and every problem
+grouped by kind. It exits non-zero on a collision only — that is the one problem
+kind that makes fixture ids ambiguous, so it is the one worth failing a CI step.
+
+**Its documented blind spot:** options passed inline to `uaight()` in
+`vite.config.ts` are arguments to a function call in a module the CLI does not
+execute, so only `uaight.config.json` is visible. Run it against the demo and it
+reports `storybook off` and 6 files, where the dev server reports 83 — which is
+correct and would be baffling unsaid, so the report says it.
+
+### One line in the terminal for index problems
+
+A user who never opens `/uaight` never learned their `fixturesDir` was
+unreadable. Startup now logs one line: a count per kind, the first offender's
+message in full, and a pointer to `uaight doctor` for the rest. Counting without
+an example tells nobody which file to look at; printing eleven of them is
+scrollback nobody reads.
+
+### §20.3 — the budgets, and what they actually measure
+
+`scripts/bench.ts`, wired into CI. Measured on this machine at the time of
+writing, best-of-N against a generated synthetic corpus:
+
+| Metric                               | Budget   | Measured |
+| ------------------------------------ | -------- | -------- |
+| Plugin startup, 100 fixture modules  | < 300 ms | 21 ms    |
+| Plugin startup, 500 fixture modules  | < 1.2 s  | 95 ms    |
+| Incremental index on one file change | < 30 ms  | 0.1 ms   |
+| Chrome bundle, gzipped               | < 90 KB  | 54.3 KB  |
+
+Three decisions inside the harness are worth keeping:
+
+- **Best-of-N, not the mean.** A budget asks whether the code *can* meet a
+  bound; the mean answers a question about the machine it ran on, and on a
+  shared CI runner it is dominated by the neighbours. A budget that fails on a
+  noisy neighbour is a budget that gets disabled.
+- **A generated corpus, not the demo.** Otherwise the startup numbers drift with
+  whatever the demo happens to contain, and a budget that moves for reasons
+  unrelated to the code is not a budget.
+- **"Chrome bundle" is the `UaightUI-*` chunk specifically.** That is the code a
+  host downloads *because* uaight is there and exactly what §9.2's production
+  gate removes; summing every non-Node chunk would fold in the renderer and the
+  serializer and stop tracking the thing that grows when a panel is added. It
+  moved from 41.2 KB to 54.3 KB during this pass, entirely from concurrent UI
+  work, and it remains the metric most likely to breach first.
+
+**Four of §20.3's eight rows are not measured, deliberately.** First paint, the
+frame handshake, memory across mount/unmount cycles and HMR latency all need a
+browser driving a real dev server. A number produced for them by a Node stub
+would read as proof and would not be. They stay with the Playwright matrix.
+
+### §14 — MDX, and an ordering check that would have been wrong
+
+The plugin's half was already done. Added: the demo fixture
+(`examples/frosted-ui/src/fixtures/mdx-notes.fixture.mdx`, which the golden
+corpus now indexes as file 83 and fixture 592 — one fixture, as §14 requires),
+`@mdx-js/rollup` in the demo's config, a test suite, and a startup check that
+names the missing plugin and the install command instead of letting Rollup
+produce an `Unexpected token`.
+
+**The ordering check was written, measured, and removed.** The obvious rule —
+"MDX emits JSX, so `mdx()` must come before the React plugin" — fires on every
+correctly configured project. Vite sorts by `enforce` before array order, and
+`@vitejs/plugin-react`'s `vite:react-babel` is a `pre` plugin, so a plain
+`mdx()` **always** resolves after it whatever the user wrote. Verified against
+the demo: with `plugins: [mdx(), react(), uaight()]` the resolved order is
+
+    vite:react-babel … vite:react-refresh … @mdx-js/rollup … uaight
+
+and `transformRequest("/src/…/Notes.fixture.mdx")` returns compiled JSX regardless
+— the output goes through Vite's own JSX pipeline downstream, not through the
+`pre` plugin that ran before it. So there is no ordering mistake here for a user
+to make, and only presence is checked. This is the second time in this project
+that a plausible check turned out to be a false positive generator; the pattern
+is worth noticing.
+
+Nothing is injected and nothing is reordered: §14's "we do not try to detect
+whether the host already has an MDX plugin" is about inferring configuration,
+and reading the resolved list to say what is missing is the opposite of that.
+
+### Q8 — the registry, and the honest boundary
+
+`$schema` is settled. shadcn publishes two schemas — `registry.json` for the
+index, `registry-item.json` for an item — and an item carrying the index schema
+does not validate. The build already emitted the right one; SPEC §11.2's example
+did not, and has been corrected, along with its `@uaight/tree-item` dependency,
+which names an item §11.3 never listed.
+
+`tests/registry-resolve.test.ts` is a client rather than another shape
+assertion. It serves `registry/` over a real loopback HTTP server and walks it
+the way `shadcn add` does: resolve a `{name}` URL template as a
+`components.json` `registries` entry would, fetch the item, follow
+`registryDependencies` transitively (dependencies before dependents), and write
+every `files[]` entry to the path its `target` or its type dictates. It asserts
+the resulting tree — that `ControlPanel.tsx` lands under the components
+directory, that `uaight-chrome.css` lands where its `target` says, that no
+item's files could escape the project, and that the versioned copies pin
+absolute one-minor URLs.
+
+**Q8 stays open, and the two remaining unknowns are specific.** Nothing here
+proves the items are reachable at `https://uaight.dev/r/…`, which is what the
+versioned copies point at and what has never been hosted; and nothing here runs
+shadcn's own resolver, so its schema validation, its `components.json` path
+aliasing and its dependency installer are still untested against these files.
+What is now proved is everything that is a property of the files themselves.
+
+### Q9 — glob invalidation, and the half that Node can answer
+
+Q9 has two halves and only one of them is a Node question: whether **the index**
+tracks the topology, which is what the `uaight:index` event carries and what the
+tree renders from. `tests/scan.test.ts` exercises add (appears in sorted
+position, not arrival order), delete (disappears and takes its problems),
+rename (both events, including the moment between them when both files exist), a
+genuine display-path collision appearing and clearing, an irrelevant file
+changing nothing, and that the emitted glob *patterns* do not move when the
+corpus does — which matters because Vite invalidates a glob by its pattern, so a
+pattern that changed with the file list would make every add a new module id.
+
+**Bundled Dev Mode was not exercised and this pass does not claim it was.** It
+needs a browser re-evaluating the glob map after the server-side invalidation,
+which is precisely what a Node test cannot observe. Q9 stays open on that half,
+and it belongs to the Playwright matrix, not here.
+
+### Q4 — the warm pass, still not measured where it counts
+
+Q4 asks whether executing module-scope code in development is acceptable by
+default. The Node-side half of the answer is now cheap to state: the warm pass
+executes exactly the modules the static parser could not decide, and on the
+demo corpus that is **1 file out of 83**. The §3.4 identifier row above can only
+reduce that number.
+
+That is the *count*, not the *cost*. What Q4 actually asks — what one of those
+module executions costs on a large, side-effect-heavy corpus, in a browser,
+after first paint — cannot be measured from Node, because the modules are JSX
+that only exists compiled inside a dev server. Q4 remains open, with the
+observation that the exposure is one module per undecidable file and that a
+corpus with a low undecidable rate is barely exposed at all.
+
+### §15.2 — the Babel docgen resolver
+
+`createBabelDocgenResolver()` implements the `DocgenResolver` interface the
+contract pass shipped, and `index.docs` is populated when `docgen` is on. This
+is explicitly **not** the TypeScript 7.1 route, which Q12 blocks on all three of
+§15.2's gates.
+
+Two things about it are deliberate:
+
+- **`react-docgen` is not a runtime dependency.** The package ships two, and
+  `docgen` defaults to `false` (§15.1); making every install pay for a Babel
+  parser to support an off-by-default feature is the wrong trade. It is imported
+  dynamically, the import result is cached *including the failure*, and an
+  absent package produces one message naming the package and the fix rather than
+  a crash or silence.
+- **The limitation is carried on every doc, not documented in a README.**
+  `inherited-props` is the headline: `react-docgen` reads one module's AST, so a
+  component whose props extend `React.ComponentPropsWithoutRef<"button">` or a
+  shared `BaseProps` gets what is written in *this* file and nothing else — and
+  that is most design-system components. A prop table that silently omits
+  everything a component inherited is worse than one that says so, so
+  `ComponentDoc.limitations` makes the caveat impossible to render without.
+
+Docgen rides the inventory pass rather than opening a second glob, which has a
+consequence worth stating: with `inventory: false` there are no docs, and a
+production build has none either, because the inventory pass is development-only
+(§12). Nothing in the UI consumes `docs` yet, which is expected — v1.3.
+
+### Repository scripts
+
+- **`typecheck` was misleading.** A bare `tsc --noEmit` only means anything
+  after a build, because `uaight/client` resolves `RuntimeConfig` through the
+  package's own `dist`. The exposed script is now `build && tsc`, and the
+  build-less form is `typecheck:only`, which `verify` and `check` call because
+  they have already built.
+- **`bun run check` is the local gate**, distinct from `verify`. `verify` ends
+  in `npm publish --dry-run` and asserts version lockstep and the registry
+  build; running it to answer "is my change alright" is asking npm about a
+  publish nobody intends. `check` runs stylesheet freshness → build → typecheck
+  → lint → format → test, in that order, and the first two orderings are rules
+  rather than preferences (the stylesheet check before the build or it compares
+  the build against itself; the build before the type check, as above).
+- **`.oxfmtrc.json` is committed and `oxfmt --check` is in CI, but the repo is
+  not reformatted.** The config is `useTabs`, `tabWidth: 1`, `printWidth: 90`,
+  chosen by measurement: it disagrees with 165 files where the default config
+  disagrees with 243. **CI's format step and `bun run check` will fail until the
+  reformat commit lands** — that is the intended state, and the reformat is
+  deliberately a separate change so it does not bury everything else in
+  whitespace.
+
+---
+
+## The Playwright matrix (§20.2, §20.3)
+
+`playwright.config.ts` at the repository root, everything else under `tests/e2e/`.
+Chromium 145, Firefox 153 and WebKit 26.5 all installed and all actually run;
+none is config-only. 149 tests pass, 42 are `fixme`, 0 fail.
+
+### The shape of the matrix, and why it is not the cartesian product
+
+§20.2 asks for 3 engines × 2 Reacts × 2 build modes × 3 bases = 36 cells. The
+config decomposes it instead: the **full engine sweep** runs on the default
+configuration, because engine differences are the entire reason §20.2 exists,
+and each remaining axis gets one targeted Chromium project carrying only the
+tests that axis can break. A non-root base cannot change how WebKit orders an
+about:blank load; it can change whether the renderer URL resolves.
+`PLAYWRIGHT_FULL_MATRIX=1` expands every axis project across all three engines
+and gives the literal 36 cells for a release run — verified to enumerate.
+
+The subject is a purpose-built host app (`tests/e2e/fixture-app`), not the demo.
+It carries one mode switch (`?mode=`) covering two mounts, inline isolation, an
+ejected `FixtureTree` under the host's own Tailwind, and a mount/unmount cycler,
+so one built artefact serves every scenario. The React 18 cell is the *same*
+application with `root` pointed at it and React aliased in — copying it would
+let the two cells drift.
+
+Selectors are roles, ARIA names and the documented data attributes only. Nothing
+in the suite selects on a class or on DOM shape, because the UI is being
+rewritten underneath it.
+
+**One worker, deliberately.** `hmr.spec.ts` edits files on disk while every
+project shares one dev server; with parallel workers those edits land in the
+middle of unrelated tests as a frame reload, which reads as flake.
+
+### Q1 — the frame bootstrap race: all three defences now have a test
+
+The highest-value result. Each of `FrameHost`'s three defences fails a specific
+test if removed:
+
+1. write-immediately-and-retry — the plain "the frame renders" test;
+2. the lifelong `load` listener that rewrites a blanked document — a test that
+   navigates the frame to `about:blank` from the outside and requires the
+   fixture to come back. That is the same event ordering (b) produces, delivered
+   deterministically instead of hoped for;
+3. the written-flag guard — exact counts: one `script[data-uaight-renderer]`,
+   one `#uaight-root`, one `READY` per document; exactly **two** `READY`s after
+   a deliberate blanking, never three.
+
+All pass on Chromium, Firefox and WebKit, with StrictMode on and off. §8.2's
+"the reload lands on the right fixture" is covered too. **Q1's answer now holds
+in three engines rather than one.**
+
+### Six defects the matrix found
+
+Each is a `fixme` naming the defect, never a weakened assertion.
+
+1. **A control-panel edit does not reach the frame.** The panel updates; the
+   fixture keeps rendering its module default; no console error either side.
+   Plain `useFixtureInput("label", "Click me")`, deep-linked, frame isolation,
+   React 19, Chromium — and in a production build too. Everything downstream
+   (Reset, drop-on-fixture-change, both `?state=` link tests) is blocked on it.
+2. **Inline isolation never receives a selection.** `data-uaight-inline` is
+   present, the preview entry runs, the toolbar says `inline` — and the renderer
+   shows "No fixture selected." for the initial deep link, a tree click and a
+   later `pushState` alike. Reproduced with and without a `previewEntry`, so it
+   is not `InlineHost`'s deferred `RendererApp` mount.
+   `createDirectTransportPair` reports `status: "ready"` from the first read, so
+   the host has nothing to wait for.
+3. **Two mounts under StrictMode: neither ends up owning the URL.** With
+   StrictMode off, §5.4 is exactly right — the first mount renders the deep
+   link, the second falls back to local state and logs the error naming the key.
+   With StrictMode on (the default here and in most real apps) *both* render the
+   empty state. `router.ts` claims in a layout effect "so StrictMode's mount →
+   cleanup → mount cycle nets out to a single claim"; with two claimants it does
+   not.
+4. **A rename leaves the old path in the tree.** `rename(2)`, one atomic move:
+   the new path appears and is selectable, the old row stays and is still
+   selectable, deep-linking to a file that no longer exists. A plain *delete*
+   prunes correctly, so it is the rename path specifically. Q9, with a
+   browser-level answer for the rename case.
+5. **A fixture edit reloads the host document.** The update does arrive, but as
+   a fresh realm: a `window` expando set before the edit is gone after it, and
+   `page.evaluate` dies with "execution context destroyed". NOTES.md's model is
+   "React Fast Refresh… preserves the component tree and re-renders in place".
+   Adding a file reloads too, which is the expected `import.meta.glob`
+   invalidation; an in-place *edit* reloading is not.
+6. **The CSP failure does not name the violated directive.** §6.7 step 5's
+   "rather than rendering an empty frame" half is met — an alert appears. The
+   naming half is not: under a real nonce policy with the nonce withheld,
+   Chromium produces "The renderer entry could not be loaded from
+   /@uaight/renderer." or the 10 s handshake timeout, never `script-src`. Both
+   are the generic paths, so the `securitypolicyviolation` listener is not
+   firing or is losing the race — and naming the directive is the only reason
+   that listener exists.
+
+### What passes, and is therefore now proven rather than hand-verified
+
+Frame bootstrap and handshake (3 engines); the preview entry running in the
+frame realm and not the host; portals landing in the frame document, stacking,
+and being torn down on fixture change; `matchMedia` measuring the frame, and a
+viewport preset moving both the frame width and the fixture's media query; the
+theme stamp on the frame's `documentElement`; the scoped sheet not reaching the
+fixture and the host's Georgia not reaching our chrome; keyboard-only tree
+operation with no selection on arrow (§12); `/`, Escape, `j`/`k`, `→`/`←`, `?`;
+⌘K opening the palette, focusing its input, scrolling the active row into view
+and selecting a fixture with the keyboard alone; focus staying inside the
+explorer across a fixture change; screen-reader labels on every landmark and
+control; a call site's props driving the panel; a malformed `?state=` landing on
+the fixture rather than an error; the production preview booting with no Vite
+client and no `/@uaight/renderer` in the frame; the renderer entry resolving
+under `/explorer/` **and** under a relative-base build served from a prefix
+chosen after the build; routing never touching the pathname under a non-root
+base; CSP nonces reaching the frame's meta, script and style; the production
+gate emitting no explorer chunk and no fixture code, with a negative control
+proving the app itself still built; an ejected `FixtureTree` compiled by the
+host's Tailwind (`p-2` → 8 px) and driving selection.
+
+**A nonce is read from `element.nonce`, never `getAttribute("nonce")`.**
+Browsers blank the content attribute after parsing as a CSP exfiltration
+defence. A test asserting on the attribute fails against a correct
+implementation, which is worse than not testing it.
+
+**A linked `uaight` needs `resolve.dedupe: ["react", "react-dom"]`.** Vite
+realpaths a linked package, so the explorer chunk resolved React from
+`packages/uaight/node_modules` and the app resolved its own. The dev optimizer
+hid it; the *build* shipped two Reacts and the explorer died on
+`Cannot read properties of null (reading 'useContext')`. Any consumer linking
+the package locally hits this.
+
+### §20.3 — the browser budgets, measured
+
+Chromium, `--project=chromium-perf`, medians of repeated samples with the cold
+first sample discarded. Printed on every run so the table can be updated from a
+run rather than from a memory.
+
+| Metric                                         | Budget          | Measured                |
+| ---------------------------------------------- | --------------- | ----------------------- |
+| Frame handshake (attach → `INIT_ACK`)          | < 100 ms        | **10 ms** (`READY` → `INIT_ACK` is 0.2 ms) |
+| Fixture selection → first paint (frame, warm)  | < 250 ms        | **14 ms**               |
+| HMR, fixture edit → render                     | < 150 ms        | **~880 ms — over budget** |
+| Memory, 100 mount/unmount cycles               | no upward trend | **+0.23 MB per 10 cycles** (7.8 → 10.3 MB) |
+
+The HMR number is an upper bound measured from Node, because the host document
+reloads mid-measurement (defect 5) and an in-page observer cannot survive it.
+The cause is that reload, not a slow update path: a warm selection is 14 ms and
+the handshake is 10 ms, so 150 ms is reachable the moment an edit stops being a
+page load. The test is `fixme` with the number rather than retuned — retuning it
+to 900 ms would enshrine the reload.
+
+The memory trend is a least-squares slope over ten post-warm-up samples plus a
+"has not doubled" backstop. It is Chromium-only, because the heap counters are;
+the other engines are covered by the same leak's other symptom, the exact
+document-and-script counts asserted in `bootstrap.spec.ts`.

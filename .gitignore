@@ -7,7 +7,16 @@ registry
 *.tsbuildinfo
 .vite
 
-# `uaight build` writes these into the project root and removes them again;
-# they only survive a crashed build.
+# The §20.2 matrix builds one output per base-path cell, and Playwright writes
+# its own artefacts. `tests/e2e/.gitignore` lists these too; they are repeated
+# here because the linter and formatter read the ROOT ignore file, and bundled
+# output is neither ours to lint nor meaningful to format.
+tests/e2e/fixture-app*/dist-*/
+tests/e2e/results/
+tests/e2e/report/
+
+# `uaight build`'s scaffold. It lives under node_modules/.uaight/ so a crashed
+# build cannot leave anything in the working tree; this entry is kept only to
+# clean up after a build from before that moved.
 uaight-explorer.html
 uaight-explorer.entry.js

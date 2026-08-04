@@ -3,8 +3,8 @@
  *
  * D17: the UI owns an editable overlay of patches; the renderer owns the value.
  * This module holds the renderer's half — patches keyed by input name, the
- * per-input revision, stale-revision rejection with `RESYNC`, and the
- * dropped-patch tally the panel surfaces as "N settings no longer apply".
+ * per-input revision, stale-revision rejection with `RESYNC`, and the dropped
+ * patches the panel surfaces by name — "`variant` no longer applies".
  *
  * Nothing here mutates a value the consumer owns. Patches are applied to the
  * fresh default immutably, with structural sharing: new objects along the
@@ -74,7 +74,8 @@ function immutableSet(
 
 export interface ApplyOverlayResult {
 	value: unknown;
-	dropped: number;
+	/** One entry per patch that did not apply, at the path it pointed to (§7.3). */
+	dropped: PathSegment[][];
 }
 
 /**
@@ -92,31 +93,31 @@ export function applyOverlayToValue(
 	deserialize: (wire: Wire) => DeserializeResult,
 ): ApplyOverlayResult {
 	let value = base;
-	let dropped = 0;
+	const dropped: PathSegment[][] = [];
 
 	for (const patch of patches) {
 		// `__proto__`, `constructor`, `prototype` are rejected outright (§7.3).
 		if (!isSafePath(patch.path)) {
-			dropped++;
+			dropped.push(patch.path);
 			continue;
 		}
 		// Opaque values never travel in a patch (§7.2).
 		if (!patch.value || !isFullyEditable(patch.value)) {
-			dropped++;
+			dropped.push(patch.path);
 			continue;
 		}
 		if (patch.path.length > 0 && wireAt(baseWire, patch.path) === undefined) {
-			dropped++;
+			dropped.push(patch.path);
 			continue;
 		}
 		const decoded = deserialize(patch.value);
 		if (!decoded.ok) {
-			dropped++;
+			dropped.push(patch.path);
 			continue;
 		}
 		const next = immutableSet(value, patch.path, decoded.value);
 		if (next === MISSING) {
-			dropped++;
+			dropped.push(patch.path);
 			continue;
 		}
 		value = next;
@@ -358,6 +359,7 @@ export class OverlayStore {
 	/* -------------------- patches from the host -------------------- */
 
 	receiveOverlay(message: OverlayMessage): "applied" | "stale" | "invalid" {
+		console.log("[dbg] receiveOverlay", JSON.stringify(message), "reg=", JSON.stringify([...this.registrations.values()].map(r=>[r.name,r.revision])));
 		if (typeof message.name !== "string" || !Array.isArray(message.patches)) {
 			return "invalid";
 		}
@@ -380,7 +382,7 @@ export class OverlayStore {
 				name: message.name,
 				revision: record.revision,
 				wire: record.wire,
-				dropped: 0,
+				dropped: [],
 			});
 			return "stale";
 		}
@@ -468,17 +470,20 @@ export class OverlayStore {
 			override: { value, wire, revision },
 		});
 		this.notify();
-		this.send({ type: "RESYNC", name, revision, wire, dropped: 0 });
+		this.send({ type: "RESYNC", name, revision, wire, dropped: [] });
 	}
 
 	/* -------------------- dropped patches -------------------- */
 
-	/** Reported once per input per revision (§7.3). */
-	reportDropped(name: string, revision: number, count: number): void {
-		if (count <= 0) return;
+	/**
+	 * Reported once per input per revision (§7.3), carrying the paths so the
+	 * panel can name what was lost rather than tally it.
+	 */
+	reportDropped(name: string, revision: number, paths: readonly PathSegment[][]): void {
+		if (paths.length === 0) return;
 		if (this.reportedDrops.get(name) === revision) return;
 		this.reportedDrops.set(name, revision);
-		this.droppedTotal += count;
+		this.droppedTotal += paths.length;
 
 		const record = this.registrations.get(name);
 		this.send({
@@ -486,13 +491,15 @@ export class OverlayStore {
 			name,
 			revision,
 			wire: record?.wire ?? { t: "undef" },
-			dropped: count,
+			dropped: paths.map((path) => [...path]),
 		});
 
 		if (this.dev) {
+			const count = paths.length;
 			// eslint-disable-next-line no-console
 			console.warn(
-				`[uaight] ${count} overlay patch${count === 1 ? "" : "es"} for input "${name}" no longer apply to the current shape`,
+				`[uaight] ${count} overlay patch${count === 1 ? "" : "es"} for input "${name}" no longer apply to the current shape: ` +
+					paths.map((path) => (path.length ? path.join(".") : "(root)")).join(", "),
 			);
 		}
 	}

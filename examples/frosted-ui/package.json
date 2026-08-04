@@ -17,6 +17,7 @@
 	"devDependencies": {
 		"@frosted-ui/icons": "0.0.1-canary.154",
 		"@internationalized/date": "3.12.2",
+		"@mdx-js/rollup": "3.1.0",
 		"@react-aria/i18n": "3.13.1",
 		"@tanstack/react-form": "0.43.2",
 		"@tanstack/react-table": "8.21.3",

@@ -220,13 +220,16 @@ Names live inside a module's default export. Loading every module to enumerate t
 
 `oxc-parser` walks only the default export:
 
-| Default export                                        | Result                           |
-| ----------------------------------------------------- | -------------------------------- |
-| Not an object literal                                 | `names: [null]` — single fixture |
-| Object literal, all keys static                       | `names: [...]`                   |
-| Object literal with spread, computed keys, or getters | `names: null`                    |
-| Identifier assigned elsewhere                         | `names: null`                    |
-| `export const fixtureNames` present                   | **Wins outright**                |
+| Default export                                          | Result                           |
+| ------------------------------------------------------- | -------------------------------- |
+| Not an object literal                                   | `names: [null]` — single fixture |
+| Object literal, all keys static                         | `names: [...]`                   |
+| Object literal with spread, computed keys, or getters   | `names: null`                    |
+| Identifier bound to a module-scope `const` initializer  | apply this table to that initializer |
+| Identifier assigned elsewhere                           | `names: null`                    |
+| `export const fixtureNames` present                     | **Wins outright**                |
+
+The identifier rows are ordered. `const fixtures = {…}; export default fixtures` resolves, because the initializer is written down in the same module — but only when the binding is a module-scope `const`, has an initializer, and is the only module-scope declaration of that name. `let`, `var`, an import, a destructuring pattern and a redeclaration all stay undecidable: in each of those the initializer is not the final value, and establishing what is would need the scope analysis this pass exists to avoid. Chains resolve (`const a = {…}; const b = a; export default b`), with a cycle guard. Once resolved, the rest of the table applies unchanged — a resolved object with a spread is still `null`.
 
 ```ts
 interface FixtureFileIndex {
@@ -998,20 +1001,22 @@ npx shadcn add https://uaight.dev/r/fixture-tree.json
 
 ```json
 {
-	"$schema": "https://ui.shadcn.com/schema/registry.json",
+	"$schema": "https://ui.shadcn.com/schema/registry-item.json",
 	"name": "fixture-tree",
 	"type": "registry:component",
 	"title": "Fixture Tree",
 	"description": "Hierarchical navigation for fixtures. Reads useUaightChrome().fixtureTree and reports selection through onSelect.",
 	"dependencies": ["uaight"],
-	"registryDependencies": ["@uaight/tree-item"],
+	"registryDependencies": ["@uaight/control-panel-inputs"],
 	"files": [
 		{ "path": "ui/fixture-tree/FixtureTree.tsx", "type": "registry:component" }
 	]
 }
 ```
 
-`registryDependencies` must be namespaced — a bare `"tree-item"` resolves against shadcn's own registry. Any `registry:file` entry requires an explicit `target`.
+**Two schemas, not one.** shadcn publishes `registry.json` for the *index* and `registry-item.json` for a *single item*; an item carrying the index schema does not validate. Earlier drafts of this section named `registry.json` here, which was wrong — the emitted items use `registry-item.json` and only `registry/registry.json` uses `registry.json`.
+
+`registryDependencies` must be namespaced — a bare `"tree-item"` resolves against shadcn's own registry, and must also name an item this registry actually publishes: `@uaight/tree-item` appeared in an earlier draft and is not in §11.3's table. Any `registry:file` entry requires an explicit `target`.
 
 ### 11.3 What is ejectable
 

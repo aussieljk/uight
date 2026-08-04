@@ -33,7 +33,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { createFrameHostTransport } from "../runtime/index.ts";
 import type { HostTransport } from "../runtime/index.ts";
-import type { FixtureId, InputOverlay, RendererError } from "../shared/types.ts";
+import { THEME_ATTRIBUTE } from "../shared/types.ts";
+import type {
+	FixtureId,
+	InputOverlay,
+	RendererError,
+	ResolvedUaightTheme,
+} from "../shared/types.ts";
 import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASS } from "./constants.ts";
 import { ensureStyles, escapeAttribute, readNonce, styleTag } from "./styles.ts";
 
@@ -47,6 +53,16 @@ export interface FrameHostProps {
 	/** §6.6 — a runtime URL for a custom preview document. */
 	previewDocumentUrl?: string | undefined;
 	title: string;
+	/**
+	 * The host's resolved theme, stamped on the frame document's
+	 * `documentElement` as `data-uaight-theme` (§10.1, `THEME_ATTRIBUTE`).
+	 *
+	 * `system` is resolved by the host before it arrives here and the frame never
+	 * re-resolves it, so the two realms cannot disagree — a `matchMedia` inside
+	 * the frame answers the OS, which is not the question when the mount pins a
+	 * theme.
+	 */
+	theme: ResolvedUaightTheme;
 	className?: string | undefined;
 	onTransport: (transport: HostTransport | null) => void;
 	/** §6.5 — only wired when `height="auto"`. */
@@ -97,6 +113,7 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 		dev,
 		previewDocumentUrl,
 		title,
+		theme,
 		className,
 		onTransport,
 		onContentHeight,
@@ -104,6 +121,12 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 	} = props;
 
 	const ref = useRef<HTMLIFrameElement | null>(null);
+
+	// Read through a ref inside the document writer, which must not be torn down
+	// and re-run — rewriting the frame to change a colour would restart the
+	// renderer and lose the fixture's own state.
+	const themeRef = useRef(theme);
+	themeRef.current = theme;
 
 	// Read once: recreating the transport on every selection change would
 	// restart the handshake. Later selections travel as messages.
@@ -118,6 +141,15 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 	onTransportRef.current = onTransport;
 	onErrorRef.current = onBootstrapError;
 	onHeightRef.current = onContentHeight;
+
+	/**
+	 * §10.1 — the preview entry's own providers read this to theme the host
+	 * application's tree to match the chrome. An attribute rather than a message
+	 * because the reader is not a fixture and does not use our hooks.
+	 */
+	const stampTheme = useCallback((doc: Document | null) => {
+		doc?.documentElement?.setAttribute(THEME_ATTRIBUTE, themeRef.current);
+	}, []);
 
 	/** §6.2 step 4, and the injection half of the custom-document path (§6.6). */
 	const injectRenderer = useCallback(
@@ -223,6 +255,7 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 			doc.close();
 			written = true;
 			attachDocumentListeners(doc);
+			stampTheme(doc);
 			injectRenderer(doc, nonce);
 			observeHeight(doc);
 			return true;
@@ -235,6 +268,7 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 			// Rule 4: a custom document's own nonce wins over the parent's.
 			const nonce = readNonce(doc) ?? readNonce(document);
 			attachDocumentListeners(doc);
+			stampTheme(doc);
 			// Our scoped stylesheet still has to reach the frame realm (§10.3).
 			ensureStyles(doc, nonce);
 			injectRenderer(doc, nonce);
@@ -285,7 +319,15 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 			cspListenerDoc?.removeEventListener("securitypolicyviolation", onCspViolation);
 			frame.removeEventListener("load", onLoad);
 		};
-	}, [dev, previewDocumentUrl, injectRenderer, rendererEntryUrl]);
+	}, [dev, previewDocumentUrl, injectRenderer, rendererEntryUrl, stampTheme]);
+
+	// A theme change after the document exists is an attribute write and nothing
+	// else. `subscribeUaightTheme` in the renderer observes it.
+	useEffect(() => {
+		const frame = ref.current;
+		if (!frame) return;
+		stampTheme(frameDocument(frame));
+	}, [theme, stampTheme]);
 
 	return (
 		<iframe

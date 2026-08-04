@@ -205,7 +205,7 @@ export function useFixtureInput<T>(
 	const baseWire = override ? override.wire : wire;
 	const applied =
 		stale || !entry
-			? { value: base, dropped: 0 }
+			? { value: base, dropped: [] }
 			: applyOverlayToValue(base, baseWire, entry.patches, serializer.tryDeserialize);
 
 	// ---- registration and reporting happen after the render, never during ----
@@ -224,7 +224,7 @@ export function useFixtureInput<T>(
 			wire: current.wire,
 			options: current.optionsWire,
 		});
-		if (current.applied.dropped > 0) {
+		if (current.applied.dropped.length > 0) {
 			store.reportDropped(current.name, current.revision, current.applied.dropped);
 		}
 	});

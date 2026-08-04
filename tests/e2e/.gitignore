@@ -1,0 +1,15 @@
+# Installed per-directory: the e2e apps are deliberately NOT bun workspaces, so
+# that the React 18 cell can hold its own React without touching the root
+# install (see fixture-app-react18/vite.config.ts).
+node_modules/
+.vite/
+
+# Build outputs, one per base-path cell of the §20.2 matrix.
+fixture-app/dist-include/
+fixture-app/dist-base/
+fixture-app/dist-relative/
+fixture-app/dist-gate/
+
+# Playwright artefacts.
+results/
+report/

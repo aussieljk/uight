@@ -10,7 +10,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactElement } from "react";
 import type { InventoryItem, InventoryListProps } from "../../shared/types.ts";
-import { FOCUS_RING, MOTION, cx } from "../cx.ts";
+import { FOCUS_RING, MOTION, SECTION_LABEL, cx } from "../cx.ts";
 
 function groupByDirectory(components: InventoryItem[]): Array<[string, InventoryItem[]]> {
 	const groups = new Map<string, InventoryItem[]>();
@@ -64,7 +64,7 @@ export function InventoryList({ components, onSelect }: InventoryListProps): Rea
 		<div ref={listRef} onKeyDown={onKeyDown} className="pb-2">
 			{groups.map(([dir, items]) => (
 				<div key={dir || "."}>
-					<p className="px-2 pt-2 pb-1 text-[11px] text-[var(--u-fg-subtle)]">
+					<p className={cx(SECTION_LABEL, "truncate px-2 pt-2 pb-1")} title={dir || "root"}>
 						{dir || "root"}
 					</p>
 					{items.map((item) => {
@@ -79,7 +79,7 @@ export function InventoryList({ components, onSelect }: InventoryListProps): Rea
 								onClick={() => onSelect(item)}
 								title={`${item.path} — ${item.kind}`}
 								className={cx(
-									"flex h-6 w-full items-center gap-2 rounded-sm px-2 text-left text-[12px]",
+									"flex h-6 w-full items-center gap-2 rounded-sm border-l-2 border-l-transparent px-2 text-left text-sm",
 									"text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)]",
 									FOCUS_RING,
 									MOTION,
@@ -87,7 +87,7 @@ export function InventoryList({ components, onSelect }: InventoryListProps): Rea
 							>
 								<span className="truncate">{item.name}</span>
 								{item.kind !== "function" ? (
-									<span className="ml-auto shrink-0 text-[11px] text-[var(--u-fg-subtle)]">
+									<span className="ml-auto shrink-0 text-xs text-[var(--u-fg-subtle)]">
 										{item.kind}
 									</span>
 								) : null}

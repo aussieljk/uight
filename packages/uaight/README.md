@@ -97,8 +97,12 @@ decorators, CSF stories and preview providers included.
 ## For coding agents
 
 ```jsonc
-{ "command": "npx", "args": ["-y", "uaight-mcp", "--url", "http://localhost:5173"] }
+{ "command": "npx", "args": ["-y", "uaight-mcp"] }
 ```
+
+No port. The dev server is discovered on first use by probing the common Vite ports for
+`/@uaight/health`, so one agent config keeps working whichever port Vite took. `--url` or
+`UAIGHT_URL` override it; when nothing answers, the error names every port it probed.
 
 Exposes `list_fixtures`, `list_components`, `list_call_sites`, `fixture_url`,
 `get_config` and `health` — a read-only client of the running dev server, so it can

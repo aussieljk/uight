@@ -3,7 +3,10 @@
  * The MCP server, as its own binary so an MCP client config can name it
  * directly:
  *
- *   { "command": "npx", "args": ["-y", "uaight-mcp", "--url", "http://localhost:5173"] }
+ *   { "command": "npx", "args": ["-y", "uaight-mcp"] }
+ *
+ * No port: the dev server is discovered on first use, because an agent config is
+ * written once and the port Vite takes changes with whatever else is running.
  *
  * Identical to `uaight mcp`.
  */
@@ -26,15 +29,19 @@ function flag(name, fallback) {
 if (argv.includes("--help") || argv.includes("-h")) {
 	console.log(`uaight-mcp ${version}
 
-  --url <url>   uaight dev server to read (default: http://localhost:5173)
+  --url <url>   uaight dev server to read. Omit it and one is discovered by
+                probing common Vite ports for /@uaight/health.
 
-Speaks MCP over stdio. The dev server must be running.
+Speaks MCP over stdio. The dev server must be running by the time a tool is
+called; it does not have to be running when this starts.
 `);
 	process.exit(0);
 }
 
+const url = flag("url", undefined);
+
 runMcpServer({
-	url: flag("url", "http://localhost:5173"),
+	...(typeof url === "string" ? { url } : {}),
 	version,
 }).catch((error) => {
 	console.error(`uaight-mcp: ${error?.message ?? error}`);

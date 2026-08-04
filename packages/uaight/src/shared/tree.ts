@@ -5,6 +5,7 @@
 
 import { matchesFilter } from "./filter.ts";
 import { serializeFixtureId } from "./fixture-id.ts";
+import { fixtureMetaFor } from "./meta.ts";
 import { ALL_FIXTURES } from "./types.ts";
 import type {
 	Filter,
@@ -62,7 +63,8 @@ function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 
 	if (file.names.length === 1 && file.names[0] === null) {
 		const fixture: FixtureId = { path: file.path, name: null };
-		return { key: serializeFixtureId(fixture), label, kind: "fixture", fixture };
+		const meta = fixtureMetaFor(file, null);
+		return { key: serializeFixtureId(fixture), label, kind: "fixture", fixture, meta };
 	}
 
 	const children: TreeNode[] = file.names.map((name) => {
@@ -73,6 +75,7 @@ function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 			label: name === null ? label : name === "" ? "(empty name)" : name,
 			kind: "fixture" as const,
 			fixture,
+			meta: fixtureMetaFor(file, name),
 		};
 	});
 
