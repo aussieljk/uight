@@ -1,41 +1,42 @@
-{/*
-  An MDX fixture — SPEC §14, proving the documented path end to end.
+{/\*
+An MDX fixture — SPEC §14, proving the documented path end to end.
 
-  §14's division of labour is the whole point of this file: uaight contributes
-  the glob pattern (`.mdx` is in the fixture extension list) and the rule that
-  an `.mdx` module normalizes to exactly **one** fixture. Compiling it is
-  `@mdx-js/rollup`, which this example adds to its own Vite config — ordered
-  before `react()`, because MDX emits JSX and the JSX transform has to run
-  after it. uaight reads the resolved plugin list and says so if it is not.
+§14's division of labour is the whole point of this file: uaight contributes
+the glob pattern (`.mdx` is in the fixture extension list) and the rule that
+an `.mdx` module normalizes to exactly **one** fixture. Compiling it is
+`@mdx-js/rollup`, which this example adds to its own Vite config — ordered
+before `react()`, because MDX emits JSX and the JSX transform has to run
+after it. uaight reads the resolved plugin list and says so if it is not.
 
-  Note what is not happening here: nothing in the plugin compiles MDX, and
-  nothing infers that the host wants it. Remove `mdx()` from vite.config.ts and
-  the dev server prints a sentence naming the plugin, the ordering and the
-  install command, instead of a Rollup parse error.
+Note what is not happening here: nothing in the plugin compiles MDX, and
+nothing infers that the host wants it. Remove `mdx()` from vite.config.ts and
+the dev server prints a sentence naming the plugin, the ordering and the
+install command, instead of a Rollup parse error.
 
-  Components in scope come from the imports below, exactly as they would in the
-  host's own MDX setup — we export a component, the host's MDX puts things in
-  scope (§14).
-*/}
+Components in scope come from the imports below, exactly as they would in the
+host's own MDX setup — we export a component, the host's MDX puts things in
+scope (§14).
+\*/}
 
 import { Badge, Button, Card, Heading, Text } from "frosted-ui";
 
 <Card size="3">
 	<Heading size="5">MDX fixtures</Heading>
 
-	<Text as="p" size="2" color="gray">
-		This file is `.mdx`. It is one fixture, not many: prose has no named
-		states, so §14 normalizes an MDX module to a single default export.
-	</Text>
+    <Text as="p" size="2" color="gray">
+    	This file is `.mdx`. It is one fixture, not many: prose has no named
+    	states, so §14 normalizes an MDX module to a single default export.
+    </Text>
 
-	<Text as="p" size="2">
-		Everything below is real frosted-ui, rendered in the frame realm through
-		the same preview entry every other fixture uses.
-	</Text>
+    <Text as="p" size="2">
+    	Everything below is real frosted-ui, rendered in the frame realm through
+    	the same preview entry every other fixture uses.
+    </Text>
 
-	<div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
-		<Button variant="solid" color="blue">Primary</Button>
-		<Button variant="soft">Secondary</Button>
-		<Badge color="green">Shipped</Badge>
-	</div>
+    <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+    	<Button variant="solid" color="blue">Primary</Button>
+    	<Button variant="soft">Secondary</Button>
+    	<Badge color="green">Shipped</Badge>
+    </div>
+
 </Card>

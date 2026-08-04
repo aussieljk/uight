@@ -77,9 +77,9 @@ explorer's, which is why they live in one module both realms import.
 
 ## Other hooks
 
-| Hook | Returns |
-| ---- | ------- |
-| `useFixtureViewport()` | The viewport the preview is currently at |
-| `useFixtureId()` | The id of the fixture being rendered |
-| `useSelectFixture()` | A function that selects another fixture |
-| `useFixtureIsolation()` | `"frame"` or `"inline"` |
+| Hook                    | Returns                                  |
+| ----------------------- | ---------------------------------------- |
+| `useFixtureViewport()`  | The viewport the preview is currently at |
+| `useFixtureId()`        | The id of the fixture being rendered     |
+| `useSelectFixture()`    | A function that selects another fixture  |
+| `useFixtureIsolation()` | `"frame"` or `"inline"`                  |

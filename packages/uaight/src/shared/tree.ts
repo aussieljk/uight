@@ -142,7 +142,9 @@ function toNodes(dir: DirNode, prefix: string): TreeNode[] {
 		nodes.push(fileNodes(file, dirName));
 	}
 
-	for (const item of [...dir.components].sort((a, b) => collator.compare(a.name, b.name))) {
+	for (const item of [...dir.components].sort((a, b) =>
+		collator.compare(a.name, b.name),
+	)) {
 		nodes.push({
 			key: `component:${item.globPath}#${item.exportName}`,
 			label: item.name,

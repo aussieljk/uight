@@ -66,9 +66,7 @@ const DEFAULT_INVENTORY_EXCLUDE = [
 ];
 
 /** The declared CSF subset. §13 */
-const STORYBOOK_SUPPORT_DEFAULTS: Required<
-	NonNullable<StorybookSupport["support"]>
-> = {
+const STORYBOOK_SUPPORT_DEFAULTS: Required<NonNullable<StorybookSupport["support"]>> = {
 	metaArgs: true,
 	storyArgs: true,
 	argTypes: true,
@@ -173,9 +171,7 @@ export interface ResolvedUaightConfig {
  * your Vite config and pass it to `uaight()`. The file the plugin discovers on
  * its own is `uaight.config.json` (§4.1).
  */
-export function defineUaightConfig(
-	config: UaightPluginOptions,
-): UaightPluginOptions {
+export function defineUaightConfig(config: UaightPluginOptions): UaightPluginOptions {
 	return config;
 }
 
@@ -224,7 +220,9 @@ export function normalizeAliases(alias: unknown): ResolvedAlias[] {
 export function sameAliases(a: ResolvedAlias[], b: ResolvedAlias[]): boolean {
 	return (
 		a.length === b.length &&
-		a.every((entry, i) => entry.find === b[i]?.find && entry.replacement === b[i]?.replacement)
+		a.every(
+			(entry, i) => entry.find === b[i]?.find && entry.replacement === b[i]?.replacement,
+		)
 	);
 }
 
@@ -291,14 +289,11 @@ export function resolveUaightConfig(
 		previewEntry: o.previewEntry
 			? toGlobPath(root, path.resolve(root, o.previewEntry))
 			: undefined,
-		previewHtmlPath: o.previewHtmlPath
-			? path.resolve(root, o.previewHtmlPath)
-			: undefined,
+		previewHtmlPath: o.previewHtmlPath ? path.resolve(root, o.previewHtmlPath) : undefined,
 		codecs: o.codecs ? toGlobPath(root, path.resolve(root, o.codecs)) : undefined,
 
 		index: o.index ?? "warm",
-		production:
-			process.env[STATIC_ENV] === "1" ? "include" : (o.production ?? "exclude"),
+		production: process.env[STATIC_ENV] === "1" ? "include" : (o.production ?? "exclude"),
 
 		storybook: resolveStorybook(o.storybook, Boolean(storybookPreview)),
 		storybookPreview,
@@ -561,10 +556,7 @@ const STRUCTURAL_FIELDS = [
 ] as const satisfies ReadonlyArray<keyof ResolvedUaightConfig>;
 
 /** True when moving from `a` to `b` requires a dev-server restart. §4.1 */
-export function isStructural(
-	a: ResolvedUaightConfig,
-	b: ResolvedUaightConfig,
-): boolean {
+export function isStructural(a: ResolvedUaightConfig, b: ResolvedUaightConfig): boolean {
 	return STRUCTURAL_FIELDS.some((key) => !deepEqual(a[key], b[key]));
 }
 
@@ -589,9 +581,6 @@ function deepEqual(a: unknown, b: unknown): boolean {
 	const bk = Object.keys(b as Record<string, unknown>);
 	if (ak.length !== bk.length) return false;
 	return ak.every((k) =>
-		deepEqual(
-			(a as Record<string, unknown>)[k],
-			(b as Record<string, unknown>)[k],
-		),
+		deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
 	);
 }

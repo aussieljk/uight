@@ -36,7 +36,9 @@ afterEach(() => {
 async function attempt(): Promise<unknown> {
 	// No Vite config, no React, no `uaight` resolvable from this temp root — the
 	// build throws, which is exactly the crash the placement has to survive.
-	return buildStatic({ root, quiet: true, configFile: false }).catch((err: unknown) => err);
+	return buildStatic({ root, quiet: true, configFile: false }).catch(
+		(err: unknown) => err,
+	);
 }
 
 describe("the scaffold", () => {

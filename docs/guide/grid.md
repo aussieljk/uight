@@ -29,7 +29,7 @@ asked — the same rule the tree follows.
 
 ## Related
 
-Selecting a *file* rather than one of its fixtures already renders every fixture in that
+Selecting a _file_ rather than one of its fixtures already renders every fixture in that
 file, stacked, with a heading each. That is the per-file version of the same idea and
 needs no key.
 

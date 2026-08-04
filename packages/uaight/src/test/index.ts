@@ -42,8 +42,15 @@ import { matchesFilter } from "../shared/filter.ts";
 import { ALL_FIXTURES } from "../shared/types.ts";
 import type { Filter, FixtureId, FixtureFileIndex } from "../shared/types.ts";
 import type { StorybookPreview } from "../runtime/csf.ts";
-import { composeDecorators, loadDecorators, selectDecorators } from "../runtime/decorators.ts";
-import { FixtureRuntimeProvider, createViewportSource } from "../runtime/fixture-context.tsx";
+import {
+	composeDecorators,
+	loadDecorators,
+	selectDecorators,
+} from "../runtime/decorators.ts";
+import {
+	FixtureRuntimeProvider,
+	createViewportSource,
+} from "../runtime/fixture-context.tsx";
 import type { NormalizedFixture } from "../runtime/normalize.ts";
 import { normalizeModule, selectFixture } from "../runtime/normalize.ts";
 import { OverlayStore } from "../runtime/overlay.ts";
@@ -211,10 +218,10 @@ export async function loadFixture(
 		dev: false,
 	};
 
-	let element: ReactElement = createElement(
-		FixtureRuntimeProvider,
-		{ runtime, children: composeDecorators(node, decorators, {}) },
-	);
+	let element: ReactElement = createElement(FixtureRuntimeProvider, {
+		runtime,
+		children: composeDecorators(node, decorators, {}),
+	});
 	if (Preview) element = createElement(Preview, { children: element });
 
 	return {
@@ -296,7 +303,10 @@ export async function loadComponent(item: {
 	if (!load) throw new Error(`[uaight/test] no module registered for ${item.globPath}`);
 	const module = (await load()) as Record<string, unknown>;
 	const exported = module[item.exportName];
-	if (typeof exported !== "function" && (typeof exported !== "object" || exported === null)) {
+	if (
+		typeof exported !== "function" &&
+		(typeof exported !== "object" || exported === null)
+	) {
 		throw new Error(
 			`[uaight/test] ${item.globPath} has no component export named "${item.exportName}"`,
 		);

@@ -89,7 +89,7 @@ freeze here.
 
 ### Added — fixtures harvested from real call sites
 
-§12 gave a codebase with no fixtures a *list of components*. A list is not the payoff:
+§12 gave a codebase with no fixtures a _list of components_. A list is not the payoff:
 selecting a detected component usually rendered a crash, because a real component needs
 props — and its props are already written down wherever the app uses it.
 
@@ -102,7 +102,7 @@ props — and its props are already written down wherever the app uses it.
   per component (`callSites: { max }`, default 8).
 - Each usage renders as a real fixture: its props register through `useFixtureInput`, so
   the control panel drives them and the overlay model backs them. This does not conflict
-  with D18 — nothing is inferred from a prop *name*; the starting values are code the
+  with D18 — nothing is inferred from a prop _name_; the starting values are code the
   user wrote.
 - Sites are matched to a detected component by name, narrowed by the import specifier
   when it resolved. A usage in the file that defines the component has no import, so
@@ -116,7 +116,7 @@ props — and its props are already written down wherever the app uses it.
 
 §13 declined global decorators "by construction: `.storybook/preview` is never loaded".
 That construction was the whole distance between reading a repository's stories and
-*running* them: nearly every real Storybook install puts its providers, theme and global
+_running_ them: nearly every real Storybook install puts its providers, theme and global
 styles in that file, so declining it rendered a corpus stripped of context.
 
 - `.storybook/preview.{ts,tsx,js,jsx}` is discovered automatically when Storybook support
@@ -133,8 +133,8 @@ styles in that file, so declining it rendered a corpus stripped of context.
 
 ### Added — `uaight/mcp`, the explorer as an agent tool
 
-A component explorer answers *what exists*, *what states does it have* and *what does
-this look like* — the questions an agent editing a component cannot answer from source.
+A component explorer answers _what exists_, _what states does it have_ and _what does
+this look like_ — the questions an agent editing a component cannot answer from source.
 §19.6's read-only endpoints already answered them for "tools that cannot import the
 package".
 
@@ -178,7 +178,7 @@ The standing objection to any explorer is that fixtures are work that only power
 
 ### Added — the static explorer build
 
-§9 covered embedding the explorer in an app; it did not cover *publishing* one, which is
+§9 covered embedding the explorer in an app; it did not cover _publishing_ one, which is
 how a design system gets adopted across an organisation. Without it §1.3's job 3 stopped
 at the edge of one machine.
 
@@ -205,8 +205,8 @@ at the edge of one machine.
 
 ### Added — the golden corpus harness, and CI
 
-`NOTES.md` records the lesson: *a checker that has never been observed to fail is not
-evidence of anything*. Three of the four worst defects in this project's history were
+`NOTES.md` records the lesson: _a checker that has never been observed to fail is not
+evidence of anything_. Three of the four worst defects in this project's history were
 integration defects that the unit suites could not see, because each part was correct on
 its own — and the sweep that caught one of them lived in a scratchpad and was discarded.
 
@@ -446,7 +446,7 @@ Each is recorded with its reasoning in `NOTES.md`.
   precedes all object handling, so it could never be reached.
 - **ARCHITECTURE §2** `serialize()` takes an optional third argument, because §7.3's
   "warning names the input" and §7.2's per-input opaque-id lifetime both need it.
-- **ARCHITECTURE §1** `@vitejs/plugin-react` v6 *does* publish a preamble module; and the
+- **ARCHITECTURE §1** `@vitejs/plugin-react` v6 _does_ publish a preamble module; and the
   guard that matters in Vite 8.1 is `window.$RefreshReg$`, not
   `__vite_plugin_react_preamble_installed__`.
 - **§9.3** the production summary reports the same four figures in the same order, but

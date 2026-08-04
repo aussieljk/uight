@@ -52,7 +52,9 @@ createServer((req, res) => {
 		res.writeHead(404).end("not found");
 		return;
 	}
-	res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
+	res.writeHead(200, {
+		"content-type": TYPES[extname(file)] ?? "application/octet-stream",
+	});
 	createReadStream(file).pipe(res);
 }).listen(port, () => {
 	console.log(`static server: ${dir} at http://localhost:${port}${prefix}`);

@@ -114,7 +114,12 @@ const steps: Step[] = [
 	{ title: "Version lockstep", command: "bun", args: ["run", "version:check"], cwd: PKG },
 	// Before the build, while `src/styles/generated.ts` still holds whatever was
 	// committed — after it, the check compares the build against itself.
-	{ title: "Stylesheet is fresh", command: "bun", args: ["run", "build:css", "--check"], cwd: PKG },
+	{
+		title: "Stylesheet is fresh",
+		command: "bun",
+		args: ["run", "build:css", "--check"],
+		cwd: PKG,
+	},
 	{ title: "Build", command: "bun", args: ["run", "build"] },
 	// `typecheck:only`, not `typecheck`: the exposed script builds first, because
 	// running it by hand against a stale `dist` is the misleading case. Here the
@@ -143,7 +148,9 @@ const publishArgs = ["publish", "--tag", tag];
 if (dryRun) publishArgs.push("--dry-run");
 
 run({
-	title: dryRun ? "Pack (dry run — nothing is published)" : `Publish to npm (tag "${tag}")`,
+	title: dryRun
+		? "Pack (dry run — nothing is published)"
+		: `Publish to npm (tag "${tag}")`,
 	command: "npm",
 	args: publishArgs,
 	cwd: PKG,

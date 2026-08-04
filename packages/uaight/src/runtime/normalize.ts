@@ -83,7 +83,10 @@ export function normalizeModule(
 
 	if (isCsfFile(file, config)) {
 		if (!config.storybook) {
-			warn(dev, `[uaight] ${file.path} looks like a CSF module but Storybook support is off`);
+			warn(
+				dev,
+				`[uaight] ${file.path} looks like a CSF module but Storybook support is off`,
+			);
 			return { fixtures: [] };
 		}
 		const support: CsfSupport = { ...DEFAULT_CSF_SUPPORT, ...config.storybook };
@@ -145,7 +148,11 @@ export function normalizeModule(
  * §3.4: after a module loads, compare real keys against the index; on mismatch,
  * warn in development naming the file and both lists.
  */
-function reconcile(file: FixtureFileIndex, fixtures: NormalizedFixture[], dev: boolean): void {
+function reconcile(
+	file: FixtureFileIndex,
+	fixtures: NormalizedFixture[],
+	dev: boolean,
+): void {
 	if (!dev || file.names === null) return;
 	const actual = fixtures.map((fixture) => fixture.name);
 	const indexed = file.names as Array<string | null>;
@@ -160,7 +167,8 @@ function reconcile(file: FixtureFileIndex, fixtures: NormalizedFixture[], dev: b
 	if (single(actual) && single(indexed)) return;
 
 	const same =
-		actual.length === indexed.length && actual.every((name, index) => name === indexed[index]);
+		actual.length === indexed.length &&
+		actual.every((name, index) => name === indexed[index]);
 	if (same) return;
 	warn(
 		true,

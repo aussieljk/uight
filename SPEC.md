@@ -220,14 +220,14 @@ Names live inside a module's default export. Loading every module to enumerate t
 
 `oxc-parser` walks only the default export:
 
-| Default export                                          | Result                           |
-| ------------------------------------------------------- | -------------------------------- |
-| Not an object literal                                   | `names: [null]` — single fixture |
-| Object literal, all keys static                         | `names: [...]`                   |
-| Object literal with spread, computed keys, or getters   | `names: null`                    |
-| Identifier bound to a module-scope `const` initializer  | apply this table to that initializer |
-| Identifier assigned elsewhere                           | `names: null`                    |
-| `export const fixtureNames` present                     | **Wins outright**                |
+| Default export                                         | Result                               |
+| ------------------------------------------------------ | ------------------------------------ |
+| Not an object literal                                  | `names: [null]` — single fixture     |
+| Object literal, all keys static                        | `names: [...]`                       |
+| Object literal with spread, computed keys, or getters  | `names: null`                        |
+| Identifier bound to a module-scope `const` initializer | apply this table to that initializer |
+| Identifier assigned elsewhere                          | `names: null`                        |
+| `export const fixtureNames` present                    | **Wins outright**                    |
 
 The identifier rows are ordered. `const fixtures = {…}; export default fixtures` resolves, because the initializer is written down in the same module — but only when the binding is a module-scope `const`, has an initializer, and is the only module-scope declaration of that name. `let`, `var`, an import, a destructuring pattern and a redeclaration all stay undecidable: in each of those the initializer is not the final value, and establishing what is would need the scope analysis this pass exists to avoid. Chains resolve (`const a = {…}; const b = a; export default b`), with a cycle guard. Once resolved, the rest of the table applies unchanged — a resolved object with a spread is still `null`.
 
@@ -386,11 +386,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 			});
 			index = scanFixtures(cfg);
 
-			if (
-				env.command === "build" &&
-				cfg.production === "error" &&
-				index.files.length
-			) {
+			if (env.command === "build" && cfg.production === "error" && index.files.length) {
 				throw new Error(
 					`[uaight] production: "error" — ${index.files.length} fixture files present`,
 				);
@@ -641,11 +637,7 @@ The frame document never passes through `transformIndexHtml`, so the React plugi
 ```ts
 import "@vitejs/plugin-react/preamble"; // dev only; verify specifier (Q2)
 import { mountRenderer } from "uaight/runtime";
-import {
-	fixtureModules,
-	decoratorModules,
-	config,
-} from "virtual:uaight/runtime";
+import { fixtureModules, decoratorModules, config } from "virtual:uaight/runtime";
 import * as preview from "virtual:uaight/preview-entry";
 import * as codecs from "virtual:uaight/codecs";
 
@@ -674,9 +666,7 @@ import "./styles/global.css";
 const queryClient = new QueryClient();
 
 export function Preview({ children }: { children: React.ReactNode }) {
-	return (
-		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-	);
+	return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 ```
 
@@ -879,13 +869,7 @@ interface MountedEnvelope<T = MountedMessage> {
 }
 
 type MountedMessage =
-	| SelectFixture
-	| InputRegistered
-	| Overlay
-	| Resync
-	| Resize
-	| RendererError
-	| Dispose;
+	SelectFixture | InputRegistered | Overlay | Resync | Resize | RendererError | Dispose;
 ```
 
 ### 8.2 Handshake
@@ -923,8 +907,7 @@ declare const __UAIGHT_ENABLED__: boolean;
 const UaightUI = React.lazy(() => import("./ui/UaightUI"));
 
 export function Uaight(props: UaightProps) {
-	if (!__UAIGHT_ENABLED__ || props.enabled === false)
-		return <>{props.fallback ?? null}</>;
+	if (!__UAIGHT_ENABLED__ || props.enabled === false) return <>{props.fallback ?? null}</>;
 	return (
 		<React.Suspense fallback={props.loading ?? null}>
 			<UaightUI {...props} />
@@ -1008,13 +991,11 @@ npx shadcn add https://uaight.dev/r/fixture-tree.json
 	"description": "Hierarchical navigation for fixtures. Reads useUaightChrome().fixtureTree and reports selection through onSelect.",
 	"dependencies": ["uaight"],
 	"registryDependencies": ["@uaight/control-panel-inputs"],
-	"files": [
-		{ "path": "ui/fixture-tree/FixtureTree.tsx", "type": "registry:component" }
-	]
+	"files": [{ "path": "ui/fixture-tree/FixtureTree.tsx", "type": "registry:component" }]
 }
 ```
 
-**Two schemas, not one.** shadcn publishes `registry.json` for the *index* and `registry-item.json` for a *single item*; an item carrying the index schema does not validate. Earlier drafts of this section named `registry.json` here, which was wrong — the emitted items use `registry-item.json` and only `registry/registry.json` uses `registry.json`.
+**Two schemas, not one.** shadcn publishes `registry.json` for the _index_ and `registry-item.json` for a _single item_; an item carrying the index schema does not validate. Earlier drafts of this section named `registry.json` here, which was wrong — the emitted items use `registry-item.json` and only `registry/registry.json` uses `registry.json`.
 
 `registryDependencies` must be namespaced — a bare `"tree-item"` resolves against shadcn's own registry, and must also name an item this registry actually publishes: `@uaight/tree-item` appeared in an earlier draft and is not in §11.3's table. Any `registry:file` entry requires an explicit `target`.
 
@@ -1087,7 +1068,7 @@ Storybook applies decorators innermost-first from the array; we nest outermost-f
 
 **Documentation pages.** `**/*.docs.mdx` under the fixtures directory is a documentation page: prose that lives beside the components it is about. Mechanically it is a fixture — the same glob map, the same index entry, the same selection and the same frame realm, and one page per module by the rule above — and it carries `docsPage: true` so the tree can say which it is. `docs: false` turns the pattern off, `docs: { fileSuffix }` renames it.
 
-Compiling MDX is still entirely the host's job, and this does not change that: uaight exports a component, a host MDX setup puts it in scope, and we do not try to detect whether the host already has an MDX plugin — plugin ordering is configuration, not something to infer. Startup naming a *missing* plugin is not inference; it reads the resolved list and reports it.
+Compiling MDX is still entirely the host's job, and this does not change that: uaight exports a component, a host MDX setup puts it in scope, and we do not try to detect whether the host already has an MDX plugin — plugin ordering is configuration, not something to infer. Startup naming a _missing_ plugin is not inference; it reads the resolved list and reports it.
 
 **This is not a documentation framework** (§1.4). No router, no authored navigation, no page hierarchy separate from the fixture tree.
 

@@ -143,7 +143,9 @@ describeIf("applyOverlayToValue", () => {
 		expect(dropped).toHaveLength(3);
 		expect(value).toEqual({ safe: 1 });
 		expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-		expect((Object.prototype as unknown as Record<string, unknown>).polluted).toBeUndefined();
+		expect(
+			(Object.prototype as unknown as Record<string, unknown>).polluted,
+		).toBeUndefined();
 	});
 
 	it("refuses a patch carrying an opaque value, which never travels (§7.2)", () => {

@@ -123,9 +123,7 @@ function main(): void {
 		const expected = generatedModule(scoped);
 		const actual = existsSync(GENERATED_TS) ? readFileSync(GENERATED_TS, "utf8") : "";
 		if (actual !== expected) {
-			throw new Error(
-				"[uaight] src/styles/generated.ts is stale — run `bun run build:css`",
-			);
+			throw new Error("[uaight] src/styles/generated.ts is stale — run `bun run build:css`");
 		}
 		if (existsSync(DIST_CSS) && readFileSync(DIST_CSS, "utf8") !== scoped) {
 			throw new Error("[uaight] dist/styles.css is stale — run `bun run build:css`");

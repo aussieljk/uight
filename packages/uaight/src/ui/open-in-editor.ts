@@ -29,7 +29,9 @@ export const OPEN_IN_EDITOR_PATH = "/__open-in-editor";
  * against the server's working directory, so the leading slash a `globPath`
  * carries (§4.2 — it is root-relative, not filesystem-absolute) has to go.
  */
-export function editorTarget(site: Pick<CallSite, "globPath" | "line" | "column">): string {
+export function editorTarget(
+	site: Pick<CallSite, "globPath" | "line" | "column">,
+): string {
 	const file = site.globPath.replace(/^\/+/, "");
 	return `${file}:${site.line}:${site.column}`;
 }

@@ -49,7 +49,10 @@ export function toRendererError(
 	return out;
 }
 
-export class RendererErrorBoundary extends React.Component<RendererErrorBoundaryProps, State> {
+export class RendererErrorBoundary extends React.Component<
+	RendererErrorBoundaryProps,
+	State
+> {
 	constructor(props: RendererErrorBoundaryProps) {
 		super(props);
 		this.state = { error: null, resetKey: props.resetKey };
@@ -88,7 +91,8 @@ export class RendererErrorBoundary extends React.Component<RendererErrorBoundary
 		if (!error) return this.props.children;
 		// componentDidCatch has not run yet on the very first paint after a
 		// throw; normalize the kind so the fallback never lies about it.
-		const shown = error.kind === this.props.kind ? error : { ...error, kind: this.props.kind };
+		const shown =
+			error.kind === this.props.kind ? error : { ...error, kind: this.props.kind };
 		if (this.props.fallback) return this.props.fallback(shown, this.reset);
 		return <ErrorPanel error={shown} />;
 	}

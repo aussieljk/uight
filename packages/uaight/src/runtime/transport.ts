@@ -92,7 +92,9 @@ function exactTargetOrigin(win: Window): string {
 }
 
 function bestVersion(offered: readonly number[]): number | null {
-	const shared = offered.filter((version) => SUPPORTED_PROTOCOL_VERSIONS.includes(version));
+	const shared = offered.filter((version) =>
+		SUPPORTED_PROTOCOL_VERSIONS.includes(version),
+	);
 	return shared.length ? Math.max(...shared) : null;
 }
 

@@ -78,10 +78,9 @@ export default function ButtonPlayground() {
 			<div style={column}>
 				<Heading size="3">useFixtureInput</Heading>
 				<Text size="2" color="gray">
-					Open the control panel and edit these. The renderer owns the value; the
-					panel owns an overlay of patches over it (§7.2), which is why editing
-					this file live keeps your edits meaningful instead of restoring a value
-					the new module never produced.
+					Open the control panel and edit these. The renderer owns the value; the panel owns an
+					overlay of patches over it (§7.2), which is why editing this file live keeps your
+					edits meaningful instead of restoring a value the new module never produced.
 				</Text>
 
 				<div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -104,8 +103,8 @@ export default function ButtonPlayground() {
 				</div>
 
 				<Text size="1" color="gray">
-					<code>showCount</code> maps to no prop on any component here. Controls
-					are declared, not inferred.
+					<code>showCount</code> maps to no prop on any component here. Controls are declared,
+					not inferred.
 				</Text>
 			</div>
 		</Card>

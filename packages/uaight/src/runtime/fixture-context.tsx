@@ -47,7 +47,9 @@ export interface ViewportSource {
  * fixture's media queries still see the page, which §5.2 documents rather than
  * papers over.
  */
-export function createViewportSource(target: Window | HTMLElement | null): ViewportSource {
+export function createViewportSource(
+	target: Window | HTMLElement | null,
+): ViewportSource {
 	const measure = (): Viewport => {
 		if (!target) return { width: 0, height: 0 };
 		if ("innerWidth" in target) {

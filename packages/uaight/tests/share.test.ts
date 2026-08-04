@@ -8,7 +8,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MAX_STATE_LENGTH, decodeOverlays, encodeOverlays, sameState } from "../src/ui/share.ts";
+import {
+	MAX_STATE_LENGTH,
+	decodeOverlays,
+	encodeOverlays,
+	sameState,
+} from "../src/ui/share.ts";
 import type { InputOverlay } from "../src/shared/types.ts";
 
 const overlay = (input: string, patches: InputOverlay["patches"]): InputOverlay => ({

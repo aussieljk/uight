@@ -16,7 +16,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resolveUaightConfig } from "../src/vite/config.ts";
 import type { ResolvedUaightConfig } from "../src/vite/config.ts";
 import { normalizeAliases, sameAliases } from "../src/vite/config.ts";
-import { fixtureGlobPatterns, rescanIncremental, scanFixtures } from "../src/vite/scan.ts";
+import {
+	fixtureGlobPatterns,
+	rescanIncremental,
+	scanFixtures,
+} from "../src/vite/scan.ts";
 import type { UaightPluginOptions } from "../src/shared/types.ts";
 
 let root: string;
@@ -322,4 +326,3 @@ describe("topology changes (Q9, Node half)", () => {
 		expect(fixtureGlobPatterns(config())).toEqual(before);
 	});
 });
-

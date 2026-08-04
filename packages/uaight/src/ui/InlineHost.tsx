@@ -38,7 +38,11 @@ export interface InlineHostProps {
 
 type Providers = ComponentType<{ children: ReactNode }> | undefined;
 
-export function InlineHost({ codecs, theme, onTransport }: InlineHostProps): ReactElement {
+export function InlineHost({
+	codecs,
+	theme,
+	onTransport,
+}: InlineHostProps): ReactElement {
 	const pair = useMemo(() => createDirectTransportPair(), []);
 	const [root, setRoot] = useState<HTMLElement | null>(null);
 	const [providers, setProviders] = useState<{ value: Providers } | null>(

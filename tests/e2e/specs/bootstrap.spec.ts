@@ -24,7 +24,12 @@
  * schedule identically.
  */
 
-import { collectConsoleErrors, expect, isIgnorableError, test } from "../support/harness.ts";
+import {
+	collectConsoleErrors,
+	expect,
+	isIgnorableError,
+	test,
+} from "../support/harness.ts";
 
 test.describe("frame bootstrap @core", () => {
 	test("the frame boots and the handshake completes", async ({ explorer, page }) => {
@@ -48,12 +53,17 @@ test.describe("frame bootstrap @core", () => {
 		expect(errors.filter((e) => !isIgnorableError(e))).toEqual([]);
 	});
 
-	test("exactly one renderer script and one READY per document @core", async ({ explorer, page }) => {
+	test("exactly one renderer script and one READY per document @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
 
 		const scripts = await page.evaluate(() => {
 			const frame = document.querySelector<HTMLIFrameElement>("iframe[data-uaight-frame]");
-			return frame?.contentDocument?.querySelectorAll("script[data-uaight-renderer]").length ?? -1;
+			return (
+				frame?.contentDocument?.querySelectorAll("script[data-uaight-renderer]").length ?? -1
+			);
 		});
 		expect(scripts).toBe(1);
 
@@ -93,7 +103,9 @@ test.describe("frame bootstrap @core", () => {
 		// And the recovered document still carries exactly one renderer.
 		const scripts = await page.evaluate(() => {
 			const frame = document.querySelector<HTMLIFrameElement>("iframe[data-uaight-frame]");
-			return frame?.contentDocument?.querySelectorAll("script[data-uaight-renderer]").length ?? -1;
+			return (
+				frame?.contentDocument?.querySelectorAll("script[data-uaight-renderer]").length ?? -1
+			);
 		});
 		expect(scripts).toBe(1);
 	});
@@ -131,7 +143,10 @@ test.describe("frame bootstrap @core", () => {
 
 	test("StrictMode off changes nothing @core", async ({ explorer }) => {
 		// If a defence depends on the double-invoke it is not a defence.
-		await explorer.open({ strict: false, fixture: { path: "fixtures/basic", name: "Alpha" } });
+		await explorer.open({
+			strict: false,
+			fixture: { path: "fixtures/basic", name: "Alpha" },
+		});
 		await expect(explorer.frame().locator("[data-e2e='basic']")).toHaveText("ALPHA");
 		const readies = (await explorer.protocol()).filter((m) => m.type === "READY");
 		expect(readies).toHaveLength(1);

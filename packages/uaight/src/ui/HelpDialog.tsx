@@ -22,9 +22,7 @@ export function HelpDialog({ open, onClose }: HelpDialogProps): ReactElement | n
 		<Overlay open={open} label="Keyboard shortcuts" onClose={onClose}>
 			<div className="flex h-9 shrink-0 items-center border-b border-[var(--u-line)] px-3">
 				<h2 className="text-sm font-medium text-[var(--u-fg)]">Keyboard</h2>
-				<span className="ml-auto text-xs text-[var(--u-fg-subtle)]">
-					? to close
-				</span>
+				<span className="ml-auto text-xs text-[var(--u-fg-subtle)]">? to close</span>
 			</div>
 
 			<dl className="grid min-h-0 flex-1 grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 overflow-auto p-3">

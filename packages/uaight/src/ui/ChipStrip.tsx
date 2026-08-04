@@ -119,10 +119,7 @@ export function ChipStrip({
 					{chips.map((chip, index) => (
 						<div key={chip.key} className="contents">
 							{dividerAfter > 0 && index === dividerAfter ? (
-								<span
-									aria-hidden="true"
-									className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]"
-								/>
+								<span aria-hidden="true" className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]" />
 							) : null}
 							<button
 								type="button"

@@ -7,7 +7,18 @@
  * explorer mounted as a component inside an ordinary React tree.
  */
 
-import { Badge, Callout, Card, Code, Heading, Link, Select, Separator, Text, Theme } from "frosted-ui";
+import {
+	Badge,
+	Callout,
+	Card,
+	Code,
+	Heading,
+	Link,
+	Select,
+	Separator,
+	Text,
+	Theme,
+} from "frosted-ui";
 import * as React from "react";
 import { parseFixtureId, serializeFixtureId, Uaight } from "uaight";
 import type { FixtureId } from "uaight";
@@ -120,10 +131,10 @@ function ControlledSelection() {
 			</div>
 
 			<Text size="1" color="gray">
-				Selecting in the tree writes the URL through <Code>onSelect</Code>; the
-				browser's back button writes it back through <Code>selected</Code>. An
-				unknown-but-well-formed id keeps the parameter and shows an empty state,
-				because it may become valid after the next HMR update (§5.4).
+				Selecting in the tree writes the URL through <Code>onSelect</Code>; the browser's back
+				button writes it back through <Code>selected</Code>. An unknown-but-well-formed id
+				keeps the parameter and shows an empty state, because it may become valid after the
+				next HMR update (§5.4).
 			</Text>
 		</>
 	);
@@ -142,24 +153,21 @@ export function App() {
 					</div>
 
 					<Text size="3" color="gray">
-						This is an ordinary Vite + React application. Its{" "}
-						<Code>vite.config.ts</Code> has one extra plugin in it, and that is
-						the entire installation. Open{" "}
+						This is an ordinary Vite + React application. Its <Code>vite.config.ts</Code> has
+						one extra plugin in it, and that is the entire installation. Open{" "}
 						<Link href="/uaight">
 							<Code>/uaight</Code>
 						</Link>{" "}
-						— same server, same port, no second process, no HTML file in the
-						repository.
+						— same server, same port, no second process, no HTML file in the repository.
 					</Text>
 
 					<Text size="3" color="gray">
-						What you will find there is all 581 of frosted-ui's Storybook
-						stories, read straight off disk as fixtures.{" "}
-						<strong>Storybook is not installed in this project.</strong> Component
-						Story Format is a file format, not a runtime: a default export of
-						metadata and named exports of stories. uaight reads the subset it can
-						honestly run (§13) and badges anything it declines — <Code>play</Code>,{" "}
-						loaders and interactions do not silently no-op.
+						What you will find there is all 581 of frosted-ui's Storybook stories, read straight
+						off disk as fixtures. <strong>Storybook is not installed in this project.</strong>{" "}
+						Component Story Format is a file format, not a runtime: a default export of metadata
+						and named exports of stories. uaight reads the subset it can honestly run (§13) and
+						badges anything it declines — <Code>play</Code>, loaders and interactions do not
+						silently no-op.
 					</Text>
 				</div>
 
@@ -169,10 +177,9 @@ export function App() {
 						<Link href="https://storybook.whop.dev" target="_blank">
 							frosted-ui
 						</Link>{" "}
-						is Whop's design system, used here under its MIT licence and
-						unmodified apart from import rewriting. uaight is an unaffiliated
-						project and this demo is not endorsed by Whop. The licence travels
-						with the copied files, in{" "}
+						is Whop's design system, used here under its MIT licence and unmodified apart from
+						import rewriting. uaight is an unaffiliated project and this demo is not endorsed by
+						Whop. The licence travels with the copied files, in{" "}
 						<Code>src/stories/LICENSE-frosted-ui.md</Code>.
 					</Callout.Description>
 				</Callout.Root>
@@ -180,13 +187,12 @@ export function App() {
 				<div className="section">
 					<Heading size="6">Embedded, no chrome, inline isolation</Heading>
 					<Text size="2" color="gray">
-						The same explorer, pinned to one fixture and stripped of its chrome —{" "}
-						a fixture rendered into a documentation page. <Code>isolation</Code> is
-						an execution model, not a style (§5.2): <Code>inline</Code> shares this
-						page's realm, so this fixture can see the host's CSS and React context,
-						its media queries resolve against the page viewport, and it costs no
-						iframe. That is exactly what you want on a docs page and exactly what
-						you do not want when you are checking a component at 320px.
+						The same explorer, pinned to one fixture and stripped of its chrome — a fixture
+						rendered into a documentation page. <Code>isolation</Code> is an execution model,
+						not a style (§5.2): <Code>inline</Code> shares this page's realm, so this fixture
+						can see the host's CSS and React context, its media queries resolve against the page
+						viewport, and it costs no iframe. That is exactly what you want on a docs page and
+						exactly what you do not want when you are checking a component at 320px.
 					</Text>
 
 					<Card size="2">
@@ -210,10 +216,9 @@ export function App() {
 				<div className="section">
 					<Heading size="6">Controlled selection</Heading>
 					<Text size="2" color="gray">
-						The recommended integration for any app that already has a router
-						(§5.4). The host owns the query parameter; uaight is told what is
-						selected and reports what the user picked. Nothing calls{" "}
-						<Code>pushState</Code> behind your router's back.
+						The recommended integration for any app that already has a router (§5.4). The host
+						owns the query parameter; uaight is told what is selected and reports what the user
+						picked. Nothing calls <Code>pushState</Code> behind your router's back.
 					</Text>
 					<ControlledSelection />
 				</div>
@@ -223,22 +228,20 @@ export function App() {
 				<div className="section">
 					<Heading size="6">What else is in here</Heading>
 					<Text size="2" color="gray">
-						<Code>src/stories/</Code> — 77 copied CSF files, imports rewritten to
-						the published <Code>frosted-ui</Code> package.
+						<Code>src/stories/</Code> — 77 copied CSF files, imports rewritten to the published{" "}
+						<Code>frosted-ui</Code> package.
 						<br />
-						<Code>src/fixtures/</Code> — hand-written fixtures covering what CSF
-						cannot express: live controls, multi-fixture files with metadata, a
-						directory decorator, value codecs, and a file whose fixture names
-						cannot be determined without running it.
+						<Code>src/fixtures/</Code> — hand-written fixtures covering what CSF cannot express:
+						live controls, multi-fixture files with metadata, a directory decorator, value
+						codecs, and a file whose fixture names cannot be determined without running it.
 						<br />
-						<Code>src/components/</Code> — three components with no fixture and no
-						story, so the component inventory has something to find.
+						<Code>src/components/</Code> — three components with no fixture and no story, so the
+						component inventory has something to find.
 						<br />
-						<Code>src/uaight.preview.tsx</Code> — the frame realm's CSS and
-						providers.
+						<Code>src/uaight.preview.tsx</Code> — the frame realm's CSS and providers.
 						<br />
-						<Code>src/uaight.codecs.tsx</Code> — codecs that make two domain
-						classes editable instead of opaque.
+						<Code>src/uaight.codecs.tsx</Code> — codecs that make two domain classes editable
+						instead of opaque.
 					</Text>
 				</div>
 			</div>

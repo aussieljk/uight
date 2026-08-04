@@ -16,7 +16,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildTree } from "../src/shared/tree.ts";
 import { resolveUaightConfig } from "../src/vite/config.ts";
 import { checkMdxSupport } from "../src/vite/mdx.ts";
-import { docsPatterns, fixtureGlobPatterns, isFixtureFile, scanFixtures } from "../src/vite/scan.ts";
+import {
+	docsPatterns,
+	fixtureGlobPatterns,
+	isFixtureFile,
+	scanFixtures,
+} from "../src/vite/scan.ts";
 
 let root: string;
 

@@ -61,7 +61,11 @@ describe("discovery", () => {
 			"src/a.stories.tsx": "export default {};\nexport const A = {};\n",
 		});
 
-		const config = resolveUaightConfig({ root, options: { storybook: true }, command: "serve" });
+		const config = resolveUaightConfig({
+			root,
+			options: { storybook: true },
+			command: "serve",
+		});
 
 		expect(config.storybookPreview).toBe("/.storybook/preview.tsx");
 		expect(config.storybook && config.storybook.globalDecorators).toBe(true);
@@ -69,7 +73,11 @@ describe("discovery", () => {
 
 	it("leaves global decorators off when there is no preview", () => {
 		const root = project({ "src/a.stories.tsx": "export default {};\n" });
-		const config = resolveUaightConfig({ root, options: { storybook: true }, command: "serve" });
+		const config = resolveUaightConfig({
+			root,
+			options: { storybook: true },
+			command: "serve",
+		});
 
 		expect(config.storybookPreview).toBeUndefined();
 		expect(config.storybook && config.storybook.globalDecorators).toBe(false);
@@ -196,7 +204,11 @@ describe("the compatibility report", () => {
 			"src/b.stories.tsx": "export default { title: 'B' };\nexport const Fine = {};\n",
 		});
 
-		const config = resolveUaightConfig({ root, options: { storybook: true }, command: "build" });
+		const config = resolveUaightConfig({
+			root,
+			options: { storybook: true },
+			command: "build",
+		});
 		const report = await storybookReport(config);
 
 		expect(report.files).toBe(2);
@@ -214,7 +226,11 @@ describe("the compatibility report", () => {
 			"src/a.stories.tsx": "export default {};\nexport const A = {};\n",
 		});
 
-		const config = resolveUaightConfig({ root, options: { storybook: true }, command: "build" });
+		const config = resolveUaightConfig({
+			root,
+			options: { storybook: true },
+			command: "build",
+		});
 		const report = await storybookReport(config);
 
 		expect(report.preview).toBe("/.storybook/preview.ts");

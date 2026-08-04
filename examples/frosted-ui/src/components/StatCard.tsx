@@ -34,10 +34,7 @@ export function StatCard({ label, value, delta }: StatCardProps) {
 			<Heading size="6" style={{ marginTop: 4 }}>
 				{value}
 			</Heading>
-			<Badge
-				color={delta >= 0 ? "green" : "red"}
-				style={{ marginTop: 8 }}
-			>
+			<Badge color={delta >= 0 ? "green" : "red"} style={{ marginTop: 8 }}>
 				{direction === "up" ? "▲" : "▼"} {Math.abs(delta)}%
 			</Badge>
 		</Card>

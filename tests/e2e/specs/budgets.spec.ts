@@ -66,7 +66,10 @@ test.describe("budgets @perf", () => {
 		expect(value).toBeLessThan(100);
 	});
 
-	test("fixture selection to first paint (frame, warm) < 250 ms", async ({ explorer, page }) => {
+	test("fixture selection to first paint (frame, warm) < 250 ms", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/basic", name: "Alpha" } });
 
 		// Warm: every module in the rotation has already been imported once, so
@@ -194,7 +197,10 @@ test.describe("budgets @perf", () => {
 		expect(value).toBeLessThan(150);
 	});
 
-	test("no upward memory trend over 100 mount/unmount cycles", async ({ explorer, page }) => {
+	test("no upward memory trend over 100 mount/unmount cycles", async ({
+		explorer,
+		page,
+	}) => {
 		// `performance.memory` and the CDP heap counters are Chromium-only, and
 		// this project IS Chromium. Rather than write a cross-engine memory test
 		// that measures nothing, the trend is measured where it can be, and the
@@ -224,7 +230,9 @@ test.describe("budgets @perf", () => {
 
 		const mb = series.map((b) => b / 1024 / 1024);
 		// eslint-disable-next-line no-console
-		console.log(`[budget] heap after each 10 cycles (MB): ${mb.map((v) => v.toFixed(1)).join(", ")}`);
+		console.log(
+			`[budget] heap after each 10 cycles (MB): ${mb.map((v) => v.toFixed(1)).join(", ")}`,
+		);
 
 		// "No upward trend" as a falsifiable statement: fit a least-squares slope
 		// over the ten post-warm-up samples and require it to be small relative to

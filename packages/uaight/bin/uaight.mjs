@@ -77,7 +77,9 @@ async function main() {
 				? { configFile: String(flag("config")) }
 				: {}),
 		});
-		console.log(`\nuaight → ${path.relative(process.cwd(), result.outDir)} (${result.files} files)`);
+		console.log(
+			`\nuaight → ${path.relative(process.cwd(), result.outDir)} (${result.files} files)`,
+		);
 		return;
 	}
 
@@ -94,9 +96,8 @@ async function main() {
 	}
 
 	if (command === "doctor") {
-		const { resolveUaightConfig, doctorReport, formatDoctorReport } = await import(
-			"../dist/vite.js"
-		);
+		const { resolveUaightConfig, doctorReport, formatDoctorReport } =
+			await import("../dist/vite.js");
 		const root = path.resolve(String(flag("root", process.cwd())));
 		// `serve` because that is the mode the question is asked in: the inventory
 		// and call-site passes are development-only, and a doctor that reported
@@ -115,11 +116,14 @@ async function main() {
 	}
 
 	if (command === "storybook") {
-		const { resolveUaightConfig, storybookReport, formatStorybookReport } = await import(
-			"../dist/vite.js"
-		);
+		const { resolveUaightConfig, storybookReport, formatStorybookReport } =
+			await import("../dist/vite.js");
 		const root = path.resolve(String(flag("root", process.cwd())));
-		const config = resolveUaightConfig({ root, options: { storybook: true }, command: "build" });
+		const config = resolveUaightConfig({
+			root,
+			options: { storybook: true },
+			command: "build",
+		});
 		const report = await storybookReport(config);
 		if (flag("json", false) === true) {
 			console.log(JSON.stringify(report, null, 2));

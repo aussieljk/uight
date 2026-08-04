@@ -79,11 +79,11 @@ guessing at a glob.
 
 The explorer is keyboard-first; `?` lists everything. The ones worth knowing on day one:
 
-| Key | Does |
-| --- | ---- |
-| <kbd>⌘K</kbd> | Find any fixture, component or usage |
-| <kbd>/</kbd> | Focus search |
-| <kbd>↓</kbd> <kbd>↑</kbd> | Next / previous fixture |
-| <kbd>→</kbd> <kbd>←</kbd> | Next / previous variant of this file |
-| <kbd>g</kbd> | [Grid mode](/guide/grid) — every fixture at once |
-| <kbd>r</kbd> | Reset all controls |
+| Key                       | Does                                             |
+| ------------------------- | ------------------------------------------------ |
+| <kbd>⌘K</kbd>             | Find any fixture, component or usage             |
+| <kbd>/</kbd>              | Focus search                                     |
+| <kbd>↓</kbd> <kbd>↑</kbd> | Next / previous fixture                          |
+| <kbd>→</kbd> <kbd>←</kbd> | Next / previous variant of this file             |
+| <kbd>g</kbd>              | [Grid mode](/guide/grid) — every fixture at once |
+| <kbd>r</kbd>              | Reset all controls                               |

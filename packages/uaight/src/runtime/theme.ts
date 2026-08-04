@@ -18,7 +18,9 @@ import type { ResolvedUaightTheme } from "../shared/types.ts";
 /** Absent, unrecognized, or no DOM at all: light. §10.1 */
 export function readUaightTheme(doc?: Document): ResolvedUaightTheme {
 	const target = doc ?? (typeof document === "undefined" ? undefined : document);
-	return target?.documentElement.getAttribute(THEME_ATTRIBUTE) === "dark" ? "dark" : "light";
+	return target?.documentElement.getAttribute(THEME_ATTRIBUTE) === "dark"
+		? "dark"
+		: "light";
 }
 
 /**

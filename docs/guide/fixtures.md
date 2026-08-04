@@ -88,7 +88,7 @@ plugins: [mdx(), react(), uaight()];
 ```
 
 If you have `.mdx` files and no MDX plugin, the dev server says so on startup and names the
-install command. For prose *about* your components rather than a fixture written in MDX,
+install command. For prose _about_ your components rather than a fixture written in MDX,
 see [Docs pages](/guide/docs-pages).
 
 ## Compatibility

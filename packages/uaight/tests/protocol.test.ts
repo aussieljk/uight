@@ -71,9 +71,7 @@ describe("validateBootstrap", () => {
 
 	it("accepts INIT_ACK", () => {
 		expect(
-			validateBootstrap(
-				channelled({ type: "INIT_ACK", mountId: "m1", protocolVersion: 1 }),
-			),
+			validateBootstrap(channelled({ type: "INIT_ACK", mountId: "m1", protocolVersion: 1 })),
 		).toEqual({ type: "INIT_ACK", mountId: "m1", protocolVersion: 1 });
 	});
 
@@ -121,15 +119,11 @@ describe("validateBootstrap", () => {
 				}),
 			),
 		).toBeNull();
-		expect(
-			validateBootstrap(channelled({ type: "INIT_ACK", mountId: "m" })),
-		).toBeNull();
+		expect(validateBootstrap(channelled({ type: "INIT_ACK", mountId: "m" }))).toBeNull();
 	});
 
 	it("does not accept an envelope", () => {
-		expect(
-			validateBootstrap(channelled({ type: "ENVELOPE", envelope: {} })),
-		).toBeNull();
+		expect(validateBootstrap(channelled({ type: "ENVELOPE", envelope: {} }))).toBeNull();
 	});
 });
 

@@ -46,7 +46,9 @@ export function PaneResizer({
 	onWidth,
 }: PaneResizerProps): ReactElement {
 	const ref = useRef<HTMLDivElement | null>(null);
-	const drag = useRef<{ pointer: number; startX: number; startWidth: number } | null>(null);
+	const drag = useRef<{ pointer: number; startX: number; startWidth: number } | null>(
+		null,
+	);
 
 	// A drag that leaves the window still has to end. Pointer capture handles the
 	// element; this handles the case where the button is released outside it.

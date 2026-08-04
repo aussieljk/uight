@@ -17,12 +17,20 @@
  *                             `/nested/deep/` — a prefix chosen AFTER the build
  */
 
-import { collectConsoleErrors, expect, isIgnorableError, test } from "../support/harness.ts";
+import {
+	collectConsoleErrors,
+	expect,
+	isIgnorableError,
+	test,
+} from "../support/harness.ts";
 
 const ALPHA = { path: "fixtures/basic", name: "Alpha" };
 
 test.describe("production preview @prod", () => {
-	test("the built explorer boots and the handshake completes", async ({ explorer, page }) => {
+	test("the built explorer boots and the handshake completes", async ({
+		explorer,
+		page,
+	}) => {
 		const errors = collectConsoleErrors(page);
 		await explorer.open({ fixture: ALPHA });
 		await expect(explorer.frame().locator("[data-e2e='basic']")).toHaveText("ALPHA");
@@ -35,7 +43,9 @@ test.describe("production preview @prod", () => {
 		// `/@vite/` request would be a 404 and a broken build.
 		const frameScripts = await page.evaluate(() => {
 			const frame = document.querySelector<HTMLIFrameElement>("iframe[data-uaight-frame]");
-			return [...(frame?.contentDocument?.querySelectorAll("script") ?? [])].map((s) => s.src);
+			return [...(frame?.contentDocument?.querySelectorAll("script") ?? [])].map(
+				(s) => s.src,
+			);
 		});
 		expect(frameScripts.some((s) => s.includes("/@vite/"))).toBe(false);
 		expect(frameScripts.some((s) => s.includes("/@uaight/renderer"))).toBe(false);
@@ -48,7 +58,9 @@ test.describe("production preview @prod", () => {
 		// dev-server artefact, so the fix has to hold in a build too.
 		await explorer.open({ fixture: { path: "fixtures/controls", name: "Panel" } });
 		await page.getByRole("textbox", { name: "label" }).fill("Built");
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Built");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Built",
+		);
 	});
 });
 
@@ -67,7 +79,11 @@ test.describe("base path @base", () => {
 		// the URL too, so a failure says WHY rather than "it timed out".
 		const src = await page.evaluate(() => {
 			const frame = document.querySelector<HTMLIFrameElement>("iframe[data-uaight-frame]");
-			return frame?.contentDocument?.querySelector("script[data-uaight-renderer]")?.getAttribute("src") ?? null;
+			return (
+				frame?.contentDocument
+					?.querySelector("script[data-uaight-renderer]")
+					?.getAttribute("src") ?? null
+			);
 		});
 		expect(src).toBeTruthy();
 
@@ -81,7 +97,10 @@ test.describe("base path @base", () => {
 		expect(failures.filter((f) => !/favicon/.test(f))).toEqual([]);
 	});
 
-	test("deep links and selection work under this base @base", async ({ explorer, page }) => {
+	test("deep links and selection work under this base @base", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: ALPHA });
 		await explorer.select("fixtures/media", "Report");
 		await explorer.waitForFrame();

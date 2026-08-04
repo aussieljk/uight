@@ -5,6 +5,7 @@
 	"sortPackageJson": false,
 	"ignorePatterns": [
 		"packages/uaight/registry/**",
-		"packages/uaight/src/styles/generated.ts"
+		"packages/uaight/src/styles/generated.ts",
+		"examples/frosted-ui/src/stories/**"
 	]
 }

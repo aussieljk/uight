@@ -23,7 +23,9 @@ import type { Plugin } from "vite";
 const NONCE = "uaightE2ENonce123";
 
 const csp = process.env.UAIGHT_E2E_CSP ?? "off";
-const production = (process.env.UAIGHT_E2E_PRODUCTION ?? "exclude") as "exclude" | "include";
+const production = (process.env.UAIGHT_E2E_PRODUCTION ?? "exclude") as
+	| "exclude"
+	| "include";
 
 /**
  * Serves the policy and (except in `no-meta`) publishes the nonce where §6.7

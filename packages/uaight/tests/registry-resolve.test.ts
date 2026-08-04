@@ -195,7 +195,9 @@ describe.skipIf(!built)("resolving the registry as a client", () => {
 			const written = install(project, await resolveTree("control-panel"));
 
 			// The component lands under the components directory…
-			expect(written).toContain(path.join("components", "ui/control-panel/ControlPanel.tsx"));
+			expect(written).toContain(
+				path.join("components", "ui/control-panel/ControlPanel.tsx"),
+			);
 			// …and the token stylesheet lands where its `target` says, which is what
 			// makes the ejected Tailwind compile at all (§10.3).
 			expect(written).toContain(path.join("styles", "uaight-chrome.css"));

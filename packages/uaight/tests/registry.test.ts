@@ -224,7 +224,11 @@ describe("a missing source", () => {
 
 describe("fileHeader", () => {
 	it("names project, version and licence, because repository licensing does not travel", () => {
-		const header = fileHeader({ title: "FixtureTree", name: "fixture-tree", version: "1.2.3" });
+		const header = fileHeader({
+			title: "FixtureTree",
+			name: "fixture-tree",
+			version: "1.2.3",
+		});
 		expect(header).toContain("uaight");
 		expect(header).toContain("v1.2.3");
 		expect(header).toContain("MIT");

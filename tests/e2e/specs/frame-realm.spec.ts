@@ -12,16 +12,24 @@
 import { expect, test } from "../support/harness.ts";
 
 test.describe("frame realm", () => {
-	test("a portal lands in the frame document, not the host @core", async ({ explorer, page }) => {
+	test("a portal lands in the frame document, not the host @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/modal", name: "Single" } });
 
-		await expect(explorer.frame().getByRole("dialog", { name: "Single modal" })).toBeVisible();
+		await expect(
+			explorer.frame().getByRole("dialog", { name: "Single modal" }),
+		).toBeVisible();
 		// The host document must not have acquired a portal host or a dialog.
 		expect(await page.locator("[data-portal-host]").count()).toBe(0);
 		expect(await page.locator("[data-e2e='modal']").count()).toBe(0);
 	});
 
-	test("two stacked portals both render, in the frame @core", async ({ explorer, page }) => {
+	test("two stacked portals both render, in the frame @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/modal", name: "Stacked" } });
 		await expect(explorer.frame().locator("[data-e2e='modal']")).toHaveCount(2);
 		expect(await page.locator("[data-e2e='modal']").count()).toBe(0);
@@ -40,7 +48,10 @@ test.describe("frame realm", () => {
 		await expect(explorer.frame().locator("[data-portal-host]")).toHaveCount(0);
 	});
 
-	test("`matchMedia` inside the frame measures the frame @core", async ({ explorer, page }) => {
+	test("`matchMedia` inside the frame measures the frame @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/media", name: "Report" } });
 		const width = explorer.frame().locator("[data-e2e='media-width']");
 		const narrow = explorer.frame().locator("[data-e2e='media-narrow']");
@@ -56,7 +67,9 @@ test.describe("frame realm", () => {
 		// query must follow it. 320 is below the fixture's 500px breakpoint.
 		await page.getByRole("button", { name: /^Small,/ }).click();
 		await expect(narrow).toHaveText("narrow");
-		await expect.poll(async () => Number(await width.textContent())).toBeLessThanOrEqual(320);
+		await expect
+			.poll(async () => Number(await width.textContent()))
+			.toBeLessThanOrEqual(320);
 
 		await page.getByRole("button", { name: "Fit", exact: true }).click();
 		await expect(narrow).toHaveText("wide");
@@ -95,7 +108,9 @@ test.describe("frame realm", () => {
 			return {
 				fixtureUnderScope: !!fixture.closest(".uaight-root"),
 				// The chrome mount point exists and IS scoped.
-				chromeScoped: !!doc.getElementById("uaight-frame-chrome")?.classList.contains("uaight-root"),
+				chromeScoped: !!doc
+					.getElementById("uaight-frame-chrome")
+					?.classList.contains("uaight-root"),
 				// Our reset sets border-box on `.uaight-root *`. The fixture must not have it.
 				box: getComputedStyle(fixture).boxSizing,
 			};
@@ -106,14 +121,20 @@ test.describe("frame realm", () => {
 
 		// The host page declares Georgia and a 3.0 line-height on every div. Our
 		// chrome sets its own font on `.uaight-root`, so it must not inherit that.
-		const chromeFont = await page.locator(".uaight-root").first().evaluate((el) => ({
-			family: getComputedStyle(el).fontFamily,
-			line: getComputedStyle(el).lineHeight,
-		}));
+		const chromeFont = await page
+			.locator(".uaight-root")
+			.first()
+			.evaluate((el) => ({
+				family: getComputedStyle(el).fontFamily,
+				line: getComputedStyle(el).lineHeight,
+			}));
 		expect(chromeFont.family).not.toMatch(/Georgia/i);
 	});
 
-	test("the frame document is stamped with the resolved theme @core", async ({ explorer, page }) => {
+	test("the frame document is stamped with the resolved theme @core", async ({
+		explorer,
+		page,
+	}) => {
 		// The contract pass settled on `data-uaight-theme` on the renderer
 		// document's documentElement, so a preview entry can read it without a
 		// message, a context or a prop. Both halves are asserted: the attribute,

@@ -20,7 +20,11 @@
 	"bugs": "https://github.com/aussieljk/uaight/issues",
 	"homepage": "https://github.com/aussieljk/uaight#readme",
 	"type": "module",
-	"files": ["dist", "registry", "bin"],
+	"files": [
+		"dist",
+		"registry",
+		"bin"
+	],
 	"bin": {
 		"uaight": "bin/uaight.mjs",
 		"uaight-mcp": "bin/uaight-mcp.mjs"
@@ -55,7 +59,9 @@
 		},
 		"./styles.css": "./dist/styles.css"
 	},
-	"sideEffects": ["*.css"],
+	"sideEffects": [
+		"*.css"
+	],
 	"scripts": {
 		"build": "bun run build:css && tsdown",
 		"build:css": "bun run scripts/build-css.ts",

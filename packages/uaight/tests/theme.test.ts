@@ -15,7 +15,9 @@ import { readUaightTheme, subscribeUaightTheme } from "../src/runtime/theme.ts";
 
 function fakeDocument(value?: string): Document {
 	return {
-		documentElement: { getAttribute: (name: string) => (name === THEME_ATTRIBUTE ? (value ?? null) : null) },
+		documentElement: {
+			getAttribute: (name: string) => (name === THEME_ATTRIBUTE ? (value ?? null) : null),
+		},
 	} as unknown as Document;
 }
 

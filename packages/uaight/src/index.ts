@@ -26,7 +26,11 @@ export {
 } from "./runtime/index.ts";
 
 /* ---- Theme, for a preview entry that has to match the chrome — §10.1 ---- */
-export { readUaightTheme, subscribeUaightTheme, useUaightTheme } from "./runtime/index.ts";
+export {
+	readUaightTheme,
+	subscribeUaightTheme,
+	useUaightTheme,
+} from "./runtime/index.ts";
 
 /* ---- Shared — §19.5 ---- */
 export { parseFixtureId, serializeFixtureId } from "./shared/fixture-id.ts";

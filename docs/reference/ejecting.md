@@ -10,8 +10,8 @@ Every chrome component is a prop:
 <Uaight components={{ FixtureTree: MyTree, PreviewShell: MyShell }} />
 ```
 
-| Ejectable | Not ejectable |
-| --------- | ------------- |
+| Ejectable                                                                                                                                      | Not ejectable                                                                              |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `PreviewShell`, `FixtureTree`, `ControlPanel`, `ControlPanelInputs`, `ViewportToolbar`, `Toolbar`, `EmptyState`, `ErrorState`, `InventoryList` | `FrameHost`, the renderer bootstrap, the frame transport, the overlay store and serializer |
 
 The rule behind the table: anything that renders chrome is ejectable; anything that

@@ -33,7 +33,13 @@ import type {
 import { groupCallSites, parseCallSites } from "./callsites.ts";
 import { createBabelDocgenResolver } from "./docgen.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
-import { CODE_EXTENSIONS, FIXTURE_EXTENSIONS, escapesRoot, joinGlob, toGlobPath } from "./config.ts";
+import {
+	CODE_EXTENSIONS,
+	FIXTURE_EXTENSIONS,
+	escapesRoot,
+	joinGlob,
+	toGlobPath,
+} from "./config.ts";
 import { parseInventoryFile, toInventoryItems } from "./inventory.ts";
 import { parseFixtureFile } from "./parse.ts";
 import type { ParsedFixtureFile } from "./parse.ts";
@@ -103,10 +109,7 @@ export function inventoryIgnore(cfg: ResolvedUaightConfig): string[] {
 }
 
 /** A root-relative glob path re-expressed relative to the fixtures dir. */
-function insideFixturesDir(
-	globPath: string,
-	cfg: ResolvedUaightConfig,
-): string | null {
+function insideFixturesDir(globPath: string, cfg: ResolvedUaightConfig): string | null {
 	const prefix = cfg.fixturesDirGlobPath === "/" ? "" : cfg.fixturesDirGlobPath;
 	if (!globPath.startsWith(`${prefix}/`)) return null;
 	return globPath.slice(prefix.length + 1);
@@ -203,20 +206,13 @@ export function isCsfFile(file: string, cfg: ResolvedUaightConfig): boolean {
 	return matchesAny(rel, storybookPatterns(cfg), cfg);
 }
 
-function relativeToFixturesDir(
-	file: string,
-	cfg: ResolvedUaightConfig,
-): string | null {
+function relativeToFixturesDir(file: string, cfg: ResolvedUaightConfig): string | null {
 	const rel = path.relative(cfg.fixturesDirFsPath, path.resolve(file));
 	if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) return null;
 	return rel.split(path.sep).join("/");
 }
 
-function matchesAny(
-	rel: string,
-	patterns: string[],
-	cfg: ResolvedUaightConfig,
-): boolean {
+function matchesAny(rel: string, patterns: string[], cfg: ResolvedUaightConfig): boolean {
 	return patterns.some((p) =>
 		expandBraces(p).some((one) => globToRegExp(one, cfg.caseSensitive).test(rel)),
 	);
@@ -271,9 +267,7 @@ export function displayPathOf(
  * The scan
  * ------------------------------------------------------------------ */
 
-export async function scanFixtures(
-	cfg: ResolvedUaightConfig,
-): Promise<FixtureIndex> {
+export async function scanFixtures(cfg: ResolvedUaightConfig): Promise<FixtureIndex> {
 	const problems: IndexProblem[] = [];
 
 	// §4.2: fixtures outside the Vite root cannot be reached by a root-absolute
@@ -298,7 +292,11 @@ export async function scanFixtures(
 	}
 
 	const [fixturePaths, decoratorPaths, inventoryPaths] = await Promise.all([
-		run(cfg, [...fixturePatterns(cfg), ...storybookPatterns(cfg), ...docsPatterns(cfg)], cfg.exclude),
+		run(
+			cfg,
+			[...fixturePatterns(cfg), ...storybookPatterns(cfg), ...docsPatterns(cfg)],
+			cfg.exclude,
+		),
 		run(cfg, decoratorPatterns(cfg), cfg.exclude),
 		cfg.inventory && cfg.command === "serve"
 			? run(cfg, inventoryPatterns(cfg), [...cfg.exclude, ...inventoryIgnore(cfg)])
@@ -326,7 +324,8 @@ export async function scanFixtures(
 		for (const site of indexed.sites) {
 			(callSiteSources[site.globPath] ??= []).push(site);
 		}
-		if (indexed.docs) docs[toGlobPath(cfg.root, inventoryPaths[i] as string)] = indexed.docs;
+		if (indexed.docs)
+			docs[toGlobPath(cfg.root, inventoryPaths[i] as string)] = indexed.docs;
 	}
 
 	const index: FixtureIndex = {
@@ -354,9 +353,7 @@ function regroup(
 }
 
 /** §19.4 — the standalone scan. Measures parse coverage (§3.5). */
-export function buildFixtureIndex(
-	config: ResolvedUaightConfig,
-): Promise<FixtureIndex> {
+export function buildFixtureIndex(config: ResolvedUaightConfig): Promise<FixtureIndex> {
 	return scanFixtures(config);
 }
 
@@ -600,10 +597,7 @@ function resolveSpecifier(
  * any part of a specifier and reproducing that faithfully is the resolver.
  * Vite's internal aliases are all RegExp, so this skips them for free.
  */
-function applyAliases(
-	specifier: string,
-	cfg: ResolvedUaightConfig,
-): string | null {
+function applyAliases(specifier: string, cfg: ResolvedUaightConfig): string | null {
 	let best: { find: string; replacement: string } | undefined;
 	for (const entry of cfg.aliases) {
 		// Vite matches a string alias as a prefix, but only on a path boundary:
@@ -616,10 +610,7 @@ function applyAliases(
 	return path.resolve(cfg.root, `${best.replacement}${rest}`);
 }
 
-function indexDecorator(
-	file: string,
-	cfg: ResolvedUaightConfig,
-): DecoratorFileIndex {
+function indexDecorator(file: string, cfg: ResolvedUaightConfig): DecoratorFileIndex {
 	const globPath = toGlobPath(cfg.root, file);
 	const rel = relativeToFixturesDir(file, cfg) ?? "";
 	const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
@@ -631,14 +622,14 @@ export function hashSource(source: string): string {
 }
 
 function sortByGlobPath<T extends { globPath: string }>(list: T[]): T[] {
-	return [...list].sort((a, b) => (a.globPath < b.globPath ? -1 : a.globPath > b.globPath ? 1 : 0));
+	return [...list].sort((a, b) =>
+		a.globPath < b.globPath ? -1 : a.globPath > b.globPath ? 1 : 0,
+	);
 }
 
 /** Outermost-first composition needs shallowest-first order. §3.3 */
 function sortDecorators(list: DecoratorFileIndex[]): DecoratorFileIndex[] {
-	return [...list].sort(
-		(a, b) => a.depth - b.depth || (a.globPath < b.globPath ? -1 : 1),
-	);
+	return [...list].sort((a, b) => a.depth - b.depth || (a.globPath < b.globPath ? -1 : 1));
 }
 
 /* ------------------------------------------------------------------ *
@@ -854,8 +845,6 @@ export function indexStats(index: FixtureIndex): {
 		decorators: index.decorators.length,
 		components: index.inventory.length,
 		coverage:
-			index.files.length === 0
-				? 1
-				: (index.files.length - undecidable) / index.files.length,
+			index.files.length === 0 ? 1 : (index.files.length - undecidable) / index.files.length,
 	};
 }

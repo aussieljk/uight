@@ -28,13 +28,13 @@ repository, and no third step.
 
 ## What you get with no configuration
 
-| | |
-| --- | --- |
-| **Components you never documented** | Every exported component, detected by syntax alone — no docgen, no type checker |
-| **Fixtures you never wrote** | Real `<Button …>` usages harvested from your source, with the props written there |
-| **Your existing stories** | `.stories.tsx` files run, including `.storybook/preview` decorators and globals |
-| **⌘K over everything** | Fixtures, components and usages in one palette |
-| **Shareable links** | A URL that reproduces the fixture *and the control values* the sender saw |
+|                                     |                                                                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------- |
+| **Components you never documented** | Every exported component, detected by syntax alone — no docgen, no type checker   |
+| **Fixtures you never wrote**        | Real `<Button …>` usages harvested from your source, with the props written there |
+| **Your existing stories**           | `.stories.tsx` files run, including `.storybook/preview` decorators and globals   |
+| **⌘K over everything**              | Fixtures, components and usages in one palette                                    |
+| **Shareable links**                 | A URL that reproduces the fixture _and the control values_ the sender saw         |
 
 ## Fixtures
 

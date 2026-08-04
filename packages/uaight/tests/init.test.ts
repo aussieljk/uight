@@ -13,7 +13,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { addUaightToViteConfig, formatMigration, migrateFromStorybook } from "../src/vite/init.ts";
+import {
+	addUaightToViteConfig,
+	formatMigration,
+	migrateFromStorybook,
+} from "../src/vite/init.ts";
 
 let root: string;
 
@@ -54,7 +58,8 @@ function storybookProject(): void {
 
 describe("the Vite config edit", () => {
 	it("prepends to a one-line plugins array without breaking the line", () => {
-		const source = 'import react from "@vitejs/plugin-react";\nexport default { plugins: [react()] };\n';
+		const source =
+			'import react from "@vitejs/plugin-react";\nexport default { plugins: [react()] };\n';
 		const result = addUaightToViteConfig(source, "vite.config.ts");
 		expect(result.changed).toBe(true);
 		expect(result.source).toContain('import { uaight } from "uaight/vite";');
@@ -74,23 +79,32 @@ describe("the Vite config edit", () => {
 			"",
 		].join("\n");
 		const result = addUaightToViteConfig(source, "vite.config.ts");
-		expect(result.source).toContain("\tplugins: [\n\t\tuaight({ storybook: true }),\n\t\treact(),\n\t],");
+		expect(result.source).toContain(
+			"\tplugins: [\n\t\tuaight({ storybook: true }),\n\t\treact(),\n\t],",
+		);
 	});
 
 	it("fills an empty array", () => {
-		const result = addUaightToViteConfig("export default { plugins: [] };\n", "vite.config.ts");
+		const result = addUaightToViteConfig(
+			"export default { plugins: [] };\n",
+			"vite.config.ts",
+		);
 		expect(result.source).toContain("plugins: [uaight({ storybook: true })]");
 	});
 
 	it("is idempotent — a config that already imports uaight is left alone", () => {
-		const source = 'import { uaight } from "uaight/vite";\nexport default { plugins: [uaight()] };\n';
+		const source =
+			'import { uaight } from "uaight/vite";\nexport default { plugins: [uaight()] };\n';
 		const result = addUaightToViteConfig(source, "vite.config.ts");
 		expect(result.changed).toBe(false);
 		expect(result.source).toBe(source);
 	});
 
 	it("declines a config with no plugins array rather than guessing", () => {
-		const result = addUaightToViteConfig('export default { root: "src" };\n', "vite.config.ts");
+		const result = addUaightToViteConfig(
+			'export default { root: "src" };\n',
+			"vite.config.ts",
+		);
 		expect(result.changed).toBe(false);
 		expect(result.problem).toMatch(/plugins/);
 	});
@@ -125,7 +139,8 @@ describe("migrateFromStorybook", () => {
 
 	it("writes nothing on a dry run, and computes the same changes", async () => {
 		storybookProject();
-		const before = 'import react from "@vitejs/plugin-react";\nexport default { plugins: [react()] };\n';
+		const before =
+			'import react from "@vitejs/plugin-react";\nexport default { plugins: [react()] };\n';
 		write("vite.config.ts", before);
 
 		const result = await migrateFromStorybook({ root, dryRun: true });

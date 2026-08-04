@@ -79,10 +79,22 @@ function Explorer() {
 						two parameters.
 					*/}
 					<div style={{ height: "50vh" }} data-e2e="mount-a">
-						<Uaight router="history" routerId="a" urlParam="fixtureA" stateParam="stateA" height="100%" />
+						<Uaight
+							router="history"
+							routerId="a"
+							urlParam="fixtureA"
+							stateParam="stateA"
+							height="100%"
+						/>
 					</div>
 					<div style={{ height: "50vh" }} data-e2e="mount-b">
-						<Uaight router="history" routerId="b" urlParam="fixtureB" stateParam="stateB" height="100%" />
+						<Uaight
+							router="history"
+							routerId="b"
+							urlParam="fixtureB"
+							stateParam="stateB"
+							height="100%"
+						/>
 					</div>
 				</>
 			);
@@ -160,4 +172,12 @@ function App() {
 }
 
 const root = createRoot(document.getElementById("root") as HTMLElement);
-root.render(strict ? <StrictMode><App /></StrictMode> : <App />);
+root.render(
+	strict ? (
+		<StrictMode>
+			<App />
+		</StrictMode>
+	) : (
+		<App />
+	),
+);

@@ -112,6 +112,9 @@ export function decodeOverlays(value: string | null | undefined): InputOverlay[]
 }
 
 /** True when two overlay lists would produce the same link. */
-export function sameState(a: readonly InputOverlay[], b: readonly InputOverlay[]): boolean {
+export function sameState(
+	a: readonly InputOverlay[],
+	b: readonly InputOverlay[],
+): boolean {
 	return encodeOverlays(a) === encodeOverlays(b);
 }

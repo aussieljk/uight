@@ -28,40 +28,59 @@ const LATE = { path: "fixtures/controls", name: "Late" };
 test.describe("controls", () => {
 	test("an edit in the panel reaches the frame @core", async ({ explorer, page }) => {
 		await explorer.open({ fixture: PANEL });
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Click me");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Click me",
+		);
 
 		await page.getByRole("textbox", { name: "label" }).fill("Edited");
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Edited");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Edited",
+		);
 
 		await page.getByRole("combobox", { name: "variant" }).selectOption("secondary");
-		await expect(explorer.frame().locator("[data-e2e='control-variant']")).toHaveText("secondary");
+		await expect(explorer.frame().locator("[data-e2e='control-variant']")).toHaveText(
+			"secondary",
+		);
 
 		await page.getByRole("checkbox", { name: "disabled" }).check();
-		await expect(explorer.frame().locator("[data-e2e='control-disabled']")).toHaveText("true");
+		await expect(explorer.frame().locator("[data-e2e='control-disabled']")).toHaveText(
+			"true",
+		);
 	});
 
 	test("Reset returns the module's own default @core", async ({ explorer, page }) => {
 		await explorer.open({ fixture: PANEL });
 		await page.getByRole("textbox", { name: "label" }).fill("Edited");
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Edited");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Edited",
+		);
 
 		// `r` is the documented shortcut and it only fires when something is
 		// overlaid, which is exactly the condition we are in.
 		await explorer.tree().getByRole("treeitem").first().focus();
 		await page.keyboard.press("r");
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Click me");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Click me",
+		);
 	});
 
-	test("overlays are dropped when the fixture changes @core", async ({ explorer, page }) => {
+	test("overlays are dropped when the fixture changes @core", async ({
+		explorer,
+		page,
+	}) => {
 		// §7.3: overlays live for the session and are dropped on fixture change.
 		await explorer.open({ fixture: PANEL });
 		await page.getByRole("textbox", { name: "label" }).fill("Edited");
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Edited");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Edited",
+		);
 
 		await explorer.select("fixtures/basic", "Alpha");
 		await expect(explorer.frame().locator("[data-e2e='basic']")).toHaveText("ALPHA");
 		await explorer.select("fixtures/controls", "Panel");
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Click me");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Click me",
+		);
 	});
 
 	test("a shared `?state=` link reproduces the control values @core", async ({
@@ -70,7 +89,9 @@ test.describe("controls", () => {
 	}) => {
 		await explorer.open({ fixture: PANEL });
 		await page.getByRole("textbox", { name: "label" }).fill("From a link");
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("From a link");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"From a link",
+		);
 
 		// The link is whatever the UI put in the URL — not something we encoded.
 		const shared = await page.evaluate(() => location.href);
@@ -78,11 +99,16 @@ test.describe("controls", () => {
 
 		await page.goto(shared);
 		await explorer.waitForFrame();
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("From a link");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"From a link",
+		);
 		await expect(page.getByRole("textbox", { name: "label" })).toHaveValue("From a link");
 	});
 
-	test("a shared link seeds an input that registers late @core", async ({ explorer, page }) => {
+	test("a shared link seeds an input that registers late @core", async ({
+		explorer,
+		page,
+	}) => {
 		// New since the canary and never seen in a browser: the seeded overlay
 		// exists before any input has registered, and `Late` does not register
 		// until after a paint. A host that only applies seeded patches at
@@ -107,7 +133,9 @@ test.describe("controls", () => {
 		// `ui/share.ts`: "a bad link should land you on the fixture rather than on
 		// an error". Total by construction, so this must be quiet.
 		await explorer.open({ fixture: PANEL, state: "%%%not-base64%%%" });
-		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText("Click me");
+		await expect(explorer.frame().locator("[data-e2e='control-label']")).toHaveText(
+			"Click me",
+		);
 		expect(await page.locator("[role='alert']").count()).toBe(0);
 	});
 

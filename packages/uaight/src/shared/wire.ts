@@ -114,7 +114,11 @@ export function mergePatch(patches: readonly Patch[], patch: Patch): Patch[] {
 	const key = pathKey(patch.path);
 	const kept = patches.filter((p) => {
 		const k = pathKey(p.path);
-		return !(k === key || k.startsWith(key === "" ? "" : key + ".") || (key !== "" && k.startsWith(key + "[")));
+		return !(
+			k === key ||
+			k.startsWith(key === "" ? "" : key + ".") ||
+			(key !== "" && k.startsWith(key + "["))
+		);
 	});
 	// A root patch supersedes everything.
 	if (patch.path.length === 0) return [patch];

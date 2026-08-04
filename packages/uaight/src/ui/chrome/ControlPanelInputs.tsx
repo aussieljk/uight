@@ -56,7 +56,13 @@ const FIELD = cx(
 	MOTION,
 );
 
-function Chip({ children, title }: { children: ReactNode; title?: string }): ReactElement {
+function Chip({
+	children,
+	title,
+}: {
+	children: ReactNode;
+	title?: string;
+}): ReactElement {
 	return (
 		<span
 			title={title}
@@ -191,9 +197,7 @@ function Editor(props: NodeProps): ReactElement {
 								className={cx(
 									"inline-flex h-6 cursor-pointer items-center rounded-sm px-1.5 text-xs",
 									SELECTABLE,
-									active
-										? SELECTED
-										: "text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
+									active ? SELECTED : "text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
 									"focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--u-accent)]",
 									MOTION,
 								)}
@@ -370,7 +374,10 @@ function Editor(props: NodeProps): ReactElement {
 							value={/^#[0-9a-f]{6}$/i.test(text) ? text : "#000000"}
 							disabled={disabled}
 							onChange={(e) => onSet(path, { t: "prim", v: e.target.value })}
-							className={cx("h-6 w-8 shrink-0 rounded-sm border border-[var(--u-line)] bg-[var(--u-bg)] p-0.5", FOCUS_RING)}
+							className={cx(
+								"h-6 w-8 shrink-0 rounded-sm border border-[var(--u-line)] bg-[var(--u-bg)] p-0.5",
+								FOCUS_RING,
+							)}
 						/>
 						<TextField
 							label={`${label} value`}
@@ -515,9 +522,7 @@ function InputRow(props: {
 				<span className="truncate text-sm font-medium text-[var(--u-fg)]" title={input.name}>
 					{label}
 				</span>
-				<span className="shrink-0 text-xs text-[var(--u-fg-subtle)]">
-					{typeLabel(value)}
-				</span>
+				<span className="shrink-0 text-xs text-[var(--u-fg-subtle)]">{typeLabel(value)}</span>
 				{disabled ? (
 					// §7.3 — an unregistered input keeps its overlay and shows greyed.
 					<span
@@ -635,7 +640,11 @@ function JsonEditor(props: {
 				spellCheck={false}
 				onChange={(e) => setDraft(e.target.value)}
 				onBlur={commit}
-				className={cx(FIELD, "h-auto resize-y py-1 leading-5", error ? "border-[var(--u-danger)]" : "")}
+				className={cx(
+					FIELD,
+					"h-auto resize-y py-1 leading-5",
+					error ? "border-[var(--u-danger)]" : "",
+				)}
 			/>
 			{error ? <p className="mt-1 text-xs text-[var(--u-danger)]">{error}</p> : null}
 		</div>

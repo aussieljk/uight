@@ -49,14 +49,14 @@ the only local import in the corpus; a scan for other relative imports and for
 image assets found none.
 
 **The verification that should have caught it, and did not.** The first sweep
-read `#uaight-app` in the *host* document. Fixtures render inside an iframe, so
+read `#uaight-app` in the _host_ document. Fixtures render inside an iframe, so
 that check was reading a page which structurally could not contain a fixture
 error — it would have passed a completely blank explorer. Rebuilding it against
 a deliberately broken fixture (a negative control) exposed two further defects in
 the checker itself:
 
 1. The failure pattern did not match `Module error` or `Failed to fetch
-   dynamically imported module`, which is exactly how an unresolvable import
+dynamically imported module`, which is exactly how an unresolvable import
    surfaces. The real bug sat in the checker's blind spot.
 2. The id builder interpolated `name: null` into the literal name `"null"`, so
    every single-fixture file was probed at a nonexistent id that renders a
@@ -79,7 +79,7 @@ browser rather than at the spec.
 **Self-titled files collapsed.** `components/accordion/accordion.stories.tsx` is
 the near-universal convention, and it produced a directory row and a file row one
 inside the other, both saying "accordion". Any single child already carrying its
-directory's name *is* that directory to a reader, so the two become one row. This
+directory's name _is_ that directory to a reader, so the two become one row. This
 covers both shapes: a file of many stories, and a self-titled file with exactly
 one story (which was showing `quote` then `quote / Default` beneath it). A file
 that is **not** self-titled keeps its name — `forms/Input` with one fixture is
@@ -170,7 +170,7 @@ Why that is strictly better than inlining the bootstrap:
 
 1. **Evaluation order is correct.** ES module imports are hoisted and evaluated
    before any body statement. Inlining `RefreshRuntime.injectIntoGlobalHook(window)`
-   into the renderer entry's body would run it *after* every static import has
+   into the renderer entry's body would run it _after_ every static import has
    already evaluated — including `virtual:uaight/preview-entry`, which pulls in
    consumer code that plugin-react has transformed. That module would throw
    "can't detect preamble" before our bootstrap line ever ran. A real module
@@ -190,7 +190,7 @@ Implementation: `detectPreamble()` in `src/vite/index.ts` tries
   renderer entry. This is ARCHITECTURE §1's template exactly — the placeholder
   first line was always a bare import; Q2 was only ever about its specifier.
 - `inline` → ARCHITECTURE's verbatim `/@react-refresh` bootstrap, used when
-  some *other* React plugin (swc, or plugin-react v4/v5) serves the refresh
+  some _other_ React plugin (swc, or plugin-react v4/v5) serves the refresh
   runtime. Carries the evaluation-order hazard described above; it is a
   fallback, not the path.
 - `none` → nothing. Always the case for `command === "build"`.
@@ -201,7 +201,9 @@ vestigial. In Vite 8.1 the Fast Refresh wrapper is a native Rolldown plugin
 (`vite/internal` → `rolldown/experimental`), and the string in the binary is:
 
 ```js
-if (!window.$RefreshReg$) { throw new Error("… can't detect preamble. Something is wrong."); }
+if (!window.$RefreshReg$) {
+	throw new Error("… can't detect preamble. Something is wrong.");
+}
 ```
 
 So `window.$RefreshReg$ = () => {}` is the line that matters. The inline
@@ -251,11 +253,11 @@ existing `input` (string / array / record) to a record, adds the project's
 (already written, authoritative), so §3.4's prose value `[null]` does not
 typecheck. Encoding used throughout the plugin and expected by the runtime:
 
-| `names`  | Meaning                                                          |
-| -------- | ---------------------------------------------------------------- |
-| `null`   | Undecidable (§3.4). Triggers the warm pass (§3.5)                |
-| `[]`     | One fixture: the module's default export. `FixtureId.name = null` |
-| `[…]`    | Keys of the default-exported object, in source order              |
+| `names` | Meaning                                                           |
+| ------- | ----------------------------------------------------------------- |
+| `null`  | Undecidable (§3.4). Triggers the warm pass (§3.5)                 |
+| `[]`    | One fixture: the module's default export. `FixtureId.name = null` |
+| `[…]`   | Keys of the default-exported object, in source order              |
 
 Known ambiguity: `export default {}` (an object literal with zero keys) is
 indistinguishable from a single fixture under this encoding. Vanishingly rare
@@ -282,7 +284,7 @@ Comfortably inside §20.3's "plugin startup, 100 fixture modules < 300 ms".
 ### §3.4: an identifier default export stays undecidable, deliberately
 
 ```js
-const fixtures = { A: <X/>, B: <Y/> };
+const fixtures = { A: <X />, B: <Y /> };
 export default fixtures;
 ```
 
@@ -396,15 +398,15 @@ Layout: `packages/frosted-ui/src/components/<x>/<x>.stories.tsx` →
 Done by a script, then audited with a per-file diff that confirmed only import
 lines (plus the three type references listed below) differ from upstream.
 
-| Upstream specifier                                                              | Rewritten to             |
-| ------------------------------------------------------------------------------- | ------------------------ |
-| `'..'`, `'../..'`, `'../index'`, `'../<sibling>'`, `'./<self>'`                  | `'frosted-ui'`           |
-| `'../../../src'`, `'../../../src/components'`, `'../../../src/components/<x>'`   | `'frosted-ui'`           |
-| `'../../theme'`, `'../../../src/theme'`                                          | `'frosted-ui'`           |
-| `'../../helpers/emoji-colors'`, `'../../../src/helpers/emoji-colors'`            | `'frosted-ui'`           |
-| `'../../icons'`                                                                  | `'frosted-ui/icons'`     |
-| `'@storybook/react'`                                                             | local shim `csf-types`   |
-| `'@storybook/test'`                                                              | local shim `storybook-test` |
+| Upstream specifier                                                             | Rewritten to                |
+| ------------------------------------------------------------------------------ | --------------------------- |
+| `'..'`, `'../..'`, `'../index'`, `'../<sibling>'`, `'./<self>'`                | `'frosted-ui'`              |
+| `'../../../src'`, `'../../../src/components'`, `'../../../src/components/<x>'` | `'frosted-ui'`              |
+| `'../../theme'`, `'../../../src/theme'`                                        | `'frosted-ui'`              |
+| `'../../helpers/emoji-colors'`, `'../../../src/helpers/emoji-colors'`          | `'frosted-ui'`              |
+| `'../../icons'`                                                                | `'frosted-ui/icons'`        |
+| `'@storybook/react'`                                                           | local shim `csf-types`      |
+| `'@storybook/test'`                                                            | local shim `storybook-test` |
 
 Rule in one line: **every relative specifier becomes `'frosted-ui'`**, because
 in the published package everything the stories reach for is at the root. All
@@ -448,7 +450,7 @@ specifier, so the file was kept.
   `Preview` plus the aliases Storybook also publishes. Storybook is genuinely
   not a dependency of the demo.
 
-  One finding worth keeping: a fully permissive shim (`args?: any`) is *worse*
+  One finding worth keeping: a fully permissive shim (`args?: any`) is _worse_
   than a faithful one. Twelve of the original type errors were implicit-`any`
   callbacks inside `args` object literals — `label: (value, percent) => …` in
   `stacked-horizontal-bar-chart` and `onChange: (date) => …` in the date
@@ -537,7 +539,7 @@ Before / after, verbatim from the build:
 ```
 
 **`:is(.uaight-root, .uaight-root *)` rather than a plain `.uaight-root `
-descendant.** ARCHITECTURE §3 promises every chrome element sits *under* the
+descendant.** ARCHITECTURE §3 promises every chrome element sits _under_ the
 root, so a descendant combinator would satisfy the letter of §10.3. But the
 natural thing to write is `<div className="uaight-root flex flex-col">`, and
 under a strict descendant rewrite those utilities silently do nothing. The
@@ -561,7 +563,7 @@ Two selector shapes need special handling and are tested:
 never enters the graph.
 
 `@source "../**/*.{ts,tsx}"` scans our own source for class names — and
-`src/styles/generated.ts` *contains the compiled CSS*, whose selectors the
+`src/styles/generated.ts` _contains the compiled CSS_, whose selectors the
 scanner would happily read back as candidates and keep every utility alive
 forever. `@source not "../styles/generated.ts"` breaks that loop. Verified in
 4.3.3.
@@ -610,7 +612,7 @@ signature of a tree where the chrome has not been written yet.
 ### §11.2 `$schema` — a documented deviation
 
 §11.2's example puts `https://ui.shadcn.com/schema/registry.json` on a registry
-*item*. shadcn publishes two schemas: `registry.json` describes the index,
+_item_. shadcn publishes two schemas: `registry.json` describes the index,
 `registry-item.json` describes an item, and an item carrying the index schema
 does not validate. The emitted items therefore use `registry-item.json` and the
 index uses `registry.json`. §11.1's "proof, not plausibility" test (Q8) would
@@ -621,7 +623,7 @@ have caught this on the first `shadcn add`.
 §11.2's example names `@uaight/tree-item`, which is not in §11.3's table. Rather
 than publish a phantom dependency the registry could not resolve, the only
 dependency emitted is the real one: `control-panel → @uaight/control-panel-inputs`.
-Every dependency is asserted to be namespaced *and* to name a published item.
+Every dependency is asserted to be namespaced _and_ to name a published item.
 
 The versioned copies under `registry/v1.0/` rewrite dependencies to absolute
 URLs (`https://uaight.dev/r/v1.0/control-panel-inputs.json`). §11.1 says items
@@ -663,12 +665,12 @@ is the signal to delete it. The fix belongs in `src/vite/parse.ts`, not in
 ### Tests
 
 `tests/**` covers §20.1's list. Modules owned by other agents are loaded through
-`tests/helpers/optional.ts`, which imports by *variable* specifier — a literal
+`tests/helpers/optional.ts`, which imports by _variable_ specifier — a literal
 would fail the type check for everyone the moment a file is missing. Specifiers
 resolve relative to that helper, hence the `../../src/…` form. Each such suite
 tries the ARCHITECTURE-documented barrel first (`src/vite/index.ts`,
 `src/runtime/index.ts`) and falls back to the concrete module, and reports as
-*skipped* rather than passed when neither is there.
+_skipped_ rather than passed when neither is there.
 
 At the time of writing every module exists, so nothing is skipped: 264 tests
 across 12 files, all passing.
@@ -723,10 +725,10 @@ representable: `Patch.value` is `EditableWire`, which **excludes `opaque` by
 type**, so `setValue({ onClick: fn })` has no legal wire encoding at all. Both
 halves are implemented, chosen per call by `isFullyEditable(wire)`:
 
-| new value                        | renderer state                         | message to the host                          |
-| -------------------------------- | -------------------------------------- | -------------------------------------------- |
-| serializes with no opaque leaf   | root patch, merged via `mergePatch`     | `OVERLAY { patches, fromRenderer: true }`     |
-| contains a function/element/etc. | a **root override** held renderer-side  | `RESYNC { wire }` — `Wire` may carry `opaque` |
+| new value                        | renderer state                         | message to the host                           |
+| -------------------------------- | -------------------------------------- | --------------------------------------------- |
+| serializes with no opaque leaf   | root patch, merged via `mergePatch`    | `OVERLAY { patches, fromRenderer: true }`     |
+| contains a function/element/etc. | a **root override** held renderer-side | `RESYNC { wire }` — `Wire` may carry `opaque` |
 
 The override supersedes the value for that input at that revision, and is
 **discarded the moment the registration's revision changes** — which is exactly
@@ -744,7 +746,7 @@ Nothing stale can survive, because nothing opaque ever enters an overlay: the
 UI can only ever send `EditableWire`, and the renderer re-derives every opaque
 leaf from the current module on every render. Verified with a fixture whose
 default holds a function sibling: the patched field changes, the function comes
-back by identity from the *new* module, and the untouched subtrees are
+back by identity from the _new_ module, and the untouched subtrees are
 identical by reference (structural sharing).
 
 Caveat, and it is inherent to §7.2 rather than to this implementation: a fixture
@@ -756,21 +758,21 @@ reads as what it is rather than as a protocol fault.
 
 ### §7.3 rows — all implemented, none stubbed
 
-| Row                                     | Where                                                              |
-| --------------------------------------- | ------------------------------------------------------------------ |
-| Duplicate input name                    | `OverlayStore.commitRegistration` — dev error naming the fixture, last registration wins (slots are `useId`, so two call sites are distinguishable) |
-| Input name changes between renders      | Overlays are keyed by name and outlive the registration; `releaseSlot` marks the record inactive rather than deleting it |
-| Conditional registration                | Same; `INPUTS_SETTLED` carries the active names so the panel can grey the rest |
-| Fixture calls the setter itself         | `setFromRenderer` — see the table above                            |
-| Stale revision                          | `receiveOverlay` rejects `revision < record.revision` and replies `RESYNC` |
-| Patch path not in the new shape         | Presence checked with `wireAt` against the registered wire; dropped and counted; `reportDropped` reports once per input per revision |
-| Array length shrinks                    | Same rule — `wireAt` bounds-checks the index                       |
-| Cyclic data                             | `serialize.ts` tracks the *ancestor path*, so DAG sharing is not misreported as a cycle; emits `opaque` labelled `[Circular]` |
-| Depth > 8, payload > 256 KB             | `[depth limit]` / `[size limit]`, plus one dev warning naming the input |
-| Getters, proxies, non-plain objects     | `getOwnPropertyDescriptor` only — a getter becomes `opaque` labelled `[getter]` and is **never invoked**. A proxy is indistinguishable from its target and is documented as such, not pretended away |
+| Row                                     | Where                                                                                                                                                                                                                 |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Duplicate input name                    | `OverlayStore.commitRegistration` — dev error naming the fixture, last registration wins (slots are `useId`, so two call sites are distinguishable)                                                                   |
+| Input name changes between renders      | Overlays are keyed by name and outlive the registration; `releaseSlot` marks the record inactive rather than deleting it                                                                                              |
+| Conditional registration                | Same; `INPUTS_SETTLED` carries the active names so the panel can grey the rest                                                                                                                                        |
+| Fixture calls the setter itself         | `setFromRenderer` — see the table above                                                                                                                                                                               |
+| Stale revision                          | `receiveOverlay` rejects `revision < record.revision` and replies `RESYNC`                                                                                                                                            |
+| Patch path not in the new shape         | Presence checked with `wireAt` against the registered wire; dropped and counted; `reportDropped` reports once per input per revision                                                                                  |
+| Array length shrinks                    | Same rule — `wireAt` bounds-checks the index                                                                                                                                                                          |
+| Cyclic data                             | `serialize.ts` tracks the _ancestor path_, so DAG sharing is not misreported as a cycle; emits `opaque` labelled `[Circular]`                                                                                         |
+| Depth > 8, payload > 256 KB             | `[depth limit]` / `[size limit]`, plus one dev warning naming the input                                                                                                                                               |
+| Getters, proxies, non-plain objects     | `getOwnPropertyDescriptor` only — a getter becomes `opaque` labelled `[getter]` and is **never invoked**. A proxy is indistinguishable from its target and is documented as such, not pretended away                  |
 | `__proto__`, `constructor`, `prototype` | Rejected at the transport boundary in `receiveOverlay` (whole message invalid), again in `applyOverlayToValue`, and skipped on deserialize, which builds with `defineProperty` so the prototype setter is unreachable |
-| `Date`                                  | Built-in codec, ISO instant in UTC; the editor shows local time with a UTC toggle |
-| Reset                                   | Clears the overlay; the current module's default is what remains   |
+| `Date`                                  | Built-in codec, ISO instant in UTC; the editor shows local time with a UTC toggle                                                                                                                                     |
+| Reset                                   | Clears the overlay; the current module's default is what remains                                                                                                                                                      |
 
 ### The wire is checked, the JS value is patched
 
@@ -847,7 +849,7 @@ the corpus would drown the one badge that matters. `parameters` is badged only
 when support is `false` and the module actually sets some.
 
 `globalDecorators` are declined by construction: `.storybook/preview` is never
-loaded, so there is nothing to skip. A preview-*shaped* module (one exporting
+loaded, so there is nothing to skip. A preview-_shaped_ module (one exporting
 `decorators` or `globalTypes`) is detected and badged. App-wide providers belong
 in the preview entry (§6.4), and that is what the demo does.
 
@@ -865,8 +867,8 @@ This is the only reading of `argTypes: true` that means anything: without it,
 
 ### §13 — the story body is a component, because Storybook's is
 
-`renderToCanvas` in `@storybook/react` renders the story function *as a
-component*, which is why `render: function Render(args) { const [x] =
+`renderToCanvas` in `@storybook/react` renders the story function _as a
+component_, which is why `render: function Render(args) { const [x] =
 React.useState() }` works upstream — and 4 of frosted-ui's files rely on it.
 `CsfStoryBody` is a stable module-level component that calls `render(args,
 context)` in its own render body, so those hooks land on a stable fiber. A
@@ -910,7 +912,7 @@ at 5; every inbound message through `validateBootstrap`/`validateEnvelope`;
 queueing before ready with a flush on `INIT_ACK`; no `READY` in 5s → one `INIT`
 probe → a bootstrap error naming the renderer URL.
 
-1. **No mutually supported version.** §8.2 wants *both* sides to render a
+1. **No mutually supported version.** §8.2 wants _both_ sides to render a
    mismatch panel, but the message set has no "mismatch" message. The host
    therefore sends `INIT` carrying its **own** highest version, which the child
    rejects (it is not in `SUPPORTED_PROTOCOL_VERSIONS`), raises its own panel
@@ -921,7 +923,7 @@ probe → a bootstrap error naming the renderer URL.
    because `postMessage` rejects `"null"` as a target outright. A frame we
    created in our own realm is not a trust boundary anyway (§5.2).
 
-`INIT` carries the host's *latest* selection and overlays, not the ones the
+`INIT` carries the host's _latest_ selection and overlays, not the ones the
 transport was constructed with, so a reload replays current state.
 
 ### §16.2 version skew is checked in the renderer
@@ -934,7 +936,7 @@ a cached virtual module, which §16.2 says is the realistic skew.
 ### Deliberately left to the host realm
 
 - **§3.5 warm pass and progressive disclosure.** No protocol message carries
-  fixture *names* (only `INPUTS_SETTLED`, which is inputs), so the renderer
+  fixture _names_ (only `INPUTS_SETTLED`, which is inputs), so the renderer
   cannot report discovered names to the chrome. Both realms import
   `virtual:uaight/runtime`, so the host can do this itself: call
   `fixtureModules[globPath]()` and `normalizeModule(...)` — both exported from
@@ -952,7 +954,7 @@ a cached virtual module, which §16.2 says is the realistic skew.
   documented inline cost, surfaced rather than papered over.
 - **HMR of a fixture module relies on React Fast Refresh**, which preserves the
   component tree and re-renders in place. The runtime does not re-import the
-  module on `uaight:index`; a *topology* change (add/delete/rename) reaches the
+  module on `uaight:index`; a _topology_ change (add/delete/rename) reaches the
   runtime as a new `SELECT_FIXTURE` from the host, which re-imports.
 - **Q3 (scheduler)** is injectable everywhere and defaults to
   `microtaskScheduler`. Delivery is always scheduled, so a `send()` can never
@@ -971,7 +973,7 @@ attached, but the browser also runs that document's own load in its own time.
 Two failure modes follow, and which one you get depends on the engine:
 
 - **(a)** `contentDocument` is not yet usable when the effect runs.
-- **(b)** It *is* usable, we write into it, and the about:blank load that was
+- **(b)** It _is_ usable, we write into it, and the about:blank load that was
   already in flight then replaces the document — blanking our work.
 
 Neither "write immediately" nor "write on load" survives both. `FrameHost`
@@ -983,7 +985,7 @@ does all three of the following, which between them cover every ordering:
 2. **Keep a `load` listener attached for the frame's whole life.** On every
    load, check whether our `#uaight-root` marker survived; if it did not, write
    again. Covers (b) — and also covers a later navigation blanking the frame.
-3. **Guard with a written-flag** so a load event that did *not* blank us is a
+3. **Guard with a written-flag** so a load event that did _not_ blank us is a
    no-op rather than a second document and a second renderer.
 
 The recovery path is not a special case: a rewrite re-runs the renderer entry,
@@ -993,7 +995,7 @@ whenever the transport reports `ready`, so a reload lands on the right fixture.
 
 Ordering that matters and is easy to get wrong:
 
-- The transport is created in a **layout** effect that runs *before* the
+- The transport is created in a **layout** effect that runs _before_ the
   document-writing effect. Creating it after would drop the child's `READY`.
 - Both `/@vite/client` and the renderer entry must run in order. The Vite
   client is written into the document body; the renderer script is appended
@@ -1007,7 +1009,7 @@ Verified live against the demo at `/uaight`: two `[vite] connected` lines
 
 Step 5 asks us to "fail with a message naming the missing directive rather than
 rendering an empty frame". A handshake timeout can only say "nothing happened".
-`FrameHost` instead listens for `securitypolicyviolation` on the *frame's*
+`FrameHost` instead listens for `securitypolicyviolation` on the _frame's_
 document and reports `e.violatedDirective` and `e.blockedURI` directly, so the
 message names the directive the way the spec asks. The 5s handshake timeout in
 the transport remains the backstop for everything else.
@@ -1022,7 +1024,7 @@ express selecting one.
 So the sidebar renders **two sections**: `FixtureTree` over fixtures, and
 `InventoryList` over detected components, both grouped by directory so they
 read as the same shape (§12.3's "merge naturally"). `fixtureTree.nodes` on the
-facade is still the *merged* tree from `buildTree`, for anyone ejecting one
+facade is still the _merged_ tree from `buildTree`, for anyone ejecting one
 component and wanting the whole thing.
 
 Consequences, all deliberate:
@@ -1074,7 +1076,7 @@ a malformed id (`uaight:9|foo`, unknown version prefix) is removed with
 `replaceState`, and a well-formed unknown id keeps its parameter and shows the
 empty state.
 
-Note that `?fixture=%%%broken` is *not* malformed: §3.2's convenience form
+Note that `?fixture=%%%broken` is _not_ malformed: §3.2's convenience form
 accepts a bare path, so it parses as `{ path: "%%%broken", name: null }` and is
 correctly treated as well-formed-but-unknown.
 
@@ -1092,7 +1094,7 @@ and both lists.
 Selecting an undecidable file keeps the file node selected, renders the first
 fixture and shows a note naming it — verified: deep-linking
 `uaight:1|fixtures%2Fswatches` leaves the URL untouched and renders with
-*Showing "Overview" — the first fixture in this file.*
+_Showing "Overview" — the first fixture in this file._
 
 ### `names: []` — now fixed upstream; defence retained
 
@@ -1125,8 +1127,10 @@ So the frame document is written as:
 
 ```html
 <body>
-  <div id="uaight-root"></div>                       <!-- the fixture, unstyled by us -->
-  <div id="uaight-frame-chrome" class="uaight-root"></div>  <!-- for frame-realm chrome -->
+	<div id="uaight-root"></div>
+	<!-- the fixture, unstyled by us -->
+	<div id="uaight-frame-chrome" class="uaight-root"></div>
+	<!-- for frame-realm chrome -->
 </body>
 ```
 
@@ -1159,7 +1163,7 @@ on a frame-mode mount.
   the index or a message; both are contract changes.
 - **§7.3 "reported once per input per revision" for dropped patches.** The
   count is correct and deduplicated per input per revision, but the panel shows
-  one aggregate *"N settings no longer apply"* rather than naming which input
+  one aggregate _"N settings no longer apply"_ rather than naming which input
   lost what. The renderer's `RESYNC` only carries a count, not the paths.
 - **Q14 (should overlay state persist across reloads?)** — not persisted.
   Overlays live for the session and are dropped on fixture change, per §7.3.
@@ -1168,18 +1172,18 @@ on a frame-mode mount.
 
 ### Keyboard map
 
-| Keys | Action |
-| ---- | ------ |
-| `/` | Focus this mount's search box |
-| `Esc` | Clear the search; a second `Esc` returns focus to the tree |
-| `j` / `k` | Select the next / previous fixture (drives the URL) |
-| `↓` / `↑` | Move focus through the tree |
-| `→` | Expand a group, or move into it if already open |
-| `←` | Collapse a group, or move to its parent |
-| `Home` / `End` | First / last visible row |
-| `Enter` / `Space` | Select the focused row (or toggle a group) |
-| `r` | Reset all controls |
-| `?` | Toggle the shortcut list |
+| Keys              | Action                                                     |
+| ----------------- | ---------------------------------------------------------- |
+| `/`               | Focus this mount's search box                              |
+| `Esc`             | Clear the search; a second `Esc` returns focus to the tree |
+| `j` / `k`         | Select the next / previous fixture (drives the URL)        |
+| `↓` / `↑`         | Move focus through the tree                                |
+| `→`               | Expand a group, or move into it if already open            |
+| `←`               | Collapse a group, or move to its parent                    |
+| `Home` / `End`    | First / last visible row                                   |
+| `Enter` / `Space` | Select the focused row (or toggle a group)                 |
+| `r`               | Reset all controls                                         |
+| `?`               | Toggle the shortcut list                                   |
 
 Selection in the tree is **explicit** — arrows move focus, `Enter` selects.
 Auto-selecting on arrow would render a detected component on mere navigation,
@@ -1207,8 +1211,8 @@ judgement call with a live alternative.
 ### Q11 — what goes on `UaightChromeApiV1`
 
 **Answered.** Two groups were added and nothing else. The test applied was the
-one the freeze implies: *would a chrome component be unable to do its job
-without it?* Anything that failed that test stays off, permanently.
+one the freeze implies: _would a chrome component be unable to do its job
+without it?_ Anything that failed that test stays off, permanently.
 
 **`component: { current, select, callSites }`.** §12's detected components were
 unroutable local state, and the reason is a type: `selection.select` is
@@ -1219,7 +1223,7 @@ really are different selections, and every consumer would then destructure a
 union to ask which one it got. `select(null)` clears the component without
 selecting a fixture, which is the case local state could not express at all.
 `callSites` sits in this group rather than beside `inventory` because a call
-site is a usage *of* a detected component; the palette is not its only reader.
+site is a usage _of_ a detected component; the palette is not its only reader.
 
 **`palette: { open, setOpen, query, setQuery, items, select }`.** The palette is
 ejectable and needs the whole catalogue — fixtures, components and call sites
@@ -1236,7 +1240,7 @@ a frozen facade that exposes them freezes them too.
 
 §7.3 asks for the loss to be "reported once per input per revision"; the
 deduplication was right and the payload was not. `RESYNC.dropped` was a count,
-so the panel could only aggregate — *"6 settings no longer apply"* — which tells
+so the panel could only aggregate — _"6 settings no longer apply"_ — which tells
 the user something is wrong and nothing about what. It now carries the dropped
 patch **paths**; the message already carries the input's name, so together they
 name the setting. The count is `dropped.length`, so nothing that only wanted a
@@ -1257,7 +1261,7 @@ re-registration.
 `fileMeta.viewport` and `fixtureMeta.viewport` are §3.1 named exports the static
 index never saw. Two ways to fix it, and the choice is forced by
 `index: "static"`: under it no fixture module is ever executed, so there is
-nothing running to send a message *from*, and the viewport is needed **before
+nothing running to send a message _from_, and the viewport is needed **before
 the first paint** — a message would arrive after the preview had already opened
 at Fit and then resize it, which is worse than not honouring it. So the meta
 rides on `FixtureFileIndex` as `fileMeta` and `fixtureMeta`, named after the
@@ -1275,7 +1279,7 @@ would be invisible.
 `THEME_ATTRIBUTE = "data-uaight-theme"` on the renderer document's
 `documentElement`, values `"light"` and `"dark"`, absent meaning light. An
 attribute rather than a message, a context or a prop, because the reader is the
-*preview entry* — the host application's own provider tree, which is not a
+_preview entry_ — the host application's own provider tree, which is not a
 fixture, does not use our hooks, and in frame isolation does not share our
 realm. A DOM attribute is the one channel every provider can already read, it is
 observable, and it adds nothing to the frozen facade. `system` is resolved by
@@ -1323,7 +1327,7 @@ open all day rather than for a screenshot.
 
 `FixtureTree` mapped every row, which was fine: files are leaves, so a collapsed
 corpus is a few dozen rows. Search is not that case. Searching sets
-`forceOpen: true`, which expands *everything* — every directory and every file's
+`forceOpen: true`, which expands _everything_ — every directory and every file's
 fixtures — so the demo's 591 fixtures across 82 files become hundreds of rows,
 rebuilt and re-rendered on every keystroke.
 
@@ -1390,7 +1394,7 @@ them — does not transfer to navigation. A collapsed directory cannot go stale;
 at worst it names a key that no longer exists, and an unknown key in that set is
 inert. So `ui/session.ts` keeps the collapsed set, the last selection, the
 palette MRU list, the two pane widths and the inventory disclosure in
-`sessionStorage`, keyed by route *and* mount for the same reason `routerId`
+`sessionStorage`, keyed by route _and_ mount for the same reason `routerId`
 exists.
 
 `sessionStorage` rather than `localStorage` throughout, including §12's safety
@@ -1422,8 +1426,8 @@ Three dead ends in one flow, all of them now closed:
 - **The chips.** Each `CallSite` carries `globPath`, `line` and `column`, which
   is exactly the argument Vite's `/__open-in-editor` takes. "Open source" acts on
   the selected chip rather than nesting a button inside a `role="tab"`, and it
-  distinguishes *no endpoint* (the static build) from *the editor would not
-  launch*, because those need different words. §1.4's "no file-writing endpoint"
+  distinguishes _no endpoint_ (the static build) from _the editor would not
+  launch_, because those need different words. §1.4's "no file-writing endpoint"
   is about us writing files; handing a path to an editor the user is already
   running is not that.
 - **The strip.** It carried `role="tablist"` and implemented none of the tab
@@ -1438,7 +1442,7 @@ The viewport reset to Fit on every selection, which defeats the only reason to
 pin 375px — walking a list of components at 375px. The state is now
 `ViewportPreset | null | undefined`: `undefined` means the user has not chosen
 and the fixture's own `fileMeta` / `fixtureMeta` viewport applies (§3.1, via
-`shared/meta.ts`); `null` and a preset are both *choices*, including choosing
+`shared/meta.ts`); `null` and a preset are both _choices_, including choosing
 Fit, and a choice survives changing fixture. A fixture viewport that matches a
 preset is named after it, so the toolbar shows a row pressed rather than showing
 nothing pressed at a preset's dimensions.
@@ -1457,7 +1461,7 @@ Tailwind could not stop. Hierarchy is weight, tracking and colour instead
 
 - **`CommandPaletteProps` and `InventoryListProps` still receive props.** The
   facade now carries the same data (`palette`, `component`, `inventory`), which
-  is what an *ejected* copy needs — it can drop the props entirely and read the
+  is what an _ejected_ copy needs — it can drop the props entirely and read the
   facade. The packaged layout keeps passing them because those props are the
   published ejection contract (§19.5) and the two sources are the same values;
   making the packaged components ignore their own props would leave a published
@@ -1498,7 +1502,7 @@ what is would need the scope analysis this pass exists to avoid. Chains resolve
 (`const a = {…}; const b = a; export default b`) with a cycle guard, because a
 half-typed file can contain `const a = b; const b = a` and must not hang.
 
-Once resolved, the *rest* of the table applies unchanged: a resolved object with
+Once resolved, the _rest_ of the table applies unchanged: a resolved object with
 a spread is still undecidable, a resolved element is still a single fixture.
 That is what keeps this one row rather than a second table.
 
@@ -1538,7 +1542,7 @@ against the alias table, which costs a string comparison per import.
 Three details that are not obvious:
 
 - **RegExp finds are dropped, not approximated.** A regex alias can rewrite any
-  part of a specifier, and a half-implementation produces a *wrong* module path
+  part of a specifier, and a half-implementation produces a _wrong_ module path
   rather than no answer. Vite's own internal aliases are all RegExp, so dropping
   them also reduces the table to what the user wrote.
 - **A string alias matches on a path boundary.** An alias of `@` must not
@@ -1553,7 +1557,7 @@ Three details that are not obvious:
 `config()`, because that is where `production: "error"` and collisions must be
 decided; the authoritative alias table only exists at `configResolved`. So
 `config()` reads `userConfig.resolve.alias` and `configResolved` compares the
-resolved table against it, rescanning only if the *string* entries actually
+resolved table against it, rescanning only if the _string_ entries actually
 differ. In the ordinary case they do not — Vite's additions are all RegExp — so
 the second scan almost never happens, and when a plugin really did add an alias
 the index is right rather than nearly right.
@@ -1579,7 +1583,7 @@ resolves `<script src>` against the document's real location and rewrites asset
 URLs from it, so a virtual document has to reimplement enough of that to become
 its own source of defects.
 
-A side benefit worth naming: the build no longer has to *reserve* two filenames
+A side benefit worth naming: the build no longer has to _reserve_ two filenames
 in the user's root, so it no longer refuses to run because they happen to own a
 file called `uaight-explorer.html`.
 
@@ -1598,8 +1602,8 @@ on which probe returned first.
 
 **Discovery is deferred to first use, not done at startup.** An agent starts its
 MCP servers before the human starts a dev server, so resolving eagerly would
-fail every session that happened in that order. The *result* is cached and the
-*failure* is not, so the next tool call after the dev server comes up succeeds
+fail every session that happened in that order. The _result_ is cached and the
+_failure_ is not, so the next tool call after the dev server comes up succeeds
 without restarting anything.
 
 Failure is a message naming every port probed, what was asked of each, and the
@@ -1653,7 +1657,7 @@ writing, best-of-N against a generated synthetic corpus:
 
 Three decisions inside the harness are worth keeping:
 
-- **Best-of-N, not the mean.** A budget asks whether the code *can* meet a
+- **Best-of-N, not the mean.** A budget asks whether the code _can_ meet a
   bound; the mean answers a question about the machine it ran on, and on a
   shared CI runner it is dominated by the neighbours. A budget that fails on a
   noisy neighbour is a budget that gets disabled.
@@ -1661,7 +1665,7 @@ Three decisions inside the harness are worth keeping:
   whatever the demo happens to contain, and a budget that moves for reasons
   unrelated to the code is not a budget.
 - **"Chrome bundle" is the `UaightUI-*` chunk specifically.** That is the code a
-  host downloads *because* uaight is there and exactly what §9.2's production
+  host downloads _because_ uaight is there and exactly what §9.2's production
   gate removes; summing every non-Node chunk would fold in the renderer and the
   serializer and stop tracking the thing that grows when a panel is added. It
   moved from 41.2 KB to 54.3 KB during this pass, entirely from concurrent UI
@@ -1735,7 +1739,7 @@ tree renders from. `tests/scan.test.ts` exercises add (appears in sorted
 position, not arrival order), delete (disappears and takes its problems),
 rename (both events, including the moment between them when both files exist), a
 genuine display-path collision appearing and clearing, an irrelevant file
-changing nothing, and that the emitted glob *patterns* do not move when the
+changing nothing, and that the emitted glob _patterns_ do not move when the
 corpus does — which matters because Vite invalidates a glob by its pattern, so a
 pattern that changed with the file list would make every add a new module id.
 
@@ -1752,7 +1756,7 @@ executes exactly the modules the static parser could not decide, and on the
 demo corpus that is **1 file out of 83**. The §3.4 identifier row above can only
 reduce that number.
 
-That is the *count*, not the *cost*. What Q4 actually asks — what one of those
+That is the _count_, not the _cost_. What Q4 actually asks — what one of those
 module executions costs on a large, side-effect-heavy corpus, in a browser,
 after first paint — cannot be measured from Node, because the modules are JSX
 that only exists compiled inside a dev server. Q4 remains open, with the
@@ -1771,13 +1775,13 @@ Two things about it are deliberate:
 - **`react-docgen` is not a runtime dependency.** The package ships two, and
   `docgen` defaults to `false` (§15.1); making every install pay for a Babel
   parser to support an off-by-default feature is the wrong trade. It is imported
-  dynamically, the import result is cached *including the failure*, and an
+  dynamically, the import result is cached _including the failure_, and an
   absent package produces one message naming the package and the fix rather than
   a crash or silence.
 - **The limitation is carried on every doc, not documented in a README.**
   `inherited-props` is the headline: `react-docgen` reads one module's AST, so a
   component whose props extend `React.ComponentPropsWithoutRef<"button">` or a
-  shared `BaseProps` gets what is written in *this* file and nothing else — and
+  shared `BaseProps` gets what is written in _this_ file and nothing else — and
   that is most design-system components. A prop table that silently omits
   everything a component inherited is worse than one that says so, so
   `ComponentDoc.limitations` makes the caveat impossible to render without.
@@ -1831,7 +1835,7 @@ and gives the literal 36 cells for a release run — verified to enumerate.
 The subject is a purpose-built host app (`tests/e2e/fixture-app`), not the demo.
 It carries one mode switch (`?mode=`) covering two mounts, inline isolation, an
 ejected `FixtureTree` under the host's own Tailwind, and a mount/unmount cycler,
-so one built artefact serves every scenario. The React 18 cell is the *same*
+so one built artefact serves every scenario. The React 18 cell is the _same_
 application with `root` pointed at it and React aliased in — copying it would
 let the two cells drift.
 
@@ -1880,13 +1884,13 @@ Each is a `fixme` naming the defect, never a weakened assertion.
 3. **Two mounts under StrictMode: neither ends up owning the URL.** With
    StrictMode off, §5.4 is exactly right — the first mount renders the deep
    link, the second falls back to local state and logs the error naming the key.
-   With StrictMode on (the default here and in most real apps) *both* render the
+   With StrictMode on (the default here and in most real apps) _both_ render the
    empty state. `router.ts` claims in a layout effect "so StrictMode's mount →
    cleanup → mount cycle nets out to a single claim"; with two claimants it does
    not.
 4. **A rename leaves the old path in the tree.** `rename(2)`, one atomic move:
    the new path appears and is selectable, the old row stays and is still
-   selectable, deep-linking to a file that no longer exists. A plain *delete*
+   selectable, deep-linking to a file that no longer exists. A plain _delete_
    prunes correctly, so it is the rename path specifically. Q9, with a
    browser-level answer for the rename case.
 5. **A fixture edit reloads the host document.** The update does arrive, but as
@@ -1894,7 +1898,7 @@ Each is a `fixme` naming the defect, never a weakened assertion.
    `page.evaluate` dies with "execution context destroyed". NOTES.md's model is
    "React Fast Refresh… preserves the component tree and re-renders in place".
    Adding a file reloads too, which is the expected `import.meta.glob`
-   invalidation; an in-place *edit* reloading is not.
+   invalidation; an in-place _edit_ reloading is not.
 6. **The CSP failure does not name the violated directive.** §6.7 step 5's
    "rather than rendering an empty frame" half is met — an alert appears. The
    naming half is not: under a real nonce policy with the nonce withheld,
@@ -1918,7 +1922,7 @@ work at all — they were in files untouched since the initial upload.
    made it look like a text-specific transport fault. They are live now, and the
    `draft` still owns the keystroke, which is what "typing must never fight the
    renderer" actually required. Second, the `?state=` parameter of the fixture
-   being *left* was seeded onto the fixture being *arrived at*: `UaightUI`'s seed
+   being _left_ was seeded onto the fixture being _arrived at_: `UaightUI`'s seed
    effect ran on the commit where `targetKey` changed but the URL had not yet
    been rewritten, so §7.3's "overlays are dropped on fixture change" was
    observably false. A token equal to our own last write is no longer seeded, and
@@ -1936,7 +1940,7 @@ work at all — they were in files untouched since the initial upload.
    exist until `InlineHost` has measured its root and imported the preview entry.
    It queues per direction while that direction has no subscriber now, which is
    the frame path's INIT queue by another name.
-3. **Two mounts under StrictMode.** A refcount cannot say *who*. React remounts
+3. **Two mounts under StrictMode.** A refcount cannot say _who_. React remounts
    effects one fiber at a time, so with two claimants the real order is
    `A.setup(1) B.setup(2) A.cleanup(1) A.setup(2) B.cleanup(1) B.setup(2)` — the
    count never returns to zero while A re-claims, so A was denied its own key and
@@ -1945,15 +1949,15 @@ work at all — they were in files untouched since the initial upload.
    Releasing also re-announces, so the second mount takes over when the first
    really unmounts, which the refcount could never express either.
 4. **The rename.** Not the rename path at all: the plugin's topology debounce
-   carried the *arguments of the call that armed it*. A `rename(2)` arrives as
+   carried the _arguments of the call that armed it_. A `rename(2)` arrives as
    `unlink(old)` then `add(new)` microseconds apart, so the unlink was discarded
    and the departed path stayed in the tree, selectable, deep-linking to nothing.
    A plain delete was unaffected, which is exactly why it looked rename-specific.
-   The debounce coalesces the *set* of changed files now. **Q9's Bundled Dev Mode
+   The debounce coalesces the _set_ of changed files now. **Q9's Bundled Dev Mode
    half now has an answer for add, delete and rename.**
 5. **The fixture edit reloading the host.** The model in this file was wrong
    rather than unimplemented. A fixture module is reached through the
-   `import.meta.glob` in `virtual:uaight/runtime`, which *both* realms import and
+   `import.meta.glob` in `virtual:uaight/runtime`, which _both_ realms import and
    which accepted nothing, and §3.1 allows a fixture file whose exports are
    elements — a module `plugin-react` has no component to build a Fast Refresh
    boundary out of. So the update propagated to the host entry and Vite took the
@@ -1963,7 +1967,7 @@ work at all — they were in files untouched since the initial upload.
    itself, so adding a file no longer reloads either; and the host sends the
    renderer its reconciled index as `SET_INDEX`, because the renderer resolves
    ids against `config.files` and Vite re-globs the instant a file lands —
-   *before* the plugin's debounced rescan has produced the index that goes with
+   _before_ the plugin's debounced rescan has produced the index that goes with
    it. That race is unwinnable from inside the dev server and trivial from the
    host, which already has the answer.
 6. **The CSP message.** The `securitypolicyviolation` listener fires exactly as
@@ -1975,7 +1979,7 @@ work at all — they were in files untouched since the initial upload.
 
 **`import.meta.hot.accept` on a user's fixture module is the one thing here that
 writes into code we do not own.** It is dev-only, it is appended (so the
-sourcemap above it stands), and where Fast Refresh *is* in play the fixture's
+sourcemap above it stands), and where Fast Refresh _is_ in play the fixture's
 components go into the refresh family as usual — a re-render with the new type
 reconciles rather than remounting, so fixture-local state survives. A fixture
 file exporting elements has no state to survive and no boundary either way.
@@ -2022,7 +2026,7 @@ implementation, which is worse than not testing it.
 **A linked `uaight` needs `resolve.dedupe: ["react", "react-dom"]`.** Vite
 realpaths a linked package, so the explorer chunk resolved React from
 `packages/uaight/node_modules` and the app resolved its own. The dev optimizer
-hid it; the *build* shipped two Reacts and the explorer died on
+hid it; the _build_ shipped two Reacts and the explorer died on
 `Cannot read properties of null (reading 'useContext')`. Any consumer linking
 the package locally hits this.
 
@@ -2032,12 +2036,12 @@ Chromium, `--project=chromium-perf`, medians of repeated samples with the cold
 first sample discarded. Printed on every run so the table can be updated from a
 run rather than from a memory.
 
-| Metric                                         | Budget          | Measured                |
-| ---------------------------------------------- | --------------- | ----------------------- |
-| Frame handshake (attach → `INIT_ACK`)          | < 100 ms        | **10 ms** (`READY` → `INIT_ACK` is 0.2 ms) |
-| Fixture selection → first paint (frame, warm)  | < 250 ms        | **14 ms**               |
-| HMR, fixture edit → render                     | < 150 ms        | **37 ms**               |
-| Memory, 100 mount/unmount cycles               | no upward trend | **+0.23 MB per 10 cycles** (7.8 → 10.3 MB) |
+| Metric                                        | Budget          | Measured                                   |
+| --------------------------------------------- | --------------- | ------------------------------------------ |
+| Frame handshake (attach → `INIT_ACK`)         | < 100 ms        | **10 ms** (`READY` → `INIT_ACK` is 0.2 ms) |
+| Fixture selection → first paint (frame, warm) | < 250 ms        | **14 ms**                                  |
+| HMR, fixture edit → render                    | < 150 ms        | **37 ms**                                  |
+| Memory, 100 mount/unmount cycles              | no upward trend | **+0.23 MB per 10 cycles** (7.8 → 10.3 MB) |
 
 The HMR number was 880 ms and over budget for as long as an edit was a page
 load (defect 5). With the reload gone the clock stops on a `MutationObserver` in

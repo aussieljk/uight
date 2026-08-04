@@ -53,7 +53,10 @@ describe("buildTree", () => {
 		const nodes = buildTree({
 			files: [file("Root", SINGLE), file("components/Button", SINGLE)],
 		});
-		expect(keys(nodes)).toEqual(["dir:components", serializeFixtureId({ path: "Root", name: null })]);
+		expect(keys(nodes)).toEqual([
+			"dir:components",
+			serializeFixtureId({ path: "Root", name: null }),
+		]);
 		expect(nodes[0]!.kind).toBe("dir");
 		expect(nodes[0]!.label).toBe("components");
 	});
@@ -146,7 +149,9 @@ describe("buildTree", () => {
 	it("honours caseSensitive", () => {
 		const files = [file("Components/Button", SINGLE)];
 		expect(buildTree({ files, filter: "components" })).toHaveLength(0);
-		expect(buildTree({ files, filter: "components", caseSensitive: false })).toHaveLength(1);
+		expect(buildTree({ files, filter: "components", caseSensitive: false })).toHaveLength(
+			1,
+		);
 	});
 });
 

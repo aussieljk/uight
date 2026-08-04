@@ -71,7 +71,9 @@ function storage(): SessionStorageLike | null {
 
 function stringArray(value: unknown, limit: number): string[] {
 	if (!Array.isArray(value)) return [];
-	return value.filter((entry): entry is string => typeof entry === "string").slice(0, limit);
+	return value
+		.filter((entry): entry is string => typeof entry === "string")
+		.slice(0, limit);
 }
 
 function width(value: unknown): number | null {
@@ -104,7 +106,10 @@ export function parseSession(raw: string | null): ExplorerSession {
 	};
 }
 
-export function readSession(key: string, store: SessionStorageLike | null = storage()): ExplorerSession {
+export function readSession(
+	key: string,
+	store: SessionStorageLike | null = storage(),
+): ExplorerSession {
 	if (!store) return EMPTY_SESSION;
 	try {
 		return parseSession(store.getItem(key));

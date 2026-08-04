@@ -81,7 +81,9 @@ export function DateCodecEditor(props: CodecEditorProps<string>): React.ReactEle
  * RegExp
  * ------------------------------------------------------------------ */
 
-export function RegExpCodecEditor(props: CodecEditorProps<RegExpData>): React.ReactElement {
+export function RegExpCodecEditor(
+	props: CodecEditorProps<RegExpData>,
+): React.ReactElement {
 	return (
 		<div className="uaight-codec-editor uaight-codec-regexp">
 			<span aria-hidden>/</span>

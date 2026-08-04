@@ -33,7 +33,14 @@
  * through an element that may not currently exist.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type { KeyboardEvent, ReactElement } from "react";
 import { fixtureIdsEqual, serializeFixtureId } from "../../shared/fixture-id.ts";
 import type { FixtureTreeProps, TreeNode } from "../../shared/types.ts";

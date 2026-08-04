@@ -129,9 +129,7 @@ export function CommandPalette(props: CommandPaletteProps): ReactElement | null 
 							className={cx(
 								"flex w-full items-baseline gap-2 px-3 py-1.5 text-left",
 								SELECTABLE,
-								index === active
-									? SELECTED
-									: "text-[var(--u-fg)] hover:bg-[var(--u-bg-hover)]",
+								index === active ? SELECTED : "text-[var(--u-fg)] hover:bg-[var(--u-bg-hover)]",
 								FOCUS_RING,
 								MOTION,
 							)}

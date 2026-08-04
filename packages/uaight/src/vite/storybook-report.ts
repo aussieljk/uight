@@ -50,7 +50,9 @@ export interface StorybookReport {
 type Node = Record<string, unknown>;
 
 function isNode(value: unknown): value is Node {
-	return typeof value === "object" && value !== null && typeof (value as Node).type === "string";
+	return (
+		typeof value === "object" && value !== null && typeof (value as Node).type === "string"
+	);
 }
 
 function staticKey(key: unknown): string | null {
@@ -109,13 +111,17 @@ function countStories(program: Node): number {
 		for (const declarator of (declaration.declarations ?? []) as unknown[]) {
 			if (!isNode(declarator)) continue;
 			const id = declarator.id;
-			if (isNode(id) && id.type === "Identifier" && id.name !== "__namedExportsOrder") count++;
+			if (isNode(id) && id.type === "Identifier" && id.name !== "__namedExportsOrder")
+				count++;
 		}
 	}
 	return count;
 }
 
-function inspect(source: string, filename: string): {
+function inspect(
+	source: string,
+	filename: string,
+): {
 	stories: number;
 	unsupported: Record<string, number>;
 } {
@@ -167,7 +173,9 @@ function inspect(source: string, filename: string): {
  * Exported from `uaight/vite` so it can run in CI: a corpus whose unsupported
  * count grows is a corpus drifting away from being portable.
  */
-export async function storybookReport(cfg: ResolvedUaightConfig): Promise<StorybookReport> {
+export async function storybookReport(
+	cfg: ResolvedUaightConfig,
+): Promise<StorybookReport> {
 	const patterns = storybookPatterns(cfg);
 	const empty: StorybookReport = {
 		files: 0,
@@ -212,7 +220,11 @@ export async function storybookReport(cfg: ResolvedUaightConfig): Promise<Storyb
 		}
 
 		details.push({
-			path: displayPathOf(globPath, cfg, cfg.storybook ? cfg.storybook.fileSuffix : "stories"),
+			path: displayPathOf(
+				globPath,
+				cfg,
+				cfg.storybook ? cfg.storybook.fileSuffix : "stories",
+			),
 			globPath,
 			stories: result.stories,
 			unsupported: result.unsupported,

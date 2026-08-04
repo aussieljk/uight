@@ -77,7 +77,10 @@ test.describe("two mounts", () => {
 		await expect(explorer.frame(0).locator("[data-e2e='basic']")).toHaveText("ALPHA");
 	});
 
-	test("two mounts with distinct urlParams both route @core", async ({ explorer, page }) => {
+	test("two mounts with distinct urlParams both route @core", async ({
+		explorer,
+		page,
+	}) => {
 		const errors = collectConsoleErrors(page);
 		await explorer.open({ mode: "two-router", waitForFrame: false });
 		await explorer.waitForFrame(0);
@@ -94,7 +97,10 @@ test.describe("two mounts", () => {
 		expect(errors.filter((e) => /two mounts asked to own/.test(e))).toEqual([]);
 	});
 
-	test("a shortcut fires only in the mount that has focus @core", async ({ explorer, page }) => {
+	test("a shortcut fires only in the mount that has focus @core", async ({
+		explorer,
+		page,
+	}) => {
 		// "an embedded explorer must not take ⌘K from its host" — the same
 		// scoping rule applies between two explorers.
 		await explorer.open({ mode: "two-router", waitForFrame: false });

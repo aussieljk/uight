@@ -19,7 +19,11 @@
 import type { FixtureTreeProps, TreeNode } from "uaight";
 import { serializeFixtureId } from "uaight";
 
-function rows(nodes: readonly TreeNode[], depth = 0, out: Array<{ node: TreeNode; depth: number }> = []) {
+function rows(
+	nodes: readonly TreeNode[],
+	depth = 0,
+	out: Array<{ node: TreeNode; depth: number }> = [],
+) {
 	for (const node of nodes) {
 		if (node.kind === "component") continue;
 		out.push({ node, depth });

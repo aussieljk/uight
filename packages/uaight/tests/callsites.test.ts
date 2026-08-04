@@ -9,7 +9,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { callSitesFor, formatElement, formatFixtureModule } from "../src/shared/callsites.ts";
+import {
+	callSitesFor,
+	formatElement,
+	formatFixtureModule,
+} from "../src/shared/callsites.ts";
 import { groupCallSites, parseCallSites } from "../src/vite/callsites.ts";
 import type { CallSite } from "../src/shared/types.ts";
 
@@ -45,7 +49,9 @@ describe("reading props", () => {
 		const [plain] = harvest("export const A = () => <Badge label={`new`} />;");
 		expect(plain?.props).toEqual({ label: "new" });
 
-		const [interpolated] = harvest("export const A = () => <Badge label={`new ${count}`} />;");
+		const [interpolated] = harvest(
+			"export const A = () => <Badge label={`new ${count}`} />;",
+		);
 		expect(interpolated?.props).toEqual({});
 		expect(interpolated?.dynamic).toEqual(["label"]);
 	});
@@ -68,7 +74,9 @@ describe("reading props", () => {
 	});
 
 	it("refuses a regex and a bigint, which have no JSON form", () => {
-		const [site] = harvest(`export const A = () => <Input pattern={/a+/} big={1n} ok="yes" />;`);
+		const [site] = harvest(
+			`export const A = () => <Input pattern={/a+/} big={1n} ok="yes" />;`,
+		);
 
 		expect(site?.props).toEqual({ ok: "yes" });
 		expect(site?.dynamic).toEqual(["pattern", "big"]);
@@ -216,9 +224,7 @@ describe("copy as fixture", () => {
 	};
 
 	it("formats an element the way it was written", () => {
-		expect(formatElement(site)).toBe(
-			`<Button variant="primary" disabled>Pay now</Button>`,
-		);
+		expect(formatElement(site)).toBe(`<Button variant="primary" disabled>Pay now</Button>`);
 	});
 
 	it("formats a single site as a default export", () => {

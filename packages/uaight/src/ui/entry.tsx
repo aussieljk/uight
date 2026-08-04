@@ -10,7 +10,12 @@
 
 import { Component, Suspense, lazy } from "react";
 import type { ErrorInfo, ReactElement, ReactNode } from "react";
-import type { FixtureCodec, RendererError, UaightComponents, UaightProps } from "../shared/types.ts";
+import type {
+	FixtureCodec,
+	RendererError,
+	UaightComponents,
+	UaightProps,
+} from "../shared/types.ts";
 import { UaightProviderContext } from "./provider-context.ts";
 import type { ThemeSetting } from "./theme.ts";
 
@@ -61,20 +66,19 @@ export function UaightProvider({
  * Fixture — one fixture, no chrome. §19.1
  * ------------------------------------------------------------------ */
 
-export interface FixtureProps
-	extends Pick<
-		UaightProps,
-		| "isolation"
-		| "height"
-		| "className"
-		| "style"
-		| "components"
-		| "theme"
-		| "enabled"
-		| "fallback"
-		| "loading"
-		| "previewDocumentUrl"
-	> {
+export interface FixtureProps extends Pick<
+	UaightProps,
+	| "isolation"
+	| "height"
+	| "className"
+	| "style"
+	| "components"
+	| "theme"
+	| "enabled"
+	| "fallback"
+	| "loading"
+	| "previewDocumentUrl"
+> {
 	/** A `FixtureId`, a canonical `uaight:1|…` string, or the `path:name` form. */
 	fixture: NonNullable<UaightProps["fixture"]>;
 }

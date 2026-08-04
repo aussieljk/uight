@@ -30,7 +30,10 @@ function itemKey(item: InventoryItem): string {
 	return `${item.globPath}#${item.exportName}`;
 }
 
-export function InventoryList({ components, onSelect }: InventoryListProps): ReactElement {
+export function InventoryList({
+	components,
+	onSelect,
+}: InventoryListProps): ReactElement {
 	const groups = useMemo(() => groupByDirectory(components), [components]);
 	const flat = useMemo(() => groups.flatMap(([, items]) => items), [groups]);
 	const [focusKey, setFocusKey] = useState<string | null>(null);
@@ -39,7 +42,8 @@ export function InventoryList({ components, onSelect }: InventoryListProps): Rea
 	const move = (delta: number) => {
 		if (!flat.length) return;
 		const index = flat.findIndex((i) => itemKey(i) === focusKey);
-		const next = flat[Math.max(0, Math.min(flat.length - 1, (index < 0 ? 0 : index) + delta))];
+		const next =
+			flat[Math.max(0, Math.min(flat.length - 1, (index < 0 ? 0 : index) + delta))];
 		if (!next) return;
 		const key = itemKey(next);
 		setFocusKey(key);

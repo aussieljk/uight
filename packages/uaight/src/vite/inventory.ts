@@ -123,9 +123,7 @@ export function parseInventoryFile(
 				const local = (expr as { name: string }).name;
 				const kind = bindings.get(local);
 				if (kind) {
-					const name = isComponentName(local)
-						? local
-						: inferNameFromFilename(filename);
+					const name = isComponentName(local) ? local : inferNameFromFilename(filename);
 					if (name) add("default", name, kind);
 				}
 				continue;
@@ -176,9 +174,7 @@ function collectBindings(program: Program): Map<string, InventoryKind> {
 }
 
 /** `[name, kind]` for every binding a declaration introduces. */
-function declarationBindings(
-	decl: Declaration,
-): Array<[string, InventoryKind | null]> {
+function declarationBindings(decl: Declaration): Array<[string, InventoryKind | null]> {
 	switch (decl.type) {
 		case "VariableDeclaration": {
 			const out: Array<[string, InventoryKind | null]> = [];

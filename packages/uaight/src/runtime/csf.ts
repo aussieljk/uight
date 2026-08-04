@@ -209,9 +209,11 @@ interface ArgControl {
 
 function argControl(key: string, argType: CsfArgType | undefined): ArgControl {
 	if (!argType) return { include: true };
-	if (argType.control === false || argType.table?.disable === true) return { include: false };
+	if (argType.control === false || argType.table?.disable === true)
+		return { include: false };
 	// An `action` argType is an addon handler, not a value to edit.
-	if (argType.action !== undefined && argType.control === undefined) return { include: false };
+	if (argType.action !== undefined && argType.control === undefined)
+		return { include: false };
 
 	const options: InputOptions<unknown> = {};
 	const control = argType.control;
@@ -229,7 +231,8 @@ function argControl(key: string, argType: CsfArgType | undefined): ArgControl {
 		options.options = argType.options;
 		if (!options.control) options.control = "select";
 	}
-	if (typeof argType.name === "string" && argType.name !== key) options.label = argType.name;
+	if (typeof argType.name === "string" && argType.name !== key)
+		options.label = argType.name;
 	if (typeof argType.description === "string") options.description = argType.description;
 
 	return { include: true, options: Object.keys(options).length ? options : undefined };
@@ -291,7 +294,9 @@ export function viewportFromParameters(
 	const name = viewport.defaultViewport;
 	if (typeof name !== "string" || name === "reset") return undefined;
 
-	const table = viewport.viewports as Record<string, { styles?: Record<string, unknown> }> | undefined;
+	const table = viewport.viewports as
+		| Record<string, { styles?: Record<string, unknown> }>
+		| undefined;
 	const entry = table?.[name];
 	if (entry?.styles) {
 		const w = toPixels(entry.styles.width);
@@ -337,7 +342,10 @@ function asArray<T>(value: T | T[] | undefined): T[] {
 	return Array.isArray(value) ? value : [value];
 }
 
-function matchesList(name: string, list: string[] | RegExp | undefined): boolean | undefined {
+function matchesList(
+	name: string,
+	list: string[] | RegExp | undefined,
+): boolean | undefined {
 	if (list === undefined) return undefined;
 	if (Array.isArray(list)) return list.includes(name);
 	if (list instanceof RegExp) return list.test(name);
@@ -361,7 +369,8 @@ export function storyExportNames(
 		if (seen.has(key)) continue;
 		if (!Object.prototype.hasOwnProperty.call(module, key)) continue;
 		const value = module[key];
-		if (value === null || (typeof value !== "object" && typeof value !== "function")) continue;
+		if (value === null || (typeof value !== "object" && typeof value !== "function"))
+			continue;
 
 		const included = matchesList(key, meta.includeStories);
 		if (included === false) continue;
@@ -394,14 +403,18 @@ export function prepareStory(
 	};
 
 	if (story.play !== undefined && !support.play) decline("play");
-	if ((story.loaders ?? meta.loaders) !== undefined && !support.loaders) decline("loaders");
-	if ((story.globals ?? meta.globals) !== undefined && !support.globals) decline("globals");
+	if ((story.loaders ?? meta.loaders) !== undefined && !support.loaders)
+		decline("loaders");
+	if ((story.globals ?? meta.globals) !== undefined && !support.globals)
+		decline("globals");
 	if (meta.decorators !== undefined && !support.metaDecorators) decline("meta decorators");
-	if (story.decorators !== undefined && !support.storyDecorators) decline("story decorators");
+	if (story.decorators !== undefined && !support.storyDecorators)
+		decline("story decorators");
 	if (story.render !== undefined && !support.render) decline("render");
 	if (meta.args !== undefined && !support.metaArgs) decline("meta args");
 	if (story.args !== undefined && !support.storyArgs) decline("story args");
-	if ((meta.argTypes ?? story.argTypes) !== undefined && !support.argTypes) decline("argTypes");
+	if ((meta.argTypes ?? story.argTypes) !== undefined && !support.argTypes)
+		decline("argTypes");
 	if (
 		support.parameters === false &&
 		(meta.parameters !== undefined || story.parameters !== undefined)
@@ -419,7 +432,8 @@ export function prepareStory(
 
 	const argTypes: CsfArgTypes = {};
 	if (support.argTypes) {
-		for (const [key, value] of Object.entries(preview.argTypes ?? {})) argTypes[key] = value;
+		for (const [key, value] of Object.entries(preview.argTypes ?? {}))
+			argTypes[key] = value;
 		for (const [key, value] of Object.entries(meta.argTypes ?? {})) {
 			argTypes[key] = { ...argTypes[key], ...value };
 		}
@@ -448,7 +462,8 @@ export function prepareStory(
 	};
 
 	const inputKeys: string[] = [...Object.keys(args)];
-	for (const key of Object.keys(argTypes)) if (!inputKeys.includes(key)) inputKeys.push(key);
+	for (const key of Object.keys(argTypes))
+		if (!inputKeys.includes(key)) inputKeys.push(key);
 
 	const inputs: PreparedStory["inputs"] = [];
 	for (const key of inputKeys) {

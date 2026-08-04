@@ -36,7 +36,9 @@ test.describe("keyboard", () => {
 		await page.keyboard.press("ArrowDown");
 		expect(await explorer.selectedId()).toBe(before);
 
-		const focusedLabel = await page.evaluate(() => document.activeElement?.textContent?.trim());
+		const focusedLabel = await page.evaluate(() =>
+			document.activeElement?.textContent?.trim(),
+		);
 		expect(focusedLabel).toBeTruthy();
 
 		await page.keyboard.press("Enter");
@@ -66,7 +68,10 @@ test.describe("keyboard", () => {
 		await expect(explorer.search()).toHaveValue("");
 	});
 
-	test("`j` and `k` move the selection and drive the URL @core", async ({ explorer, page }) => {
+	test("`j` and `k` move the selection and drive the URL @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: ALPHA });
 		await explorer.tree().getByRole("treeitem").first().focus();
 
@@ -88,7 +93,10 @@ test.describe("keyboard", () => {
 		expect(forward).not.toBe(anchor);
 	});
 
-	test("`→` and `←` step variants within the selected file @core", async ({ explorer, page }) => {
+	test("`→` and `←` step variants within the selected file @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: ALPHA });
 		// NOT the tree: it owns the arrows while focus is inside it (they rove and
 		// expand there) and calls `preventDefault`. Anywhere else in the mount,
@@ -126,7 +134,10 @@ test.describe("keyboard", () => {
 		await expect(palette).toBeHidden();
 	});
 
-	test("the palette scrolls the highlighted row into view @core", async ({ explorer, page }) => {
+	test("the palette scrolls the highlighted row into view @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: ALPHA });
 		await explorer.search().focus();
 		await page.keyboard.press("ControlOrMeta+k");
@@ -145,8 +156,9 @@ test.describe("keyboard", () => {
 
 		const visible = await palette.evaluate((dialog) => {
 			const list = dialog.querySelector('[role="listbox"]');
-			const active = dialog.querySelector('[role="option"][aria-selected="true"]')
-				?? dialog.querySelector('[role="option"][data-active="true"]');
+			const active =
+				dialog.querySelector('[role="option"][aria-selected="true"]') ??
+				dialog.querySelector('[role="option"][data-active="true"]');
 			if (!list || !active) return null;
 			const l = list.getBoundingClientRect();
 			const a = active.getBoundingClientRect();
@@ -199,7 +211,10 @@ test.describe("keyboard", () => {
 		expect(where).toBe("explorer");
 	});
 
-	test("screen-reader labels name every landmark and control @core", async ({ explorer, page }) => {
+	test("screen-reader labels name every landmark and control @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({ fixture: { path: "fixtures/controls", name: "Panel" } });
 
 		await expect(explorer.tree()).toBeVisible();

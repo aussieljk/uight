@@ -135,7 +135,10 @@ function orderByIndex(
 function componentFixture(module: unknown, ref: ComponentRef): NormalizedFixture {
 	const namespace = (module ?? {}) as Record<string, unknown>;
 	const exported = namespace[ref.exportName];
-	if (typeof exported !== "function" && (typeof exported !== "object" || exported === null)) {
+	if (
+		typeof exported !== "function" &&
+		(typeof exported !== "object" || exported === null)
+	) {
 		throw new Error(`${ref.globPath} has no component export named "${ref.exportName}"`);
 	}
 
@@ -405,7 +408,10 @@ const overviewFrameStyle: React.CSSProperties = {
  * viewport, so a file with twenty fixtures is a page you can scan rather than
  * twenty screens of whitespace.
  */
-function layoutStyle(layout: FixtureMeta["layout"], inOverview = false): React.CSSProperties {
+function layoutStyle(
+	layout: FixtureMeta["layout"],
+	inOverview = false,
+): React.CSSProperties {
 	if (layout === "fullscreen") return inOverview ? { minWidth: 0 } : {};
 	if (layout === "centered" && inOverview) {
 		return {
@@ -558,7 +564,8 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 	const loaded = useLoadedFixture(selection, props, hostIndex);
 
 	React.useEffect(() => {
-		if (loaded.status === "error" && loaded.error) send({ type: "RENDERER_ERROR", error: loaded.error });
+		if (loaded.status === "error" && loaded.error)
+			send({ type: "RENDERER_ERROR", error: loaded.error });
 		else if (loaded.status === "ready") send({ type: "RENDERER_ERROR", error: null });
 	}, [loaded.status, loaded.error, send]);
 
@@ -579,7 +586,17 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 			send,
 			dev,
 		}),
-		[fixtureId.path, fixtureId.name, isolation, config, store, serializer, viewport, send, dev],
+		[
+			fixtureId.path,
+			fixtureId.name,
+			isolation,
+			config,
+			store,
+			serializer,
+			viewport,
+			send,
+			dev,
+		],
 	);
 
 	React.useEffect(() => {
@@ -639,7 +656,9 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 			<div key={key} style={overviewStyle}>
 				{loaded.all.map((fixture, index) => (
 					<section key={`${fixture.name ?? index}`} style={overviewItemStyle}>
-						<h2 style={overviewHeadingStyle}>{fixture.meta?.title ?? fixture.name ?? "Default"}</h2>
+						<h2 style={overviewHeadingStyle}>
+							{fixture.meta?.title ?? fixture.name ?? "Default"}
+						</h2>
 						<div style={overviewFrameStyle}>
 							<div style={layoutStyle(fixture.meta?.layout, true)}>
 								{composeDecorators(
@@ -678,7 +697,9 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 			<React.Fragment key={key}>
 				{loaded.standingInFor !== undefined && loaded.standingInFor !== null ? (
 					// §3.5: a file node renders its first fixture and says which.
-					<div style={noteStyle}>Showing “{loaded.standingInFor}”, the first fixture in this file.</div>
+					<div style={noteStyle}>
+						Showing “{loaded.standingInFor}”, the first fixture in this file.
+					</div>
 				) : null}
 				<div style={layoutStyle(fixture.meta?.layout)}>{tree}</div>
 			</React.Fragment>

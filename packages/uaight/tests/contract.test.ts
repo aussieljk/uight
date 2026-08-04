@@ -35,8 +35,9 @@ describe("UaightComponents", () => {
 	it("names ControlPanelInputs, which §11.3 lists as ejectable in its own right", () => {
 		// Its props are re-exported from the component file, so an ejected
 		// component's existing import keeps resolving to the published type.
-		const Inputs: UaightComponents["ControlPanelInputs"] = (_props: ControlPanelInputsProps) =>
-			null;
+		const Inputs: UaightComponents["ControlPanelInputs"] = (
+			_props: ControlPanelInputsProps,
+		) => null;
 		expect(typeof Inputs).toBe("function");
 	});
 });
@@ -56,7 +57,14 @@ describe("UaightChromeApiV1", () => {
 
 	it("gives the palette its catalogue, rather than the layout passing it as props", () => {
 		type Palette = UaightChromeApiV1["palette"];
-		const keys: Array<keyof Palette> = ["open", "setOpen", "query", "setQuery", "items", "select"];
+		const keys: Array<keyof Palette> = [
+			"open",
+			"setOpen",
+			"query",
+			"setQuery",
+			"items",
+			"select",
+		];
 		expect(keys).toHaveLength(6);
 	});
 
@@ -83,7 +91,11 @@ describe("DocgenResolver", () => {
 				{ name: "Button", exportName: "Button", globPath, props: [] },
 			],
 		};
-		const docs = babel.resolve({ code: "", filename: "/p/Button.tsx", globPath: "/Button.tsx" });
+		const docs = babel.resolve({
+			code: "",
+			filename: "/p/Button.tsx",
+			globPath: "/Button.tsx",
+		});
 		expect(Array.isArray(docs) ? docs[0]?.name : null).toBe("Button");
 		expect(babel.limitations).toContain("inherited-props");
 	});

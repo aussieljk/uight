@@ -71,7 +71,12 @@ function engineProjects(): Project[] {
 }
 
 /** One axis project per engine when FULL, otherwise Chromium only. */
-function axis(name: string, baseURL: string, grep: RegExp, extra: Record<string, unknown> = {}): Project[] {
+function axis(
+	name: string,
+	baseURL: string,
+	grep: RegExp,
+	extra: Record<string, unknown> = {},
+): Project[] {
 	const engines = FULL ? ENGINES : [ENGINES[0]!];
 	return engines.map((engine) => ({
 		name: engines.length === 1 ? `chromium-${name}` : `${engine.id}-${name}`,
@@ -113,7 +118,11 @@ const config: PlaywrightTestConfig = {
 		...axis("prod", `http://localhost:${PORTS.preview}/`, /@prod/),
 		...axis("react18", `http://localhost:${PORTS.dev18}/`, /@react18|@core/),
 		...axis("base-nonroot", `http://localhost:${PORTS.baseNonRoot}/explorer/`, /@base/),
-		...axis("base-relative", `http://localhost:${PORTS.baseRelative}/nested/deep/`, /@base/),
+		...axis(
+			"base-relative",
+			`http://localhost:${PORTS.baseRelative}/nested/deep/`,
+			/@base/,
+		),
 		...axis("csp", `http://localhost:${PORTS.cspNonce}/`, /@csp\b/),
 		...axis("csp-blocked", `http://localhost:${PORTS.cspNoMeta}/`, /@cspblocked/),
 		/* The budgets get their own project so `--project=chromium-perf` is one

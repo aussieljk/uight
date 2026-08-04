@@ -34,7 +34,15 @@ describe("version", () => {
 
 describe("what the package publishes", () => {
 	it("exports every entry the docs name", () => {
-		for (const entry of [".", "./vite", "./runtime", "./chrome", "./test", "./mcp", "./client"]) {
+		for (const entry of [
+			".",
+			"./vite",
+			"./runtime",
+			"./chrome",
+			"./test",
+			"./mcp",
+			"./client",
+		]) {
 			expect(pkg.exports[entry], `missing export ${entry}`).toBeTruthy();
 		}
 	});

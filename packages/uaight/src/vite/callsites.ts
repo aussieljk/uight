@@ -50,7 +50,9 @@ const NOT_STATIC = Symbol("not-static");
 type Node = Record<string, unknown>;
 
 function isNode(value: unknown): value is Node {
-	return typeof value === "object" && value !== null && typeof (value as Node).type === "string";
+	return (
+		typeof value === "object" && value !== null && typeof (value as Node).type === "string"
+	);
 }
 
 /**
@@ -141,7 +143,8 @@ function staticKey(key: unknown): string | null {
 /** `Button`, `Accordion.Item`, `UI.Form.Field` — written as the source has it. */
 function jsxName(node: unknown): string | null {
 	if (!isNode(node)) return null;
-	if (node.type === "JSXIdentifier") return typeof node.name === "string" ? node.name : null;
+	if (node.type === "JSXIdentifier")
+		return typeof node.name === "string" ? node.name : null;
 	if (node.type === "JSXMemberExpression") {
 		const object = jsxName(node.object);
 		const property = jsxName(node.property);
@@ -185,7 +188,11 @@ function textChildren(children: unknown): string | typeof NOT_STATIC | undefined
 	return collapsed.length > MAX_TEXT_LENGTH ? NOT_STATIC : collapsed;
 }
 
-function readOpeningElement(opening: Node, children: unknown, offset: number): RawSite | null {
+function readOpeningElement(
+	opening: Node,
+	children: unknown,
+	offset: number,
+): RawSite | null {
 	const component = jsxName(opening.name);
 	if (!component || !isComponentName(rootName(component))) return null;
 
@@ -414,7 +421,9 @@ export function groupCallSites(
 	}
 
 	const groups: CallSiteGroup[] = [];
-	for (const [component, list] of [...byComponent].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+	for (const [component, list] of [...byComponent].sort((a, b) =>
+		a[0] < b[0] ? -1 : 1,
+	)) {
 		const seen = new Set<string>();
 		const unique: CallSite[] = [];
 		for (const site of list) {
@@ -424,10 +433,7 @@ export function groupCallSites(
 			unique.push(site);
 		}
 		unique.sort(
-			(a, b) =>
-				score(b) - score(a) ||
-				a.path.localeCompare(b.path) ||
-				a.line - b.line,
+			(a, b) => score(b) - score(a) || a.path.localeCompare(b.path) || a.line - b.line,
 		);
 		groups.push({
 			component,

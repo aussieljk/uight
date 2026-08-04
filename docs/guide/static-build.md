@@ -12,12 +12,12 @@ open, linked from wherever your team already reads things.
 bunx uaight build --out dist-uaight --base /design/ --root .
 ```
 
-| Flag | Default | Notes |
-| ---- | ------- | ----- |
-| `--out` | `dist-uaight` | Output directory |
-| `--base` | `/` | Public base path — set it when you deploy under a subpath |
-| `--root` | cwd | Project root |
-| `--config` | discovered | An explicit Vite config file |
+| Flag       | Default       | Notes                                                     |
+| ---------- | ------------- | --------------------------------------------------------- |
+| `--out`    | `dist-uaight` | Output directory                                          |
+| `--base`   | `/`           | Public base path — set it when you deploy under a subpath |
+| `--root`   | cwd           | Project root                                              |
+| `--config` | discovered    | An explicit Vite config file                              |
 
 ## What it builds with
 

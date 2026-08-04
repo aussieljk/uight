@@ -26,13 +26,22 @@ import type { EditableWire, Patch, Wire } from "../src/shared/types.ts";
 
 // `EditableWire` so these double as patch values; every one is also a `Wire`.
 const prim = (v: string | number | boolean | null): EditableWire => ({ t: "prim", v });
-const obj = (entries: Array<[string, Wire]>): EditableWire => ({ t: "object", v: entries });
+const obj = (entries: Array<[string, Wire]>): EditableWire => ({
+	t: "object",
+	v: entries,
+});
 const arr = (items: Wire[]): EditableWire => ({ t: "array", v: items });
 
 /** { a: { b: 1, c: 2 }, list: [10, 20] } */
 function sample(): Wire {
 	return obj([
-		["a", obj([["b", prim(1)], ["c", prim(2)]])],
+		[
+			"a",
+			obj([
+				["b", prim(1)],
+				["c", prim(2)],
+			]),
+		],
 		["list", arr([prim(10), prim(20)])],
 	]);
 }
@@ -283,8 +292,14 @@ describe("wireEqual", () => {
 	});
 
 	it("treats key order as significant, because the wire preserves it (§7.4)", () => {
-		const a = obj([["x", prim(1)], ["y", prim(2)]]);
-		const b = obj([["y", prim(2)], ["x", prim(1)]]);
+		const a = obj([
+			["x", prim(1)],
+			["y", prim(2)],
+		]);
+		const b = obj([
+			["y", prim(2)],
+			["x", prim(1)],
+		]);
 		expect(wireEqual(a, b)).toBe(false);
 	});
 

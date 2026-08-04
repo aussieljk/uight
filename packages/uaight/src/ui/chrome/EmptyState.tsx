@@ -15,9 +15,7 @@ export function EmptyState({ title, description }: EmptyStateProps): ReactElemen
 			<div className="max-w-80 text-center">
 				<p className="text-base font-medium text-[var(--u-fg)]">{title}</p>
 				{description ? (
-					<div className="mt-2 text-sm leading-5 text-[var(--u-fg-muted)]">
-						{description}
-					</div>
+					<div className="mt-2 text-sm leading-5 text-[var(--u-fg-muted)]">{description}</div>
 				) : null}
 			</div>
 		</div>

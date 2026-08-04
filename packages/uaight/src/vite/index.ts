@@ -20,11 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
-import type {
-	FixtureIndex,
-	IndexProblem,
-	UaightPluginOptions,
-} from "../shared/types.ts";
+import type { FixtureIndex, IndexProblem, UaightPluginOptions } from "../shared/types.ts";
 import { readOnlyApi } from "./api.ts";
 import type { ResolvedUaightConfig } from "./config.ts";
 import { HOT_REGISTRY_KEY } from "../runtime/hot.ts";
@@ -136,11 +132,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 			});
 			index = await scanFixtures(cfg);
 
-			if (
-				env.command === "build" &&
-				cfg.production === "error" &&
-				index.files.length
-			) {
+			if (env.command === "build" && cfg.production === "error" && index.files.length) {
 				throw new Error(
 					`[uaight] production: "error" — ${index.files.length} fixture files present`,
 				);
@@ -202,7 +194,10 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 
 		configureServer(s) {
 			if (cfg.route) {
-				s.middlewares.use(cfg.route, devRouteHandler(s, () => cfg));
+				s.middlewares.use(
+					cfg.route,
+					devRouteHandler(s, () => cfg),
+				);
 			}
 			s.middlewares.use(DEV_RENDERER_URL, rendererHandler(s));
 			s.middlewares.use(DEV_ENTRY_URL, devEntryHandler(s));
@@ -260,9 +255,12 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 			// A mount that connected after the last topology change asks for the
 			// index it missed (§4.5). Custom events reach the clients connected at
 			// send time, and a page loading while a file lands is not one of them.
-			s.hot.on("uaight:hello", (_data: unknown, client: { send: (event: string, payload?: unknown) => void }) => {
-				client.send(INDEX_EVENT, serializeIndex(index));
-			});
+			s.hot.on(
+				"uaight:hello",
+				(_data: unknown, client: { send: (event: string, payload?: unknown) => void }) => {
+					client.send(INDEX_EVENT, serializeIndex(index));
+				},
+			);
 
 			for (const ev of ["add", "unlink"] as const) {
 				s.watcher.on(ev, enqueue);
@@ -483,9 +481,7 @@ function invalidate(server: ViteDevServer, ids: string[]): void {
 /** Topology relevance: a fixture, a decorator, or an inventory candidate. */
 function isTopologyRelevant(file: string, cfg: ResolvedUaightConfig): boolean {
 	return (
-		isFixtureFile(file, cfg) ||
-		isDecoratorFile(file, cfg) ||
-		isInventoryFile(file, cfg)
+		isFixtureFile(file, cfg) || isDecoratorFile(file, cfg) || isInventoryFile(file, cfg)
 	);
 }
 
@@ -522,10 +518,7 @@ export function formatProblemSummary(problems: IndexProblem[]): string | null {
 	);
 }
 
-function reportProblems(
-	index: FixtureIndex,
-	logger: { warn(msg: string): void },
-): void {
+function reportProblems(index: FixtureIndex, logger: { warn(msg: string): void }): void {
 	const summary = formatProblemSummary(index.problems);
 	if (summary) logger.warn(summary);
 }

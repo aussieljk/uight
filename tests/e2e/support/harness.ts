@@ -66,7 +66,8 @@ export class Explorer {
 		const params = new URLSearchParams();
 		if (options.mode) params.set("mode", options.mode);
 		if (options.strict === false) params.set("strict", "0");
-		if (options.fixture) params.set("fixture", fixtureId(options.fixture.path, options.fixture.name));
+		if (options.fixture)
+			params.set("fixture", fixtureId(options.fixture.path, options.fixture.name));
 		if (options.state) params.set("state", options.state);
 		for (const [k, v] of Object.entries(options.query ?? {})) params.set(k, v);
 		const query = params.toString();
@@ -96,7 +97,9 @@ export class Explorer {
 				async () =>
 					this.page.evaluate(
 						({ i }) => {
-							const frames = document.querySelectorAll<HTMLIFrameElement>("iframe[data-uaight-frame]");
+							const frames = document.querySelectorAll<HTMLIFrameElement>(
+								"iframe[data-uaight-frame]",
+							);
 							const doc = frames[i]?.contentDocument;
 							const root = doc?.getElementById("uaight-root");
 							return root ? root.childElementCount : -1;
@@ -109,12 +112,16 @@ export class Explorer {
 	}
 
 	async marks(): Promise<Marks> {
-		return this.page.evaluate(() => (window as unknown as { __uaightMarks: Marks }).__uaightMarks);
+		return this.page.evaluate(
+			() => (window as unknown as { __uaightMarks: Marks }).__uaightMarks,
+		);
 	}
 
 	async protocol(): Promise<Array<{ type: string; at: number }>> {
 		return this.page.evaluate(
-			() => (window as unknown as { __uaightProtocol: Array<{ type: string; at: number }> }).__uaightProtocol,
+			() =>
+				(window as unknown as { __uaightProtocol: Array<{ type: string; at: number }> })
+					.__uaightProtocol,
 		);
 	}
 
@@ -145,12 +152,15 @@ export class Explorer {
 	 * test is not the tree, so a tree rewrite cannot fail an unrelated test.
 	 */
 	async select(path: string, name: string | null): Promise<void> {
-		await this.page.evaluate((id) => {
-			const url = new URL(location.href);
-			url.searchParams.set("fixture", id);
-			history.pushState(null, "", url);
-			dispatchEvent(new PopStateEvent("popstate"));
-		}, fixtureId(path, name));
+		await this.page.evaluate(
+			(id) => {
+				const url = new URL(location.href);
+				url.searchParams.set("fixture", id);
+				history.pushState(null, "", url);
+				dispatchEvent(new PopStateEvent("popstate"));
+			},
+			fixtureId(path, name),
+		);
 	}
 }
 

@@ -39,16 +39,16 @@ CSF 3 is supported as a **declared subset**, and the declaration is the point: a
 that appears to work while silently skipping its interaction logic is worse than one that
 says it cannot run here. Anything outside the subset is badged on the story itself.
 
-| Feature | Status |
-| ------- | ------ |
-| `meta.args`, `story.args` | Supported |
-| `argTypes` | Supported |
-| `render` | Supported |
-| Meta and story decorators | Supported |
+| Feature                                     | Status                                   |
+| ------------------------------------------- | ---------------------------------------- |
+| `meta.args`, `story.args`                   | Supported                                |
+| `argTypes`                                  | Supported                                |
+| `render`                                    | Supported                                |
+| Meta and story decorators                   | Supported                                |
 | Global decorators from `.storybook/preview` | Supported when a preview module is found |
-| `parameters.viewport`, `parameters.layout` | Honoured at the highest declared level |
-| Other `parameters.*` | Badged |
-| `play`, `loaders`, `globals` | Declined, and badged |
+| `parameters.viewport`, `parameters.layout`  | Honoured at the highest declared level   |
+| Other `parameters.*`                        | Badged                                   |
+| `play`, `loaders`, `globals`                | Declined, and badged                     |
 
 `.storybook/preview.{ts,tsx,js,jsx}` is discovered automatically — which usually matters
 more than the table does, because that is where a design system keeps its providers,

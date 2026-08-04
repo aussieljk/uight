@@ -91,10 +91,7 @@ export function devEntryHandler(server: ViteDevServer): Connect.NextHandleFuncti
 	return moduleHandler(server, VIRTUAL_IDS.devEntry);
 }
 
-function moduleHandler(
-	server: ViteDevServer,
-	id: string,
-): Connect.NextHandleFunction {
+function moduleHandler(server: ViteDevServer, id: string): Connect.NextHandleFunction {
 	return (req, res, next) => {
 		if (!isReadRequest(req.method)) return next();
 		const pathname = (req.url ?? "/").split("?")[0] ?? "/";

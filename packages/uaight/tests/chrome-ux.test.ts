@@ -25,7 +25,11 @@ import {
 import type { SessionStorageLike } from "../src/ui/session.ts";
 import { createOverlayStore } from "../src/ui/store.ts";
 import { windowRange, VIRTUALIZE_ABOVE } from "../src/ui/chrome/FixtureTree.tsx";
-import type { CommandPaletteItem, DroppedPatchReport, Wire } from "../src/shared/types.ts";
+import type {
+	CommandPaletteItem,
+	DroppedPatchReport,
+	Wire,
+} from "../src/shared/types.ts";
 
 /* ------------------------------------------------------------------ *
  * Virtualization — the window, not the rendering
@@ -78,10 +82,7 @@ describe("naming the settings a re-render dropped", () => {
 	});
 
 	it("keeps the store's newest-first order and deduplicates", () => {
-		const labels = droppedLabels([
-			report("size", [[]]),
-			report("variant", [[], []]),
-		]);
+		const labels = droppedLabels([report("size", [[]]), report("variant", [[], []])]);
 		expect(labels).toEqual(["size", "variant"]);
 	});
 

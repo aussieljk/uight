@@ -41,10 +41,10 @@ bun run demo          # or: bun run --cwd examples/frosted-ui dev
 
 Then:
 
-| URL             | What it is                                                    |
-| --------------- | ------------------------------------------------------------- |
-| `/`             | The host application — a landing page that explains the demo  |
-| `/uaight`       | The explorer, served from memory by the plugin                |
+| URL       | What it is                                                   |
+| --------- | ------------------------------------------------------------ |
+| `/`       | The host application — a landing page that explains the demo |
+| `/uaight` | The explorer, served from memory by the plugin               |
 
 Both come from the same Vite server on the same port. There is no second
 process and no second config file.
@@ -65,7 +65,10 @@ import { uaight } from "uaight/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [react(), uaight({ storybook: true, previewEntry: "src/uaight.preview.tsx", inventory: true })],
+	plugins: [
+		react(),
+		uaight({ storybook: true, previewEntry: "src/uaight.preview.tsx", inventory: true }),
+	],
 });
 ```
 
@@ -92,14 +95,14 @@ which exists purely so the files type-check.
 
 `src/fixtures/` covers what the CSF path cannot:
 
-| File                             | Shows                                                                                 |
-| -------------------------------- | ------------------------------------------------------------------------------------- |
-| `controls.fixture.tsx`           | `useFixtureInput` with text, select, radio, range and checkbox controls (§7.6)         |
-| `pricing.fixture.tsx`            | A multi-fixture object export with `fileMeta` and `fixtureMeta`, plus an empty-string fixture name (§3.1, §3.2) |
-| `money.fixture.tsx`              | Class instances made editable by codecs instead of showing as opaque chips (§7.7)      |
-| `swatches.fixture.tsx`           | A default export whose names **cannot** be parsed statically — progressive disclosure (§3.4, §3.5) |
-| `swatches-declared.fixture.tsx`  | The same file with `export const fixtureNames`, which wins outright                    |
-| `uaight.decorator.tsx`           | A decorator scoped to this directory, calling `useFixtureId()` (§3.3)                  |
+| File                            | Shows                                                                                                           |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `controls.fixture.tsx`          | `useFixtureInput` with text, select, radio, range and checkbox controls (§7.6)                                  |
+| `pricing.fixture.tsx`           | A multi-fixture object export with `fileMeta` and `fixtureMeta`, plus an empty-string fixture name (§3.1, §3.2) |
+| `money.fixture.tsx`             | Class instances made editable by codecs instead of showing as opaque chips (§7.7)                               |
+| `swatches.fixture.tsx`          | A default export whose names **cannot** be parsed statically — progressive disclosure (§3.4, §3.5)              |
+| `swatches-declared.fixture.tsx` | The same file with `export const fixtureNames`, which wins outright                                             |
+| `uaight.decorator.tsx`          | A decorator scoped to this directory, calling `useFixtureId()` (§3.3)                                           |
 
 ### The component inventory (§12)
 
@@ -159,14 +162,14 @@ from `packages/frosted-ui/.storybook/stories/components/`.
 Imports were rewritten by a script so the files resolve against the published
 package instead of frosted-ui's own source tree:
 
-| Upstream                                                                   | Rewritten to                    |
-| -------------------------------------------------------------------------- | ------------------------------- |
-| `'..'`, `'../..'`, `'../index'`, `'../<sibling>'`, `'./<self>'`             | `'frosted-ui'`                  |
-| `'../../../src'`, `'../../../src/components'`, `'../../../src/components/<x>'` | `'frosted-ui'`               |
-| `'../../theme'`, `'../../../src/theme'`, `'../../helpers/emoji-colors'`     | `'frosted-ui'`                  |
-| `'../../icons'`                                                            | `'frosted-ui/icons'`            |
-| `'@storybook/react'`                                                       | `'../../csf-types'` (local shim) |
-| `'@storybook/test'`                                                        | `'../../storybook-test'` (local shim) |
+| Upstream                                                                       | Rewritten to                          |
+| ------------------------------------------------------------------------------ | ------------------------------------- |
+| `'..'`, `'../..'`, `'../index'`, `'../<sibling>'`, `'./<self>'`                | `'frosted-ui'`                        |
+| `'../../../src'`, `'../../../src/components'`, `'../../../src/components/<x>'` | `'frosted-ui'`                        |
+| `'../../theme'`, `'../../../src/theme'`, `'../../helpers/emoji-colors'`        | `'frosted-ui'`                        |
+| `'../../icons'`                                                                | `'frosted-ui/icons'`                  |
+| `'@storybook/react'`                                                           | `'../../csf-types'` (local shim)      |
+| `'@storybook/test'`                                                            | `'../../storybook-test'` (local shim) |
 
 Multiple rewritten imports in one file are merged into a single
 `import { … } from 'frosted-ui'`.

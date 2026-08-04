@@ -184,9 +184,11 @@ export class UaightClient {
 	private readonly timeout: number;
 	private resolved: string | undefined;
 
-	constructor(options: Omit<UaightClientOptions, "url"> & {
-		url: string | (() => Promise<string>);
-	}) {
+	constructor(
+		options: Omit<UaightClientOptions, "url"> & {
+			url: string | (() => Promise<string>);
+		},
+	) {
 		this.source =
 			typeof options.url === "string" ? options.url.replace(/\/+$/, "") : options.url;
 		this.timeout = options.timeout ?? 5000;
@@ -196,7 +198,9 @@ export class UaightClient {
 	async base(): Promise<string> {
 		if (this.resolved !== undefined) return this.resolved;
 		const value =
-			typeof this.source === "string" ? this.source : (await this.source()).replace(/\/+$/, "");
+			typeof this.source === "string"
+				? this.source
+				: (await this.source()).replace(/\/+$/, "");
 		this.resolved = value;
 		return value;
 	}

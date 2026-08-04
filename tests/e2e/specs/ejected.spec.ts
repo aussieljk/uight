@@ -74,7 +74,10 @@ test.describe("ejected chrome", () => {
 		expect(typeof insideScope).toBe("boolean");
 	});
 
-	test("host preflight does not reach the packaged chrome @core", async ({ explorer, page }) => {
+	test("host preflight does not reach the packaged chrome @core", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({
 			mode: "ejected",
 			fixture: { path: "fixtures/basic", name: "Alpha" },

@@ -147,7 +147,11 @@ const KIND_RANK: Record<CommandPaletteItem["kind"], number> = {
 const RECENCY_QUERY_LIMIT = 3;
 const RECENCY_WEIGHT = 30;
 
-function recencyBonus(recents: readonly string[], key: string, queryLength: number): number {
+function recencyBonus(
+	recents: readonly string[],
+	key: string,
+	queryLength: number,
+): number {
 	if (queryLength > RECENCY_QUERY_LIMIT) return 0;
 	const index = recents.indexOf(key);
 	if (index < 0) return 0;

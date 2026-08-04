@@ -38,7 +38,7 @@ function walk(dir: string, out: string[] = []): string[] {
 test.describe("the production gate @prod", () => {
 	test.setTimeout(300_000);
 
-	test("`production: \"exclude\"` emits no explorer chunk and no fixture code", () => {
+	test('`production: "exclude"` emits no explorer chunk and no fixture code', () => {
 		const dist = join(APP_ROOT, OUT);
 		rmSync(dist, { recursive: true, force: true });
 
@@ -69,7 +69,7 @@ test.describe("the production gate @prod", () => {
 		// 3. The negative control: the app itself DID build. Without this, a
 		// build that emitted an empty bundle would pass every assertion above.
 		const html = readFileSync(join(dist, "index.html"), "utf8");
-		expect(html).toContain("<div id=\"root\">");
+		expect(html).toContain('<div id="root">');
 		expect(bundle.includes("Save changes")).toBe(true);
 
 		rmSync(dist, { recursive: true, force: true });

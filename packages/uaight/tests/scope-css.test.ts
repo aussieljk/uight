@@ -81,7 +81,9 @@ describe("scopeSelector", () => {
 	});
 
 	it("honours a custom scope", () => {
-		expect(scopeSelector(".flex", { scope: ".x", includeSelf: false })).toEqual([".x .flex"]);
+		expect(scopeSelector(".flex", { scope: ".x", includeSelf: false })).toEqual([
+			".x .flex",
+		]);
 	});
 });
 
@@ -139,7 +141,7 @@ describe("scopeCss", () => {
 	});
 
 	it("passes statement at-rules through untouched", () => {
-		const css = "@layer theme, base, components, utilities;\n@charset \"utf-8\";";
+		const css = '@layer theme, base, components, utilities;\n@charset "utf-8";';
 		expect(tidy(scopeCss(css))).toBe(tidy(css));
 	});
 

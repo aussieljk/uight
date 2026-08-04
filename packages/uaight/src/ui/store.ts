@@ -37,7 +37,12 @@ export interface OverlayState {
 	droppedInputs: DroppedPatchReport[];
 }
 
-const EMPTY: OverlayState = { registered: [], overlays: [], dropped: 0, droppedInputs: [] };
+const EMPTY: OverlayState = {
+	registered: [],
+	overlays: [],
+	dropped: 0,
+	droppedInputs: [],
+};
 
 export interface OverlayStore {
 	subscribe(cb: () => void): () => void;
@@ -94,7 +99,10 @@ export interface OverlayStore {
  * A root patch has an empty path and always survives, which is what keeps a
  * fixture-driven setter working across re-registration.
  */
-function prune(wire: Wire, patches: readonly Patch[]): { kept: Patch[]; dropped: PathSegment[][] } {
+function prune(
+	wire: Wire,
+	patches: readonly Patch[],
+): { kept: Patch[]; dropped: PathSegment[][] } {
 	const kept: Patch[] = [];
 	const dropped: PathSegment[][] = [];
 	for (const patch of patches) {
@@ -134,7 +142,11 @@ export function createOverlayStore(): OverlayStore {
 	};
 
 	/** §7.3 — once per input per revision, wherever the loss was noticed. */
-	const report = (name: string, revision: number, paths: readonly PathSegment[][]): void => {
+	const report = (
+		name: string,
+		revision: number,
+		paths: readonly PathSegment[][],
+	): void => {
 		if (paths.length === 0) return;
 		if (reported.get(name) === revision) return;
 		reported.set(name, revision);

@@ -72,8 +72,7 @@ export function ControlPanel({
 				>
 					{dropped.named.length === 0 ? (
 						<>
-							{droppedPatches} {droppedPatches === 1 ? "setting" : "settings"}{" "}
-							{dropped.verb}.
+							{droppedPatches} {droppedPatches === 1 ? "setting" : "settings"} {dropped.verb}.
 						</>
 					) : (
 						<>

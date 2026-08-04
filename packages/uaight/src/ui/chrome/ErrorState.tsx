@@ -42,7 +42,8 @@ export function guessRequiredProps(error: RendererError): string[] {
 }
 
 export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
-	const props = error.kind === "fixture" || error.kind === "module" ? guessRequiredProps(error) : [];
+	const props =
+		error.kind === "fixture" || error.kind === "module" ? guessRequiredProps(error) : [];
 
 	return (
 		<div className="h-full w-full overflow-auto p-6" role="alert">
@@ -66,8 +67,8 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 							{props.join(", ")}
 						</p>
 						<p className="mt-2 text-xs leading-5 text-[var(--u-fg-subtle)]">
-							Detected components are rendered with no props. Write a fixture file
-							to give it the props it needs.
+							Detected components are rendered with no props. Write a fixture file to give it the
+							props it needs.
 						</p>
 					</div>
 				) : null}

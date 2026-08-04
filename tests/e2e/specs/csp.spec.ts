@@ -55,7 +55,8 @@ test.describe("CSP with nonces @csp", () => {
 			const frame = document.querySelector<HTMLIFrameElement>("iframe[data-uaight-frame]");
 			return {
 				host: document.querySelectorAll("style[data-uaight-styles]").length,
-				frame: frame?.contentDocument?.querySelectorAll("style[data-uaight-styles]").length ?? -1,
+				frame:
+					frame?.contentDocument?.querySelectorAll("style[data-uaight-styles]").length ?? -1,
 			};
 		});
 		// §10.3: injected once per document, host and frame.
@@ -65,14 +66,19 @@ test.describe("CSP with nonces @csp", () => {
 });
 
 test.describe("CSP without a published nonce @cspblocked", () => {
-	test("reports a failure rather than showing a blank frame", async ({ explorer, page }) => {
+	test("reports a failure rather than showing a blank frame", async ({
+		explorer,
+		page,
+	}) => {
 		await explorer.open({
 			fixture: { path: "fixtures/basic", name: "Alpha" },
 			waitForFrame: false,
 		});
 		const alert = page.getByRole("alert");
 		await expect(alert.first()).toBeVisible({ timeout: 30_000 });
-		await expect(alert.first()).toContainText(/could not start|could not be loaded|did not report READY/i);
+		await expect(alert.first()).toContainText(
+			/could not start|could not be loaded|did not report READY/i,
+		);
 		expect(await explorer.frame().locator("[data-e2e='basic']").count()).toBe(0);
 	});
 

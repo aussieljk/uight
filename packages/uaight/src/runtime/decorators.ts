@@ -48,7 +48,8 @@ export function selectDecorators(
 		})
 		.slice()
 		.sort((a, b) => {
-			const depth = (a.depth ?? normalizeDir(a.dir).split("/").length) -
+			const depth =
+				(a.depth ?? normalizeDir(a.dir).split("/").length) -
 				(b.depth ?? normalizeDir(b.dir).split("/").length);
 			if (depth !== 0) return depth;
 			return a.globPath.localeCompare(b.globPath);

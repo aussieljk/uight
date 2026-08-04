@@ -105,16 +105,15 @@ describeIf("parseFixtureFile — the §3.4 table", () => {
 	 */
 	describe("an identifier default export", () => {
 		it("resolves through a module-scope const", () => {
-			expect(parse("const fixtures = { A: 1, B: 2 };\nexport default fixtures;").names).toEqual([
-				"A",
-				"B",
-			]);
+			expect(
+				parse("const fixtures = { A: 1, B: 2 };\nexport default fixtures;").names,
+			).toEqual(["A", "B"]);
 		});
 
 		it("resolves through a chain of consts", () => {
-			expect(
-				parse("const a = { A: 1 };\nconst b = a;\nexport default b;").names,
-			).toEqual(["A"]);
+			expect(parse("const a = { A: 1 };\nconst b = a;\nexport default b;").names).toEqual([
+				"A",
+			]);
 		});
 
 		it("resolves an exported const, which is still module scope", () => {

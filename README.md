@@ -26,16 +26,16 @@ Published as `0.0.1-canary.N` while the surface settles.
 
 ## Repository layout
 
-| Path                   | What                                                                 |
-| ---------------------- | -------------------------------------------------------------------- |
-| `SPEC.md`              | The requirements document. The source of truth for behaviour         |
-| `ARCHITECTURE.md`      | The integration contract: which module owns which symbol             |
-| `NOTES.md`             | Findings from implementation, including answers to SPEC.md's Q1–Q14  |
-| `CHANGELOG.md`         | What shipped in each release, with divergences and known limitations |
-| `ROADMAP.md`           | What is left, and what each milestone after this canary holds        |
-| `packages/uaight`      | The published package                                                |
-| `examples/frosted-ui`  | Demo: the explorer showing Whop's frosted-ui design system           |
-| `docs`                 | uaight.dev — the documentation site, and the registry it hosts       |
+| Path                  | What                                                                 |
+| --------------------- | -------------------------------------------------------------------- |
+| `SPEC.md`             | The requirements document. The source of truth for behaviour         |
+| `ARCHITECTURE.md`     | The integration contract: which module owns which symbol             |
+| `NOTES.md`            | Findings from implementation, including answers to SPEC.md's Q1–Q14  |
+| `CHANGELOG.md`        | What shipped in each release, with divergences and known limitations |
+| `ROADMAP.md`          | What is left, and what each milestone after this canary holds        |
+| `packages/uaight`     | The published package                                                |
+| `examples/frosted-ui` | Demo: the explorer showing Whop's frosted-ui design system           |
+| `docs`                | uaight.dev — the documentation site, and the registry it hosts       |
 
 ## Package entries (§16.1)
 

@@ -80,7 +80,9 @@ interface PackageJson {
 	[key: string]: unknown;
 }
 
-function readPackageJson(root: string): { file: string; json: PackageJson; source: string } | null {
+function readPackageJson(
+	root: string,
+): { file: string; json: PackageJson; source: string } | null {
 	const file = path.join(root, "package.json");
 	let source: string;
 	try {
@@ -127,7 +129,9 @@ function detectStorybook(root: string, pkg: PackageJson | null): string[] {
 type Node = Record<string, unknown>;
 
 function isNode(value: unknown): value is Node {
-	return typeof value === "object" && value !== null && typeof (value as Node).type === "string";
+	return (
+		typeof value === "object" && value !== null && typeof (value as Node).type === "string"
+	);
 }
 
 function walk(node: unknown, visit: (n: Node) => void): void {
@@ -228,8 +232,10 @@ export function addUaightToViteConfig(source: string, filename: string): ConfigE
 			: `${PLUGIN_CALL},\n${indent}`;
 
 	let out = source.slice(0, insertAt) + insertion + source.slice(insertAt);
-	out = out.slice(0, importEnd) + (importEnd === 0 ? `${PLUGIN_IMPORT}\n` : `\n${PLUGIN_IMPORT}`)
-		+ out.slice(importEnd);
+	out =
+		out.slice(0, importEnd) +
+		(importEnd === 0 ? `${PLUGIN_IMPORT}\n` : `\n${PLUGIN_IMPORT}`) +
+		out.slice(importEnd);
 	return { source: out, changed: true };
 }
 
@@ -265,14 +271,19 @@ export default defineConfig({
  * The whole file is re-serialized with the indent it already used, because a
  * config file rewritten with a different indent is a diff nobody asked for.
  */
-function addDevDependency(source: string, json: PackageJson, version: string): string | null {
+function addDevDependency(
+	source: string,
+	json: PackageJson,
+	version: string,
+): string | null {
 	if (json.dependencies?.uaight || json.devDependencies?.uaight) return null;
 	const devDependencies: Record<string, string> = {
 		...json.devDependencies,
 		uaight: version,
 	};
 	const sorted: Record<string, string> = {};
-	for (const key of Object.keys(devDependencies).sort()) sorted[key] = devDependencies[key] ?? "";
+	for (const key of Object.keys(devDependencies).sort())
+		sorted[key] = devDependencies[key] ?? "";
 	const next = { ...json, devDependencies: sorted };
 	const indent = /\n(\s+)"/.exec(source)?.[1] ?? "\t";
 	return `${JSON.stringify(next, null, indent)}\n`;
@@ -288,7 +299,9 @@ function addDevDependency(source: string, json: PackageJson, version: string): s
  * Exported from `uaight/vite` so a repository can run it from a script — the
  * CLI is one caller, not the only one.
  */
-export async function migrateFromStorybook(options: MigrateOptions): Promise<MigrationResult> {
+export async function migrateFromStorybook(
+	options: MigrateOptions,
+): Promise<MigrationResult> {
 	const root = path.resolve(options.root);
 	const dryRun = options.dryRun === true;
 	const version = options.version ?? "latest";
@@ -308,7 +321,11 @@ export async function migrateFromStorybook(options: MigrateOptions): Promise<Mig
 	} else {
 		const next = addDevDependency(pkg.source, pkg.json, version);
 		if (next === null) {
-			changes.push({ path: "package.json", action: "skip", detail: "uaight is already a dependency" });
+			changes.push({
+				path: "package.json",
+				action: "skip",
+				detail: "uaight is already a dependency",
+			});
 		} else {
 			changes.push({
 				path: "package.json",
@@ -331,16 +348,24 @@ export async function migrateFromStorybook(options: MigrateOptions): Promise<Mig
 			detail: "new file — no Vite config existed; uaight and @vitejs/plugin-react",
 			contents: scaffoldViteConfig(),
 		});
-		nextSteps.push("Check vite.config.ts: this project was not on Vite, so the rest of its build is not described there.");
+		nextSteps.push(
+			"Check vite.config.ts: this project was not on Vite, so the rest of its build is not described there.",
+		);
 	} else {
 		const name = path.relative(root, existing);
 		const source = await fsp.readFile(existing, "utf8");
 		const edit = addUaightToViteConfig(source, existing);
 		if (edit.problem) {
 			changes.push({ path: name, action: "skip", detail: edit.problem });
-			nextSteps.push(`Add \`${PLUGIN_CALL}\` to the plugins array in ${name}, and \`${PLUGIN_IMPORT}\` above it.`);
+			nextSteps.push(
+				`Add \`${PLUGIN_CALL}\` to the plugins array in ${name}, and \`${PLUGIN_IMPORT}\` above it.`,
+			);
 		} else if (!edit.changed) {
-			changes.push({ path: name, action: "skip", detail: "uaight is already in this config" });
+			changes.push({
+				path: name,
+				action: "skip",
+				detail: "uaight is already in this config",
+			});
 		} else {
 			changes.push({
 				path: name,
@@ -354,7 +379,11 @@ export async function migrateFromStorybook(options: MigrateOptions): Promise<Mig
 	/* 3 — what will not survive, before anyone commits to the move. */
 	let report: StorybookReport | null = null;
 	if (evidence.length > 0 || existing) {
-		const config = resolveUaightConfig({ root, options: { storybook: true }, command: "build" });
+		const config = resolveUaightConfig({
+			root,
+			options: { storybook: true },
+			command: "build",
+		});
 		report = await storybookReport(config);
 	}
 
@@ -380,8 +409,12 @@ export function formatMigration(result: MigrationResult): string {
 	const lines: string[] = [];
 
 	if (result.evidence.length === 0) {
-		lines.push("No Storybook found here — looked for .storybook/, storybook/ and @storybook/* in package.json.");
-		lines.push("Wiring uaight in anyway: it reads CSF wherever it lives, and fixtures need no Storybook at all.");
+		lines.push(
+			"No Storybook found here — looked for .storybook/, storybook/ and @storybook/* in package.json.",
+		);
+		lines.push(
+			"Wiring uaight in anyway: it reads CSF wherever it lives, and fixtures need no Storybook at all.",
+		);
 	} else {
 		lines.push(`Storybook found: ${result.evidence.join("; ")}`);
 	}
@@ -403,7 +436,9 @@ export function formatMigration(result: MigrationResult): string {
 		if (entries.length) {
 			const width = Math.max(...entries.map(([key]) => key.length));
 			lines.push("");
-			lines.push("declined, by frequency (each is badged in the UI, never silently skipped):");
+			lines.push(
+				"declined, by frequency (each is badged in the UI, never silently skipped):",
+			);
 			for (const [key, count] of entries) lines.push(`  ${key.padEnd(width)}  ${count}`);
 			lines.push("");
 			lines.push("`uaight storybook` prints this per file.");

@@ -13,7 +13,14 @@
  *      is worse than either outcome.
  */
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+	useCallback,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import type { RouterAdapter } from "../shared/types.ts";
 
 export type RouterSpec = RouterAdapter | "history" | "hash" | "none";
@@ -53,7 +60,10 @@ interface Claimant {
 
 let nextSeq = 0;
 
-export function resolveRouterKey(urlParam: string, routerId?: string | undefined): string {
+export function resolveRouterKey(
+	urlParam: string,
+	routerId?: string | undefined,
+): string {
 	return routerId ? `${urlParam}.${routerId}` : urlParam;
 }
 
@@ -98,7 +108,11 @@ export function useRouterOwnership(key: string, active: boolean): Ownership {
 	// Lazily, so the sequence is this component's and follows tree order. The
 	// initializer may run twice under StrictMode; only the number it kept is
 	// ever used, and both are below whatever the next component allocates.
-	const [claimant] = useState<Claimant>(() => ({ seq: nextSeq++, notify: () => {}, warned: false }));
+	const [claimant] = useState<Claimant>(() => ({
+		seq: nextSeq++,
+		notify: () => {},
+		warned: false,
+	}));
 
 	useLayoutEffect(() => {
 		if (!active) {

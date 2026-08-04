@@ -28,7 +28,11 @@ test.describe("HMR", () => {
 		const marker = explorer.frame().locator("[data-e2e='hmr-marker']");
 		await expect(marker).toHaveText("HMR_MARKER_V0");
 
-		const restore = patchFile("src/fixtures/hmr.fixture.tsx", "HMR_MARKER_V0", "HMR_MARKER_V1");
+		const restore = patchFile(
+			"src/fixtures/hmr.fixture.tsx",
+			"HMR_MARKER_V0",
+			"HMR_MARKER_V1",
+		);
 		try {
 			await expect(marker).toHaveText("HMR_MARKER_V1", { timeout: 20_000 });
 		} finally {
@@ -64,12 +68,18 @@ test.describe("HMR", () => {
 			(frame?.contentWindow as unknown as Record<string, unknown>).__hmrWitness = 1;
 		});
 
-		const restore = patchFile("src/fixtures/hmr.fixture.tsx", "HMR_MARKER_V0", "HMR_MARKER_V1");
+		const restore = patchFile(
+			"src/fixtures/hmr.fixture.tsx",
+			"HMR_MARKER_V0",
+			"HMR_MARKER_V1",
+		);
 		try {
 			await expect(marker).toHaveText("HMR_MARKER_V1", { timeout: 20_000 });
 			const survived = await page.evaluate(() => {
 				const frame = document.querySelector<HTMLIFrameElement>("iframe[data-uaight-frame]");
-				return (frame?.contentWindow as unknown as Record<string, unknown>).__hmrWitness === 1;
+				return (
+					(frame?.contentWindow as unknown as Record<string, unknown>).__hmrWitness === 1
+				);
 			});
 			expect(survived).toBe(true);
 		} finally {
@@ -98,7 +108,10 @@ test.describe("HMR", () => {
 		await expect(explorer.treeItem("added")).toHaveCount(0, { timeout: 20_000 });
 	});
 
-	test("adding a fixture file does not reload the host page", async ({ explorer, page }) => {
+	test("adding a fixture file does not reload the host page", async ({
+		explorer,
+		page,
+	}) => {
 		// **Was `fixme`.** Adding a file reloaded the whole host document: a new
 		// file changes the set of paths `import.meta.glob` matched, so Vite
 		// invalidated the virtual module and, with nobody accepting it, took the
@@ -130,7 +143,9 @@ test.describe("HMR", () => {
 		}
 	});
 
-	test("deleting the selected fixture's file leaves a stated empty state", async ({ explorer }) => {
+	test("deleting the selected fixture's file leaves a stated empty state", async ({
+		explorer,
+	}) => {
 		const remove = addFixture(
 			"doomed",
 			`export default {\n\tDoomed: <p data-e2e="doomed">DOOMED</p>,\n};\n`,

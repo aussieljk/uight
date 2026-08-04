@@ -108,10 +108,7 @@ function callSitesPayload(index: FixtureIndex): unknown {
  * representations (§4.2) and the patterns actually used, not just the options
  * the user typed.
  */
-function configPayload(
-	cfg: ResolvedUaightConfig,
-	server: ViteDevServer,
-): unknown {
+function configPayload(cfg: ResolvedUaightConfig, server: ViteDevServer): unknown {
 	return {
 		root: cfg.root,
 		command: cfg.command,

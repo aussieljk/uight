@@ -65,8 +65,22 @@ interface Measurement {
  * ------------------------------------------------------------------ */
 
 const COMPONENT_NAMES = [
-	"Button", "Card", "Dialog", "Input", "Select", "Badge", "Avatar", "Tabs",
-	"Tooltip", "Popover", "Table", "Toast", "Switch", "Slider", "Menu", "Sheet",
+	"Button",
+	"Card",
+	"Dialog",
+	"Input",
+	"Select",
+	"Badge",
+	"Avatar",
+	"Tabs",
+	"Tooltip",
+	"Popover",
+	"Table",
+	"Toast",
+	"Switch",
+	"Slider",
+	"Menu",
+	"Sheet",
 ];
 
 /**
@@ -85,10 +99,7 @@ async function writeCorpus(dir: string, count: number): Promise<void> {
 		const groupDir = path.join(src, group);
 		await fsp.mkdir(groupDir, { recursive: true });
 
-		await fsp.writeFile(
-			path.join(groupDir, `${name}.tsx`),
-			componentModule(name),
-		);
+		await fsp.writeFile(path.join(groupDir, `${name}.tsx`), componentModule(name));
 		await fsp.writeFile(
 			path.join(groupDir, `${name}.fixture.tsx`),
 			fixtureModule(name, group, i),
@@ -97,10 +108,7 @@ async function writeCorpus(dir: string, count: number): Promise<void> {
 
 	// Two decorators, at two depths, so the composition sort has real input.
 	await fsp.writeFile(path.join(src, "uaight.decorator.tsx"), decoratorModule());
-	await fsp.writeFile(
-		path.join(src, "group0", "uaight.decorator.tsx"),
-		decoratorModule(),
-	);
+	await fsp.writeFile(path.join(src, "group0", "uaight.decorator.tsx"), decoratorModule());
 }
 
 function componentModule(name: string): string {

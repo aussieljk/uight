@@ -31,7 +31,12 @@ import {
 	formatFixtureModule,
 } from "../shared/callsites.ts";
 import { matchesFilter } from "../shared/filter.ts";
-import { fixtureIdsEqual, fixtureLabel, parseFixtureId, serializeFixtureId } from "../shared/fixture-id.ts";
+import {
+	fixtureIdsEqual,
+	fixtureLabel,
+	parseFixtureId,
+	serializeFixtureId,
+} from "../shared/fixture-id.ts";
 import { viewportFor } from "../shared/meta.ts";
 import { buildTree, flattenRows, flattenSelectable, searchTree } from "../shared/tree.ts";
 import { ALL_FIXTURES } from "../shared/types.ts";
@@ -136,7 +141,10 @@ function readNames(mod: unknown): IndexedNames {
 	return SINGLE_FIXTURE;
 }
 
-function sameNames(a: readonly (string | null)[], b: readonly (string | null)[]): boolean {
+function sameNames(
+	a: readonly (string | null)[],
+	b: readonly (string | null)[],
+): boolean {
 	return a.length === b.length && a.every((n, i) => n === b[i]);
 }
 
@@ -218,8 +226,8 @@ function resolve(
 				title: "That fixture is not here",
 				description: (
 					<>
-						Nothing in this project resolves to <code>{selection.path}</code>. The link
-						is kept, so it will start working if the file appears.
+						Nothing in this project resolves to <code>{selection.path}</code>. The link is kept,
+						so it will start working if the file appears.
 					</>
 				),
 			},
@@ -261,8 +269,8 @@ function resolve(
 			description: (
 				<>
 					<code>{selection.path}</code> has no fixture called{" "}
-					<code>{selection.name === "" ? "(empty name)" : selection.name}</code>. The link
-					is kept in case it comes back.
+					<code>{selection.name === "" ? "(empty name)" : selection.name}</code>. The link is
+					kept in case it comes back.
 				</>
 			),
 		},
@@ -401,9 +409,8 @@ export default function UaightUI(props: UaightProps): ReactElement {
 				void loadNames(file);
 			}
 		};
-		const idle = (
-			window as unknown as { requestIdleCallback?: (cb: () => void) => number }
-		).requestIdleCallback;
+		const idle = (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
+			.requestIdleCallback;
 		const handle = idle ? idle(run) : window.setTimeout(run, 0);
 		return () => {
 			cancelled = true;
@@ -924,7 +931,8 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		const key = `${targetKey}\u0000${stateValue ?? ""}`;
 		if (seededFor.current === key) return;
 		seededFor.current = key;
-		const ours = lastWrittenState.current !== null && stateValue === lastWrittenState.current;
+		const ours =
+			lastWrittenState.current !== null && stateValue === lastWrittenState.current;
 		const seeded = ours ? [] : decodeOverlays(stateValue);
 		// Held as well as seeded: the effect that drops overlays on fixture change
 		// runs once more when the transport arrives, which is a commit LATER than
@@ -1382,9 +1390,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 		}
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
 		const target = event.target as HTMLElement | null;
-		const typing = !!target?.closest?.(
-			"input, textarea, select, [contenteditable='true']",
-		);
+		const typing = !!target?.closest?.("input, textarea, select, [contenteditable='true']");
 
 		if (event.key === "Escape" && helpOpen) {
 			event.preventDefault();
@@ -1650,14 +1656,8 @@ export default function UaightUI(props: UaightProps): ReactElement {
 													</span>
 												</button>
 												{inventoryOpen ? (
-													<div
-														id={`${mountId}-inventory`}
-														className="uaight-scroll max-h-64"
-													>
-														<InventoryList
-															components={inventoryItems}
-															onSelect={selectComponent}
-														/>
+													<div id={`${mountId}-inventory`} className="uaight-scroll max-h-64">
+														<InventoryList components={inventoryItems} onSelect={selectComponent} />
 													</div>
 												) : null}
 											</div>
@@ -1684,11 +1684,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 									<Toolbar>
 										<span
 											className="min-w-0 truncate text-sm font-medium text-[var(--u-fg)]"
-											title={
-												selection
-													? selection.path
-													: (selectedComponent?.path ?? undefined)
-											}
+											title={selection ? selection.path : (selectedComponent?.path ?? undefined)}
 										>
 											{label || " "}
 										</span>
@@ -1704,10 +1700,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 													onClick={() => setGridOpen((v) => !v)}
 													aria-pressed={gridActive}
 													title={`Show all ${gridTiles.length} fixtures at once (g)`}
-													className={cx(
-														QUIET_BUTTON,
-														gridActive ? "text-[var(--u-accent)]" : "",
-													)}
+													className={cx(QUIET_BUTTON, gridActive ? "text-[var(--u-accent)]" : "")}
 												>
 													{gridActive ? "Single" : "Grid"}
 												</button>
@@ -1715,9 +1708,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 											{shareState ? (
 												<button
 													type="button"
-													onClick={() =>
-														void copy("link", window.location.href, "the link")
-													}
+													onClick={() => void copy("link", window.location.href, "the link")}
 													title="Copy a link to this fixture, including the current control values"
 													className={cx(
 														QUIET_BUTTON,
@@ -1853,10 +1844,13 @@ export default function UaightUI(props: UaightProps): ReactElement {
 
 									{error ? (
 										<div className="absolute inset-0 z-20 overflow-auto bg-[var(--u-bg)]">
-											<ErrorState error={error} onRetry={() => {
-												setError(null);
-												setFrameKey((k) => k + 1);
-											}} />
+											<ErrorState
+												error={error}
+												onRetry={() => {
+													setError(null);
+													setFrameKey((k) => k + 1);
+												}}
+											/>
 										</div>
 									) : resolution.empty && !selectedComponent ? (
 										<div className="absolute inset-0 z-10 bg-[var(--u-bg)]">
@@ -1913,9 +1907,7 @@ export default function UaightUI(props: UaightProps): ReactElement {
 								<span
 									className={cx(
 										"min-w-0 flex-1 truncate text-xs",
-										toast.tone === "danger"
-											? "text-[var(--u-danger)]"
-											: "text-[var(--u-fg-muted)]",
+										toast.tone === "danger" ? "text-[var(--u-danger)]" : "text-[var(--u-fg-muted)]",
 									)}
 								>
 									{toast.message}

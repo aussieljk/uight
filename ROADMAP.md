@@ -40,7 +40,7 @@ answer in `NOTES.md` that could be turned into an assertion now is one — see N
 assertions unchanged: the control-panel edit not reaching the frame (two causes, neither
 in the transport), inline isolation never receiving a selection (a disposed transport pair
 under StrictMode, plus a direct pair that delivered before either end existed), two mounts
-under StrictMode (a refcount cannot say *who* owns a key), a rename leaving its old path
+under StrictMode (a refcount cannot say _who_ owns a key), a rename leaving its old path
 (the topology debounce kept the last call's arguments, so the `unlink` half of the move
 was discarded), a fixture edit reloading the host document (nothing accepted the glob's
 update, and an element-valued fixture module has no Fast Refresh boundary), and the CSP
@@ -64,7 +64,7 @@ The original statement of the item, kept because the scenario list is still the 
   call-site fixture whose props drive the control panel; the static build served from a
   non-root base.
 - **New with the UX pass, and browser-shaped by nature:** roving focus across the tree's
-  *virtualized* window (a focused row can leave the DOM); the shared overlay's focus trap
+  _virtualized_ window (a focused row can leave the DOM); the shared overlay's focus trap
   and focus restoration for both the palette and the help dialog; `sessionStorage`
   restoration racing the router's first read; the pane resizers under pointer capture; and
   `/__open-in-editor` degrading in the static build.
@@ -78,16 +78,16 @@ because each covers a different engine's ordering, and only one engine has been 
 synthetic corpus, and fails the build on a breach. CI runs it after `verify`, which is
 what builds the bundle it measures.
 
-| Metric                                         | Budget          | Status                      |
-| ---------------------------------------------- | --------------- | --------------------------- |
-| Plugin startup, 100 fixture modules            | < 300 ms        | **21–42 ms**, measured      |
-| Plugin startup, 500 fixture modules            | < 1.2 s         | **95–114 ms**, measured     |
-| Incremental index on one file change           | < 30 ms         | **0.1 ms**, measured        |
-| Fixture selection to first paint (frame, warm) | < 250 ms        | **14 ms**, measured (Chromium) |
-| Frame handshake                                | < 100 ms        | **10 ms**, measured (Chromium) |
-| Chrome bundle, gzipped                         | < 90 KB         | **57.8 KB**, measured       |
+| Metric                                         | Budget          | Status                             |
+| ---------------------------------------------- | --------------- | ---------------------------------- |
+| Plugin startup, 100 fixture modules            | < 300 ms        | **21–42 ms**, measured             |
+| Plugin startup, 500 fixture modules            | < 1.2 s         | **95–114 ms**, measured            |
+| Incremental index on one file change           | < 30 ms         | **0.1 ms**, measured               |
+| Fixture selection to first paint (frame, warm) | < 250 ms        | **14 ms**, measured (Chromium)     |
+| Frame handshake                                | < 100 ms        | **10 ms**, measured (Chromium)     |
+| Chrome bundle, gzipped                         | < 90 KB         | **57.8 KB**, measured              |
 | Memory after 100 mount/unmount cycles          | no upward trend | **+0.23 MB / 10 cycles**, measured |
-| HMR latency, fixture edit to render            | < 150 ms        | **37 ms**, measured (Chromium) |
+| HMR latency, fixture edit to render            | < 150 ms        | **37 ms**, measured (Chromium)     |
 
 The four browser rows are now measured by `tests/e2e/specs/budgets.spec.ts`
 (`--project=chromium-perf`), which prints every number on every run and fails on a breach.
@@ -105,7 +105,7 @@ mode. Still inside its budget, and by some distance the metric that would fail f
 ### 3. Prove the registry resolves (Q8) — **partly**
 
 The `$schema` divergence is settled: the emitted items always used `registry-item.json`,
-and SPEC §11.2's example — which named the *index* schema on an item, and depended on an
+and SPEC §11.2's example — which named the _index_ schema on an item, and depended on an
 `@uaight/tree-item` that §11.3 never listed — has been corrected.
 
 `tests/registry-resolve.test.ts` is now a client rather than another shape assertion. It
@@ -116,8 +116,8 @@ asserts the installed tree.
 
 **Hosting now exists in the repository:** `docs/` is the uaight.dev site, and its sync
 script copies the built registry into `public/r/`, so the URLs the versioned copies point
-at are served by the same deploy as the page documenting them. That closes the *where*,
-not the *whether* — nothing has resolved from a deployed origin yet, because nothing has
+at are served by the same deploy as the page documenting them. That closes the _where_,
+not the _whether_ — nothing has resolved from a deployed origin yet, because nothing has
 been deployed.
 
 **Still open, and specific:** nothing proves the items are reachable at
@@ -131,17 +131,17 @@ files. Needs hosting, then a scratch project.
   already exercised: add (in sorted position, not arrival order), delete, rename (both
   events, and the moment between them when both files exist), a display-path collision
   appearing and clearing, an irrelevant file changing nothing, and the emitted glob
-  *patterns* staying fixed while the corpus moves. The browser half is now `hmr.spec.ts`:
+  _patterns_ staying fixed while the corpus moves. The browser half is now `hmr.spec.ts`:
   add, delete and rename all move the tree with no page reload, and the added file is
   selectable and renders. It took three changes — the generated runtime module accepts its
   own update, the host sends the renderer its reconciled index (`SET_INDEX`) because Vite
   re-globs before the plugin's debounced rescan produces the index that goes with it, and
-  the debounce coalesces the *set* of changed files so a rename's `unlink` is not
+  the debounce coalesces the _set_ of changed files so a rename's `unlink` is not
   discarded.
 - **Q4 — is the warm pass acceptable on by default?** The exposure is now quantified: the
   warm pass executes exactly the modules the static parser could not decide, which on the
   demo corpus is 1 file of 83, and §3.4's new identifier row can only reduce it. What one
-  such execution *costs*, in a browser, on a side-effect-heavy corpus, is still unmeasured
+  such execution _costs_, in a browser, on a side-effect-heavy corpus, is still unmeasured
   and still needs item 1.
 
 ### 5. Follow-ups the canary created
@@ -157,7 +157,7 @@ files. Needs hosting, then a scratch project.
 - ~~**Call sites are name-matched.**~~ **Done.** Aliased specifiers resolve through
   `configResolved`'s alias table, by prefix match against its string entries rather than by
   running Vite's resolver per import. RegExp finds are dropped rather than approximated,
-  because a half-implemented regex alias produces a *wrong* path. Two components sharing a
+  because a half-implemented regex alias produces a _wrong_ path. Two components sharing a
   name still share a group when no import resolved at all — a bare specifier is a package,
   and that stays name-matched.
 - **`oxfmt --check` is in CI; the reformat has not happened.** `.oxfmtrc.json` is
@@ -183,7 +183,7 @@ files. Needs hosting, then a scratch project.
 - ~~**MDX fixtures (§14).**~~ **Done.** The demo carries an `.mdx` fixture the golden
   corpus indexes as one fixture, `@mdx-js/rollup` is in the demo's config, and startup
   names the missing plugin and its install command when a project has `.mdx` fixtures and
-  none installed. Ordering is deliberately *not* checked: Vite sorts `pre` plugins ahead of
+  none installed. Ordering is deliberately _not_ checked: Vite sorts `pre` plugins ahead of
   a plain `mdx()` whatever the array says, and `.mdx` compiles correctly anyway, so the
   check would fire on every correct project. See NOTES.md.
 - ~~**Fixture-driven viewport defaults (§3.1).**~~ Done. The meta rides on
@@ -224,7 +224,7 @@ The registry shipped early, so this is about the commitment rather than the code
 
 ## v1.3 — docgen and prop tables
 
-Blocked on **Q12**, which §15.2 states as three gates that must *all* pass:
+Blocked on **Q12**, which §15.2 states as three gates that must _all_ pass:
 
 1. Is the TypeScript 7.1 API **sufficient** for `react-docgen-typescript`, not merely
    present?
@@ -266,19 +266,19 @@ instead, which gives the same output without the endpoint.
 
 ## Open questions
 
-| #   | Question                                                     | Status                                              |
-| --- | ------------------------------------------------------------ | --------------------------------------------------- |
-| Q1  | Frame bootstrap race across engines                          | Answered; needs all three defences. One engine only |
-| Q2  | Exact preamble specifier                                     | Answered — `@vitejs/plugin-react/preamble`          |
-| Q3  | Which scheduler; does anything tear?                         | Answered — microtask default, injectable            |
-| Q4  | Is the warm pass acceptable by default?                      | **Open** — exposure quantified (1 file of 83); cost is browser-only |
-| Q5  | Does the production gate remove the chunk?                   | Answered, affirmative, against a real build         |
-| Q6  | Do codec editors stay out of the renderer chunk?             | Answered — enforced by imports, not tree-shaking    |
-| Q7  | Rolldown file-URL token                                      | Answered — absent; `emitFile` + placeholder         |
-| Q8  | Does a real `shadcn add` resolve from our registry?          | **Open** — resolves from local files; the docs site serves `/r`, but nothing has resolved from a deploy, and shadcn's own resolver is untested |
-| Q9  | Glob invalidation under Vite 8.1 / Rolldown / Bundled Dev     | Answered — add, delete and rename, in a browser, with no reload |
-| Q10 | Overlay reapplication across HMR                             | Answered — nothing stale survives; one caveat       |
-| Q11 | What goes in `UaightChromeApiV1`                             | Answered — `component` and `palette` groups; NOTES  |
-| Q12 | TypeScript 7.1 API sufficiency, tsgolint parity              | **Open**                                            |
-| Q13 | Trademark and npm availability for `uaight`                  | Answered — the name was free; published 4 Aug 2026  |
-| Q14 | Should overlay state persist across reloads?                 | Answered — not persisted, but now *shareable*       |
+| #   | Question                                                  | Status                                                                                                                                         |
+| --- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | Frame bootstrap race across engines                       | Answered; needs all three defences. One engine only                                                                                            |
+| Q2  | Exact preamble specifier                                  | Answered — `@vitejs/plugin-react/preamble`                                                                                                     |
+| Q3  | Which scheduler; does anything tear?                      | Answered — microtask default, injectable                                                                                                       |
+| Q4  | Is the warm pass acceptable by default?                   | **Open** — exposure quantified (1 file of 83); cost is browser-only                                                                            |
+| Q5  | Does the production gate remove the chunk?                | Answered, affirmative, against a real build                                                                                                    |
+| Q6  | Do codec editors stay out of the renderer chunk?          | Answered — enforced by imports, not tree-shaking                                                                                               |
+| Q7  | Rolldown file-URL token                                   | Answered — absent; `emitFile` + placeholder                                                                                                    |
+| Q8  | Does a real `shadcn add` resolve from our registry?       | **Open** — resolves from local files; the docs site serves `/r`, but nothing has resolved from a deploy, and shadcn's own resolver is untested |
+| Q9  | Glob invalidation under Vite 8.1 / Rolldown / Bundled Dev | Answered — add, delete and rename, in a browser, with no reload                                                                                |
+| Q10 | Overlay reapplication across HMR                          | Answered — nothing stale survives; one caveat                                                                                                  |
+| Q11 | What goes in `UaightChromeApiV1`                          | Answered — `component` and `palette` groups; NOTES                                                                                             |
+| Q12 | TypeScript 7.1 API sufficiency, tsgolint parity           | **Open**                                                                                                                                       |
+| Q13 | Trademark and npm availability for `uaight`               | Answered — the name was free; published 4 Aug 2026                                                                                             |
+| Q14 | Should overlay state persist across reloads?              | Answered — not persisted, but now _shareable_                                                                                                  |

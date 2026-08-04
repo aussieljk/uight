@@ -35,7 +35,11 @@ export default function Invoice() {
 		"lines",
 		[
 			{ label: "Pro seat", sku: new Sku("seat-pro"), price: Money.fromMajor("USD", 29) },
-			{ label: "Extra storage", sku: new Sku("addon-storage"), price: Money.fromMajor("EUR", 5) },
+			{
+				label: "Extra storage",
+				sku: new Sku("addon-storage"),
+				price: Money.fromMajor("EUR", 5),
+			},
 		],
 		{ label: "Line items" },
 	);

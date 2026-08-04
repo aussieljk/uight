@@ -20,7 +20,7 @@ Never put two primaries on one screen.
 ```
 
 Select it in the tree — it is marked **Doc** — and it renders in the preview like any
-fixture, with your providers and your stylesheet, because it *is* a fixture in every
+fixture, with your providers and your stylesheet, because it _is_ a fixture in every
 mechanical sense. One page per file, exactly as with any other MDX module.
 
 ## What you need
@@ -55,5 +55,5 @@ somewhere else wants.
 
 uaight is not a documentation framework, and does not intend to become one. There is no
 router, no navigation you can author and no page hierarchy separate from the fixture tree.
-A docs page is one more thing in that tree. For a documentation *site* — like this one —
+A docs page is one more thing in that tree. For a documentation _site_ — like this one —
 use a documentation site generator.

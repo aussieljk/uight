@@ -18,9 +18,7 @@ declare module "virtual:uaight/renderer-url" {
 
 declare module "virtual:uaight/preview-entry" {
 	import type * as React from "react";
-	export const Preview:
-		| React.ComponentType<{ children: React.ReactNode }>
-		| undefined;
+	export const Preview: React.ComponentType<{ children: React.ReactNode }> | undefined;
 }
 
 declare module "virtual:uaight/storybook-preview" {

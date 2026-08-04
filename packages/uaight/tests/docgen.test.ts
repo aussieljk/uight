@@ -115,7 +115,11 @@ describe("createBabelDocgenResolver", () => {
 			onUnavailable: (message) => messages.push(message),
 		});
 
-		const input = { code: BUTTON, filename: "/src/Button.tsx", globPath: "/src/Button.tsx" };
+		const input = {
+			code: BUTTON,
+			filename: "/src/Button.tsx",
+			globPath: "/src/Button.tsx",
+		};
 		expect(await resolver.resolve(input)).toEqual([]);
 		expect(await resolver.resolve(input)).toEqual([]);
 

@@ -119,9 +119,7 @@ export function parseFixtureFile(
 	try {
 		const result = parseSync(filename, source, { showSemanticErrors: false });
 		program = result.program;
-		errors = result.errors
-			.filter((e) => e.severity === "Error")
-			.map((e) => e.message);
+		errors = result.errors.filter((e) => e.severity === "Error").map((e) => e.message);
 	} catch (err) {
 		return {
 			names: null,
@@ -218,10 +216,7 @@ export function parseFixtureFile(
  * assignments means the scope analysis this pass exists to avoid. An import is
  * refused because the value is in another module.
  */
-function resolveModuleScopeConst(
-	expr: Expression,
-	program: Program,
-): Expression | null {
+function resolveModuleScopeConst(expr: Expression, program: Program): Expression | null {
 	let current = expr;
 	const seen = new Set<string>();
 
@@ -250,7 +245,7 @@ function moduleScopeConstInit(program: Program, name: string): Expression | null
 			stmt.type === "VariableDeclaration"
 				? (stmt as VariableDeclaration)
 				: stmt.type === "ExportNamedDeclaration" &&
-						stmt.declaration?.type === "VariableDeclaration"
+					  stmt.declaration?.type === "VariableDeclaration"
 					? (stmt.declaration as VariableDeclaration)
 					: null;
 		if (!decl) continue;
@@ -338,7 +333,11 @@ function readStaticValue(expr: Expression, depth: number): unknown {
 			const unary = node as unknown as { operator: string; argument: Expression };
 			const argument = readStaticValue(unary.argument, depth + 1);
 			if (typeof argument !== "number") return NOT_STATIC;
-			return unary.operator === "-" ? -argument : unary.operator === "+" ? argument : NOT_STATIC;
+			return unary.operator === "-"
+				? -argument
+				: unary.operator === "+"
+					? argument
+					: NOT_STATIC;
 		}
 		case "ArrayExpression": {
 			const out: unknown[] = [];

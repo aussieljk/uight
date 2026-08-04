@@ -27,7 +27,10 @@ const file = (over: Partial<FixtureFileIndex> = {}): FixtureFileIndex => ({
 
 describe("fixtureMetaFor", () => {
 	it("keys a single-fixture file by DEFAULT_FIXTURE, exactly as §3.1 documents", () => {
-		const f = file({ names: [null], fixtureMeta: { [DEFAULT_FIXTURE]: { title: "The one" } } });
+		const f = file({
+			names: [null],
+			fixtureMeta: { [DEFAULT_FIXTURE]: { title: "The one" } },
+		});
 		expect(fixtureMetaFor(f, null)?.title).toBe("The one");
 	});
 

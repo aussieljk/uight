@@ -11,7 +11,10 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../fixture-app");
+export const APP_ROOT = resolve(
+	dirname(fileURLToPath(import.meta.url)),
+	"../fixture-app",
+);
 export const FIXTURES_DIR = join(APP_ROOT, "src/fixtures");
 
 /** Replace a substring in a fixture file, returning a restore function. */
@@ -19,7 +22,9 @@ export function patchFile(relative: string, from: string, to: string): () => voi
 	const file = join(APP_ROOT, relative);
 	const original = readFileSync(file, "utf8");
 	if (!original.includes(from)) {
-		throw new Error(`${relative} does not contain ${JSON.stringify(from)} — the HMR marker moved`);
+		throw new Error(
+			`${relative} does not contain ${JSON.stringify(from)} — the HMR marker moved`,
+		);
 	}
 	writeFileSync(file, original.split(from).join(to));
 	return () => writeFileSync(file, original);

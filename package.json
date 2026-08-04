@@ -2,7 +2,11 @@
 	"name": "uaight-monorepo",
 	"private": true,
 	"type": "module",
-	"workspaces": ["packages/*", "examples/*", "docs"],
+	"workspaces": [
+		"packages/*",
+		"examples/*",
+		"docs"
+	],
 	"scripts": {
 		"build": "bun run --cwd packages/uaight build",
 		"dev": "bun run --cwd packages/uaight dev",
@@ -27,5 +31,7 @@
 	"devDependencies": {
 		"typescript": "7.0.2"
 	},
-	"engines": { "node": ">=20.19.0" }
+	"engines": {
+		"node": ">=20.19.0"
+	}
 }

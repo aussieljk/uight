@@ -1,94 +1,94 @@
 name: CI
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
+ push:
+  branches: [main, master]
+ pull_request:
 
 # A second push to the same branch makes the first run irrelevant.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+ group: ${{ github.workflow }}-${{ github.ref }}
+ cancel-in-progress: true
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+ check:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+   - uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
 
-      - name: Install
-        run: bun install --frozen-lockfile
+   - name: Install
+     run: bun install --frozen-lockfile
 
-      # One command, deliberately: `bun run verify` is exactly what
-      # `bun run release` runs before it publishes, so CI and the release path
-      # cannot drift into checking different things. It runs the gates in the
-      # order that makes them meaningful — the stylesheet check before the build
-      # rather than after it, and the build before the type check, because
-      # `uaight/client` resolves its types through the package's own `dist`.
-      #
-      # It ends in `npm publish --dry-run`, which needs no auth and catches
-      # packaging defects (a bad `bin` path, a missing README) that no amount of
-      # source-level checking can see.
-      - name: Verify
-        run: bun run verify
+   # One command, deliberately: `bun run verify` is exactly what
+   # `bun run release` runs before it publishes, so CI and the release path
+   # cannot drift into checking different things. It runs the gates in the
+   # order that makes them meaningful — the stylesheet check before the build
+   # rather than after it, and the build before the type check, because
+   # `uaight/client` resolves its types through the package's own `dist`.
+   #
+   # It ends in `npm publish --dry-run`, which needs no auth and catches
+   # packaging defects (a bad `bin` path, a missing README) that no amount of
+   # source-level checking can see.
+   - name: Verify
+     run: bun run verify
 
-      # Formatting is its own gate rather than part of `verify`: `verify` is the
-      # release path, and a release must not be blocked by whitespace. The
-      # config it reads is committed (`.oxfmtrc.json`), so this and a developer's
-      # `bun run format` cannot disagree.
-      - name: Format
-        run: bun run format:check
+   # Formatting is its own gate rather than part of `verify`: `verify` is the
+   # release path, and a release must not be blocked by whitespace. The
+   # config it reads is committed (`.oxfmtrc.json`), so this and a developer's
+   # `bun run format` cannot disagree.
+   - name: Format
+     run: bun run format:check
 
-      # §20.3's budgets, failing on regression. It runs after `verify` because it
-      # measures the built chrome bundle, and `verify` is what builds it.
-      #
-      # Only the four rows that are measurable without a browser: plugin startup
-      # at 100 and 500 fixture modules, the incremental index, and the chrome
-      # bundle. First paint, the frame handshake, memory across mount/unmount
-      # cycles and HMR latency need Playwright and are not approximated here.
-      - name: Budgets
-        run: bun run bench
+   # §20.3's budgets, failing on regression. It runs after `verify` because it
+   # measures the built chrome bundle, and `verify` is what builds it.
+   #
+   # Only the four rows that are measurable without a browser: plugin startup
+   # at 100 and 500 fixture modules, the incremental index, and the chrome
+   # bundle. First paint, the frame handshake, memory across mount/unmount
+   # cycles and HMR latency need Playwright and are not approximated here.
+   - name: Budgets
+     run: bun run bench
 
-  # §20.2 — "required, not optional". A separate job because it installs three
-  # browser engines, which the check job has no use for, and because a matrix
-  # failure should read as "the browsers disagree", not as a broken build.
-  #
-  # It needs the package built: the e2e apps consume `packages/uaight/dist`
-  # rather than the source, which is what makes them a test of what ships.
-  e2e:
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
+ # §20.2 — "required, not optional". A separate job because it installs three
+ # browser engines, which the check job has no use for, and because a matrix
+ # failure should read as "the browsers disagree", not as a broken build.
+ #
+ # It needs the package built: the e2e apps consume `packages/uaight/dist`
+ # rather than the source, which is what makes them a test of what ships.
+ e2e:
+  needs: check
+  runs-on: ubuntu-latest
+  timeout-minutes: 30
+  steps:
+   - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+   - uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
 
-      - name: Install
-        run: bun install --frozen-lockfile
+   - name: Install
+     run: bun install --frozen-lockfile
 
-      - name: Build
-        run: bun run build
+   - name: Build
+     run: bun run build
 
-      # The e2e apps are deliberately NOT workspaces, so the React 18 cell can
-      # hold its own React without disturbing the root install.
-      - name: Install browsers and e2e apps
-        run: bun run test:e2e:install
+   # The e2e apps are deliberately NOT workspaces, so the React 18 cell can
+   # hold its own React without disturbing the root install.
+   - name: Install browsers and e2e apps
+     run: bun run test:e2e:install
 
-      - name: Matrix
-        run: bun run test:e2e
-        env:
-          CI: "1"
+   - name: Matrix
+     run: bun run test:e2e
+     env:
+      CI: "1"
 
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report
-          path: tests/e2e/report
-          retention-days: 7
+   - uses: actions/upload-artifact@v4
+     if: ${{ !cancelled() }}
+     with:
+      name: playwright-report
+      path: tests/e2e/report
+      retention-days: 7

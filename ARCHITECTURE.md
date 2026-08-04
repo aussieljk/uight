@@ -10,16 +10,16 @@ Package root: `packages/uaight`. Monorepo uses **bun** workspaces.
 
 ## Already written — DO NOT EDIT
 
-| File                            | Exports                                                                                                      |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `src/shared/types.ts`           | every public type (`FixtureId`, `RuntimeConfig`, `Wire`, `UaightProps`, `UaightPluginOptions`, …)             |
-| `src/shared/fixture-id.ts`      | `serializeFixtureId`, `parseFixtureId`, `fixtureIdsEqual`, `fixtureLabel`                                    |
-| `src/shared/filter.ts`          | `matchesFilter`, `globToRegExp`                                                                              |
-| `src/shared/protocol.ts`        | `PROTOCOL_VERSION`, message types, `validateBootstrap`, `validateEnvelope`, `isChannelled`, `CHANNEL`, schedulers |
-| `src/shared/wire.ts`            | `applyPatches`, `wireSet`, `wireAt`, `mergePatch`, `wireEqual`, `isSafePath`, `pathKey`, `isEditableWire`     |
-| `src/shared/tree.ts`            | `buildTree`, `flattenSelectable`, `searchTree`                                                               |
-| `src/shared/version.ts`         | `UAIGHT_VERSION`                                                                                             |
-| `src/client.d.ts`               | virtual module declarations + `__UAIGHT_ENABLED__`                                                           |
+| File                       | Exports                                                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts`      | every public type (`FixtureId`, `RuntimeConfig`, `Wire`, `UaightProps`, `UaightPluginOptions`, …)                 |
+| `src/shared/fixture-id.ts` | `serializeFixtureId`, `parseFixtureId`, `fixtureIdsEqual`, `fixtureLabel`                                         |
+| `src/shared/filter.ts`     | `matchesFilter`, `globToRegExp`                                                                                   |
+| `src/shared/protocol.ts`   | `PROTOCOL_VERSION`, message types, `validateBootstrap`, `validateEnvelope`, `isChannelled`, `CHANNEL`, schedulers |
+| `src/shared/wire.ts`       | `applyPatches`, `wireSet`, `wireAt`, `mergePatch`, `wireEqual`, `isSafePath`, `pathKey`, `isEditableWire`         |
+| `src/shared/tree.ts`       | `buildTree`, `flattenSelectable`, `searchTree`                                                                    |
+| `src/shared/version.ts`    | `UAIGHT_VERSION`                                                                                                  |
+| `src/client.d.ts`          | virtual module declarations + `__UAIGHT_ENABLED__`                                                                |
 
 Read them before writing anything. Import with **explicit `.ts` extensions**
 (`import { x } from "../shared/types.ts"`) — the repo uses
@@ -28,13 +28,13 @@ Use `import type` for type-only imports.
 
 ## Ownership map — each agent writes ONLY its own files
 
-| Area          | Directory                                       |
-| ------------- | ----------------------------------------------- |
-| Plugin        | `src/vite/**`                                    |
-| Runtime       | `src/runtime/**`                                 |
-| UI chrome     | `src/ui/**`, `src/chrome/**`, `src/index.ts`     |
-| Styles/build  | `src/styles/**`, `scripts/**`, `tests/**`        |
-| Demo          | `examples/frosted-ui/**`                         |
+| Area         | Directory                                    |
+| ------------ | -------------------------------------------- |
+| Plugin       | `src/vite/**`                                |
+| Runtime      | `src/runtime/**`                             |
+| UI chrome    | `src/ui/**`, `src/chrome/**`, `src/index.ts` |
+| Styles/build | `src/styles/**`, `scripts/**`, `tests/**`    |
+| Demo         | `examples/frosted-ui/**`                     |
 
 Never edit a file outside your area. If you need something from another area, code
 against the signature below and assume it exists.
@@ -50,20 +50,22 @@ export function buildFixtureIndex(config: ResolvedUaightConfig): Promise<Fixture
 export function validateFixtures(config: ResolvedUaightConfig): Promise<IndexProblem[]>;
 export function parseFixtureFile(source: string, filename: string): ParsedFixtureFile;
 export function resolveUaightConfig(opts: {
-  root: string; options: UaightPluginOptions; command: "serve" | "build";
+	root: string;
+	options: UaightPluginOptions;
+	command: "serve" | "build";
 }): ResolvedUaightConfig;
 ```
 
 ### Virtual modules it must emit (§4.3)
 
-| Id                             | Must export                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| `virtual:uaight/runtime`       | `config: RuntimeConfig`, `fixtureModules`, `decoratorModules`, `inventoryModules` |
-| `virtual:uaight/renderer-url`  | `rendererEntryUrl: string`                                                    |
-| `virtual:uaight/renderer`      | side-effecting frame entry (calls `mountRenderer`)                            |
-| `virtual:uaight/preview-entry` | `Preview: React.ComponentType<{children}> \| undefined`                       |
-| `virtual:uaight/codecs`        | `codecs: FixtureCodec[]`                                                      |
-| `virtual:uaight/inventory`     | `inventoryItems: InventoryItem[]`                                             |
+| Id                             | Must export                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------- |
+| `virtual:uaight/runtime`       | `config: RuntimeConfig`, `fixtureModules`, `decoratorModules`, `inventoryModules`     |
+| `virtual:uaight/renderer-url`  | `rendererEntryUrl: string`                                                            |
+| `virtual:uaight/renderer`      | side-effecting frame entry (calls `mountRenderer`)                                    |
+| `virtual:uaight/preview-entry` | `Preview: React.ComponentType<{children}> \| undefined`                               |
+| `virtual:uaight/codecs`        | `codecs: FixtureCodec[]`                                                              |
+| `virtual:uaight/inventory`     | `inventoryItems: InventoryItem[]`                                                     |
 | `virtual:uaight/dev-entry`     | side-effecting: mounts `<Uaight router="history" height="100%" />` into `#uaight-app` |
 
 `fixtureModules` / `decoratorModules` / `inventoryModules` are
@@ -76,14 +78,23 @@ The renderer entry (`virtual:uaight/renderer`) must be exactly:
 ```js
 import "@vitejs/plugin-react/refresh-runtime-preamble"; // dev only; see §6.3 note below
 import { mountRenderer } from "uaight/runtime";
-import { config, fixtureModules, decoratorModules, inventoryModules } from "virtual:uaight/runtime";
+import {
+	config,
+	fixtureModules,
+	decoratorModules,
+	inventoryModules,
+} from "virtual:uaight/runtime";
 import * as preview from "virtual:uaight/preview-entry";
 import { codecs } from "virtual:uaight/codecs";
 
 mountRenderer({
-  root: document.getElementById("uaight-root"),
-  fixtureModules, decoratorModules, inventoryModules, config, codecs,
-  Providers: preview.Preview,
+	root: document.getElementById("uaight-root"),
+	fixtureModules,
+	decoratorModules,
+	inventoryModules,
+	config,
+	codecs,
+	Providers: preview.Preview,
 });
 ```
 
@@ -135,21 +146,26 @@ Collisions are a build error naming both files.
 
 ```ts
 export interface ResolvedUaightConfig {
-  root: string;
-  command: "serve" | "build";
-  route: string | false;
-  fixturesDirFsPath: string;   // /Users/…/project/src
-  fixturesDirGlobPath: string; // /src          (§4.2 — never interchange)
-  fixtureFileSuffix: string;
-  decoratorFileSuffixes: string[];
-  include: string[]; exclude: string[]; caseSensitive: boolean;
-  inventory: false | { include: string[]; exclude: string[] };
-  previewEntry?: string; previewHtmlPath?: string; codecs?: string;
-  index: "static" | "warm" | "lazy";
-  production: "exclude" | "include" | "error";
-  storybook: false | Required<NonNullable<StorybookSupport["support"]>> & { fileSuffix: string };
-  docgen: boolean;
-  configFile?: string;
+	root: string;
+	command: "serve" | "build";
+	route: string | false;
+	fixturesDirFsPath: string; // /Users/…/project/src
+	fixturesDirGlobPath: string; // /src          (§4.2 — never interchange)
+	fixtureFileSuffix: string;
+	decoratorFileSuffixes: string[];
+	include: string[];
+	exclude: string[];
+	caseSensitive: boolean;
+	inventory: false | { include: string[]; exclude: string[] };
+	previewEntry?: string;
+	previewHtmlPath?: string;
+	codecs?: string;
+	index: "static" | "warm" | "lazy";
+	production: "exclude" | "include" | "error";
+	storybook:
+		false | (Required<NonNullable<StorybookSupport["support"]>> & { fileSuffix: string });
+	docgen: boolean;
+	configFile?: string;
 }
 ```
 
@@ -161,13 +177,13 @@ Resolve in `config()`, never mutate `ResolvedConfig` (§4.5). `define: { __UAIGH
 
 ```ts
 export interface MountRendererOptions {
-  root: HTMLElement;
-  config: RuntimeConfig;
-  fixtureModules: ModuleMap;
-  decoratorModules: ModuleMap;
-  inventoryModules: ModuleMap;
-  codecs?: FixtureCodec[];
-  Providers?: React.ComponentType<{ children: React.ReactNode }> | undefined;
+	root: HTMLElement;
+	config: RuntimeConfig;
+	fixtureModules: ModuleMap;
+	decoratorModules: ModuleMap;
+	inventoryModules: ModuleMap;
+	codecs?: FixtureCodec[];
+	Providers?: React.ComponentType<{ children: React.ReactNode }> | undefined;
 }
 export type ModuleMap = Record<string, () => Promise<unknown>>;
 
@@ -176,47 +192,55 @@ export function mountRenderer(o: MountRendererOptions): () => void;
 
 /** Same renderer, driven by a transport the caller owns. Used by inline mode. */
 export const RendererApp: React.ComponentType<
-  MountRendererOptions & { transport: RendererTransport }
+	MountRendererOptions & { transport: RendererTransport }
 >;
 
 export interface RendererTransport {
-  send(m: MountedMessage): void;
-  subscribe(cb: (m: MountedMessage) => void): () => void;
-  dispose(): void;
+	send(m: MountedMessage): void;
+	subscribe(cb: (m: MountedMessage) => void): () => void;
+	dispose(): void;
 }
 
 export interface HostTransport extends RendererTransport {
-  readonly status: "connecting" | "ready" | "error";
-  onStatusChange(cb: () => void): () => void;
-  error: RendererError | null;
+	readonly status: "connecting" | "ready" | "error";
+	onStatusChange(cb: () => void): () => void;
+	error: RendererError | null;
 }
 
 /** Inline isolation: one realm, two ends, no postMessage. */
 export function createDirectTransportPair(scheduler?: Scheduler): {
-  host: HostTransport; renderer: RendererTransport;
+	host: HostTransport;
+	renderer: RendererTransport;
 };
 
 /** Parent side of the frame handshake (§8.2). Used by ui/FrameHost. */
 export function createFrameHostTransport(opts: {
-  frame: HTMLIFrameElement;
-  mountId: string;
-  initialFixture: FixtureId | null;
-  overlays: InputOverlay[];
-  scheduler?: Scheduler;
+	frame: HTMLIFrameElement;
+	mountId: string;
+	initialFixture: FixtureId | null;
+	overlays: InputOverlay[];
+	scheduler?: Scheduler;
 }): HostTransport;
 
 /** Serializer + codec registry, exported for tests and the inline path. */
 export function createSerializer(codecs: FixtureCodec[]): {
-  serialize(value: unknown, revision: number): Wire;
-  deserialize(wire: Wire): unknown;
-  resolveOpaque(id: number): unknown;
+	serialize(value: unknown, revision: number): Wire;
+	deserialize(wire: Wire): unknown;
+	resolveOpaque(id: number): unknown;
 };
 export const builtinCodecs: FixtureCodec[];
 export function defineCodec<T, S>(c: FixtureCodec<T, S>): FixtureCodec<T, S>;
 
 /** Fixture-side hooks implementation. Re-exported from `uaight`. */
-export function useFixtureInput<T>(name: string, initial: T, opts?: InputOptions<T>): [T, (v: T) => void];
-export function useFixtureSelect<T extends string>(name: string, o: { options: readonly T[]; initial?: T }): [T, (v: T) => void];
+export function useFixtureInput<T>(
+	name: string,
+	initial: T,
+	opts?: InputOptions<T>,
+): [T, (v: T) => void];
+export function useFixtureSelect<T extends string>(
+	name: string,
+	o: { options: readonly T[]; initial?: T },
+): [T, (v: T) => void];
 export function useFixtureViewport(): { width: number; height: number };
 export function useFixtureId(): FixtureId;
 export function useSelectFixture(): (id: FixtureId | string) => void;
@@ -233,13 +257,18 @@ Fixture module normalization (`src/runtime/normalize.ts`):
 
 ```ts
 export interface NormalizedFixture {
-  name: string | null;
-  render: React.ComponentType | (() => React.ReactNode) | React.ReactElement;
-  meta?: FixtureMeta;
-  unsupported?: string[]; // CSF features we declined to run (§13) — badge these
+	name: string | null;
+	render: React.ComponentType | (() => React.ReactNode) | React.ReactElement;
+	meta?: FixtureMeta;
+	unsupported?: string[]; // CSF features we declined to run (§13) — badge these
 }
-export function normalizeModule(mod: unknown, file: FixtureFileIndex, cfg: RuntimeConfig): {
-  fixtures: NormalizedFixture[]; fileMeta?: FixtureFileMeta;
+export function normalizeModule(
+	mod: unknown,
+	file: FixtureFileIndex,
+	cfg: RuntimeConfig,
+): {
+	fixtures: NormalizedFixture[];
+	fileMeta?: FixtureFileMeta;
 };
 ```
 
@@ -254,11 +283,18 @@ fixtures (§3.1). Named exports are never fixtures except in a CSF module.
 
 ```ts
 export { Uaight, UaightProvider, Fixture, UaightErrorBoundary } from "./ui/entry.tsx";
-export { useFixtureInput, useFixtureSelect, useFixtureViewport, useFixtureId,
-         useSelectFixture, useFixtureIsolation, defineCodec } from "../runtime/index.ts"; // re-export
+export {
+	useFixtureInput,
+	useFixtureSelect,
+	useFixtureViewport,
+	useFixtureId,
+	useSelectFixture,
+	useFixtureIsolation,
+	defineCodec,
+} from "../runtime/index.ts"; // re-export
 export { parseFixtureId, serializeFixtureId } from "./shared/fixture-id.ts";
 export { matchesFilter } from "./shared/filter.ts";
-export type { /* every type in shared/types.ts */ } from "./shared/types.ts";
+export type {} from /* every type in shared/types.ts */ "./shared/types.ts";
 ```
 
 `Uaight` is the compile-time gate (§9.2). Write it so Rollup can drop the chunk:

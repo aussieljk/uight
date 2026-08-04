@@ -116,7 +116,11 @@ describeDecorators("selectDecorators", () => {
 	});
 
 	it("orders outermost-first by depth, so a root decorator wraps a nested one", () => {
-		const shuffled = [decorator("components/forms"), decorator(""), decorator("components")];
+		const shuffled = [
+			decorator("components/forms"),
+			decorator(""),
+			decorator("components"),
+		];
 		const chosen = decoratorMod!.selectDecorators(shuffled, "components/forms/Input");
 		expect(chosen.map((d) => d.dir)).toEqual(["", "components", "components/forms"]);
 	});
