@@ -20,6 +20,9 @@
 	"bugs": "https://github.com/aussieljk/uight/issues",
 	"homepage": "https://github.com/aussieljk/uight#readme",
 	"type": "module",
+	"publishConfig": {
+		"access": "public"
+	},
 	"files": [
 		"dist",
 		"registry",
