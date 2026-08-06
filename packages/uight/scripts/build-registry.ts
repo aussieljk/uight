@@ -429,6 +429,29 @@ export function fileHeader(opts: {
 	return `/**\n${body.map((l) => (l ? ` * ${l}` : " *")).join("\n")}\n */\n\n`;
 }
 
+/**
+ * Put the header where `shadcn add` will not throw it away.
+ *
+ * This is not a style preference. shadcn rewrites an installed file's imports
+ * through an AST transform, and that transform discards the file's LEADING
+ * trivia — so a licence header on line 1 is published, downloaded, and then
+ * deleted on the way to disk. Verified by `scripts/registry-resolve.ts`
+ * running the real CLI: every `.ts`/`.tsx` arrived with its header gone, while
+ * interior comments and the CSS header (never parsed as TypeScript) survived.
+ *
+ * §11.4 requires the ejected FILE to carry the header and says nothing about
+ * which line. So TypeScript takes it at the end, where it is trailing trivia
+ * and nothing removes it. One rule for every file rather than "after the
+ * imports, unless there are none" — `cx.ts` imports nothing, and a rule with an
+ * exception is a rule that silently drops the header from exactly the small
+ * helper files nobody thinks to check. CSS keeps it at the top, where it is
+ * conventional and where no transform runs.
+ */
+export function withHeader(header: string, source: string, css: boolean): string {
+	if (css) return header + source;
+	return `${source.replace(/\n+$/, "")}\n\n${header.trimEnd()}\n`;
+}
+
 /* ------------------------------------------------------------------ *
  * Build
  * ------------------------------------------------------------------ */
@@ -509,8 +532,11 @@ export function buildRegistry(options: BuildRegistryOptions): BuildRegistryResul
 
 	if (!existsSync(tokensFile)) missing.push(tokensFile);
 	const tokensSource = existsSync(tokensFile) ? readFileSync(tokensFile, "utf8") : "";
-	const tokensContent =
-		fileHeader({ title: "Chrome tokens", name: "chrome-tokens", version }) + tokensSource;
+	const tokensContent = withHeader(
+		fileHeader({ title: "Chrome tokens", name: "chrome-tokens", version, css: true }),
+		tokensSource,
+		true,
+	);
 
 	// Another ejectable's source is pulled in by `registryDependencies`, never
 	// copied — but its specifier still has to name where it lands (§11.3).
@@ -554,8 +580,11 @@ export function buildRegistry(options: BuildRegistryOptions): BuildRegistryResul
 				content: readFileSync(next.file, "utf8"),
 				siblings,
 			});
-			const body =
-				fileHeader({ title: next.title, name: entry.name, version }) + rewritten.content;
+			const body = withHeader(
+				fileHeader({ title: next.title, name: entry.name, version }),
+				rewritten.content,
+				false,
+			);
 			assertNoEscapingSpecifier(`${entry.name}/${next.base}`, body);
 			emitted.set(next.base, body);
 			for (const key of rewritten.companions) {

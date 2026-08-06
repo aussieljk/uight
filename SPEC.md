@@ -31,9 +31,7 @@ Two lists, because they have different audiences and different rules. Consumer r
 | `oxlint-tsgolint` | `7.0.0`  | Tracks TS 7.0.2. Upgrade in lockstep with `typescript`                                 |
 | `oxfmt`           | `0.61.0` | Beta. A formatter that shifts on a patch bump produces enormous meaningless diffs      |
 | `oxc-parser`      | pinned   | **A direct dependency.** AST interpretation drives §3.4; "current" is not reproducible |
-| `shadcn` CLI      | pinned   | Generates published registry output (§11.2)                                            |
-| Vite              | `8.1.5`  | Dev and test                                                                           |
-| Playwright        | pinned   | §20.2                                                                                  |
+| Vite              | `8.1.5`  | Dev and the docs site                                                                  |
 
 **On TypeScript 7.1.** It is available under `typescript@next`, which changes §15's plan: the docgen question moves from "wait and see" to a spike we can run now. It does not change the repository pin. tsgolint v7 is built against TypeScript 7.0.2 and its versioning exists to express that coupling, so moving the repo to 7.1 before tsgolint follows would trade a working type-aware linter for an unproven docgen path. The spike runs 7.1 in isolation (§15.2); the repo moves when tsgolint does.
 
@@ -84,7 +82,7 @@ Job 1 is new in v1.0 and is what the zero-config requirement buys. It also inver
 - Bundlers other than Vite 8.1+.
 - SSR of the explorer chrome.
 - React Server Components.
-- Visual regression testing, screenshots.
+- Visual regression testing. Not screenshots as such: `@aussieljk/uight/mcp` renders a fixture to a PNG for an agent to look at, and the static build plus fixture-id addressing make uight a substrate any VRT tool can drive. What is ruled out is uight _comparing_ images and _owning_ baselines.
 - Storybook `play`, loaders, interactions (§13).
 - Remote renderers, React Native.
 - Becoming an MDX documentation framework (§14).
@@ -301,14 +299,26 @@ export interface UightPluginOptions {
 	index?: "static" | "warm" | "lazy"; // default 'warm'
 	production?: "exclude" | "include" | "error"; // default 'exclude'
 
+	/** Bundle fixtures into the entry chunk instead of code-splitting. Build only. */
+	eager?: boolean; // default false — see §9.1
+
+	/** Who may reach the read-only endpoints. §19.6 */
+	devApi?: "loopback" | "any" | false; // default 'loopback'
+
+	/** Harvest component usages from the project's own source. §12 */
+	callSites?: boolean | { max?: number }; // default true, development only
+
 	storybook?: boolean | StorybookSupport;
 	docgen?: boolean; // default false in v1 (§15)
+
+	/** MDX documentation pages. §14 */
+	docs?: boolean | { fileSuffix?: string }; // default true
 }
 ```
 
 Options resolve in `config()`, not `configResolved()` — see §4.5.
 
-**Structural options require a server restart:** `route`, `fixturesDir`, `include`, `exclude`, `previewEntry`, `previewHtmlPath`, `codecs`, `inventory`. They determine middleware and watcher wiring that cannot be safely rebuilt in place. Changing one in `uight.config.json` prints a message telling the user to restart, rather than half-applying. Non-structural options (`index`, `production`, `storybook`) reload live.
+**Structural options require a server restart:** `route`, `fixturesDir`, `include`, `exclude`, `previewEntry`, `previewHtmlPath`, `codecs`, `inventory`, `devApi`. They determine middleware and watcher wiring that cannot be safely rebuilt in place. Changing one in `uight.config.json` prints a message telling the user to restart, rather than half-applying. Non-structural options (`index`, `production`, `storybook`) reload live.
 
 ### 4.2 Two path representations
 
@@ -927,6 +937,15 @@ Scheduling is injectable (`queueMicrotask` or a `MessageChannel` task); both sat
 
 **Each fixture _module_ is a lazy dynamic-import boundary. Final chunk structure is bundler-controlled and must be inspected.** Several fixtures share a module (§3.1), shared dependencies hoist, and a module can emit accompanying CSS and asset chunks. "One chunk per fixture" is wrong.
 
+`eager: true` (§4.1) trades that boundary away, bundling every fixture module
+into the entry chunk. It is off by default and should stay off for a component
+corpus of any size, where it would put every component in the explorer's first
+download. It exists for the case where the boundary is the cost rather than the
+saving — small modules, switched between constantly, as on a documentation site
+where each page is a few kilobytes of prose and each selection was otherwise a
+round trip before anything could render. The host is also free to warm a
+boundary ahead of the click that needs it; the packaged tree does this on hover.
+
 ### 9.2 The gate is a compile-time constant
 
 ```tsx
@@ -1005,7 +1024,7 @@ npx shadcn add https://uight.dev/r/fixture-tree.json
 
 - **Versioning:** registry output is published per minor at `/r/v{major}.{minor}/{name}.json`, with `/r/{name}.json` tracking latest. Ejected items record the version they came from in their file header.
 - **Mixed versions:** items from different versions may be combined only within one minor. The CLI output states the version installed; `registryDependencies` pin to the same minor.
-- **Proof, not plausibility:** an integration test performs a real `shadcn add` into a scratch project and type-checks the result (Q8). The registry example is not considered correct until that passes.
+- **Proof, not plausibility:** `scripts/registry-resolve.ts` performs a real `shadcn add` into a scratch project and checks what landed (Q8, §20.3). The registry example is not considered correct until that passes; it passes, in CI against loopback and on demand against `https://uight.dev/r`.
 
 ### 11.2 Registry item
 
@@ -1125,21 +1144,26 @@ Until all three hold, v1.3 ships the Babel resolver behind the same interface, w
 
 ### 16.1 One package (D5)
 
-v0.6 referenced five package names and defined three, using an undefined one as an ejected component's dependency. Worse, a multi-package install cannot be two steps. **One published package, `uight`, with subpath exports:**
+v0.6 referenced five package names and defined three, using an undefined one as an ejected component's dependency. Worse, a multi-package install cannot be two steps. **One published package, `@aussieljk/uight`, with subpath exports:**
+
+The bare name was the plan and is not what shipped: `uight` on npm is scoped to
+this project's publisher, so the published name carries the scope and every
+specifier below is the scoped one. Q13 asked whether the name cleared npm — it
+did, under a scope.
 
 | Entry                      | Contents                                            | Environment |
 | -------------------------- | --------------------------------------------------- | ----------- |
-| `uight`                    | `<Uight />`, fixture hooks, `defineCodec`, types    | Browser     |
+| `@aussieljk/uight`         | `<Uight />`, fixture hooks, `defineCodec`, types    | Browser     |
 | `@aussieljk/uight/vite`    | The plugin, config resolution, index builder        | Node        |
 | `@aussieljk/uight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
 | `@aussieljk/uight/chrome`  | `useUightChrome`, chrome component types            | Browser     |
 | `@aussieljk/uight/client`  | Virtual module declarations                         | Types only  |
 
-`useFixtureInput` is exported from `uight`; the runtime implementation lives in `@aussieljk/uight/runtime` and is not imported directly by consumers.
+`useFixtureInput` is exported from `@aussieljk/uight`; the runtime implementation lives in `@aussieljk/uight/runtime` and is not imported directly by consumers.
 
 ```json
 {
-	"name": "uight",
+	"name": "@aussieljk/uight",
 	"type": "module",
 	"exports": {
 		".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
@@ -1191,15 +1215,15 @@ Protocol version is negotiated separately (§8.2) so a future split into multipl
 
 ### 17.2 Tools
 
-| Concern         | Tool                              |
-| --------------- | --------------------------------- |
-| Lint / format   | oxlint, oxfmt                     |
-| Bundle          | Rolldown via Vite 8.1             |
-| Parse           | `oxc-parser`, a direct dependency |
-| Type-check      | tsgo, separate                    |
-| Unit test       | Vitest                            |
-| Browser test    | **Playwright** (§20.2)            |
-| Package manager | pnpm                              |
+| Concern         | Tool                                                               |
+| --------------- | ------------------------------------------------------------------ |
+| Lint / format   | oxlint, oxfmt                                                      |
+| Bundle          | Rolldown via Vite 8.1, packaged with tsdown                        |
+| Parse           | `oxc-parser`, a direct dependency                                  |
+| Type-check      | tsgo, separate                                                     |
+| Verification    | Scripts, not a runner — §20                                        |
+| Browser         | Playwright, an **optional** peer, for the MCP screenshot tool only |
+| Package manager | bun                                                                |
 
 ---
 
@@ -1208,7 +1232,7 @@ Protocol version is negotiated separately (§8.2) so a future split into multipl
 Renamed from "clean-room," which was both a legal conclusion we are not qualified to draw and, given that earlier drafts of this project were designed as a fork, potentially inaccurate as a description of process. Stated factually instead:
 
 1. **No upstream code, tests, or documentation prose is copied into this repository.**
-2. **Behavioural compatibility is established from public documentation and separately authored black-box tests**, not by reading implementation source.
+2. **Behavioural compatibility is established from public documentation and from separately authored black-box observation** — reading upstream's docs and its published behaviour, never its implementation source. Earlier drafts said "black-box tests"; §20 removed the suite, and the policy is about where knowledge comes from, not about what asserts it.
 3. **Contributors declare prior exposure.** Anyone who has read upstream implementation source — including during this project's earlier fork-shaped drafts — records that in the PR, and does not author the value serializer or the fixture-state machinery.
 4. **Naming and branding avoid implying affiliation.** The README states: compatible with react-cosmos fixture files, independently implemented, not affiliated with or endorsed by that project.
 5. **Legal characterisation is out of scope for this document.** Whether file formats attract protection, and what obligations follow, requires separate review before any public release. This policy is engineering hygiene, not a legal opinion.
@@ -1221,7 +1245,7 @@ Where a behaviour is genuinely undocumented upstream, specify our own and docume
 
 Tiers: **Stable** (semver-protected) · **Experimental** (may change in a minor) · **Internal** (not exported).
 
-### 19.1 Components — `uight`
+### 19.1 Components — `@aussieljk/uight`
 
 | Export                                                   | Tier         |
 | -------------------------------------------------------- | ------------ |
@@ -1230,7 +1254,7 @@ Tiers: **Stable** (semver-protected) · **Experimental** (may change in a minor)
 | `<Fixture>` — render one fixture, no chrome              | Stable       |
 | `<UightErrorBoundary>`                                   | Experimental |
 
-### 19.2 Fixture hooks — `uight`
+### 19.2 Fixture hooks — `@aussieljk/uight`
 
 | Hook                  | Tier         | Signature                                                                |
 | --------------------- | ------------ | ------------------------------------------------------------------------ |
@@ -1292,13 +1316,15 @@ export interface UightChromeApiV1 {
 | `parseFixtureFile(source)`  | Experimental | The single-file classifier                         |
 | `resolveUightConfig(opts)`  | Experimental | Config resolution alone                            |
 
-### 19.5 Shared — `uight`
+### 19.5 Shared — `@aussieljk/uight`
 
 `parseFixtureId`, `serializeFixtureId`, `matchesFilter`, `defineCodec`, and the types `FixtureId`, `FixtureIndex`, `FixtureFileIndex`, `FixtureFileMeta`, `FixtureMeta`, `TreeNode`, `InventoryItem`, `Wire`, `EditableWire`, `InputOverlay`, `InputOptions`, `FixtureCodec`, `CodecEditorProps`, `UightProps`, `ChromeOptions`, `UightComponents`, `UightChromeApiV1`, `RouterAdapter`, `ViewportPreset`, `RendererError`, `UightPluginOptions` — all Stable. `UightTransport`, `MountedEnvelope`, `Scheduler` — Experimental.
 
 ### 19.6 HTTP endpoints
 
-**Development only.** Registered solely in `serve` mode, loopback-bound by default, absent in production builds. All read-only — v1 writes no files (§1.4), which removes CSRF and path-confinement risk entirely rather than mitigating it.
+**Development only.** Registered solely in `serve` mode, absent in production builds. All read-only — v1 writes no files (§1.4), which removes CSRF and path-confinement risk entirely rather than mitigating it.
+
+**Loopback-bound by default.** Read-only is not the same as harmless: `config.json` echoes resolved filesystem paths and `index.json` lists every fixture file in the project, and together they are a map of somebody's source tree. A non-loopback request falls through to the next handler rather than being refused, because a 403 confirms the endpoint exists. `devApi: 'any'` restores unrestricted access for a proxy or container that legitimately forwards; `devApi: false` removes the endpoints altogether, which costs `@aussieljk/uight/mcp` and external tooling and costs the explorer nothing — it learns the index from the virtual module and the `uight:index` event, never over HTTP.
 
 | Method | Path                     | Tier     | Returns                                                                  |
 | ------ | ------------------------ | -------- | ------------------------------------------------------------------------ |
@@ -1317,46 +1343,91 @@ The overlay store implementation; the renderer mount function and handshake; `Fr
 
 ---
 
-## 20. Testing
+## 20. Verification
 
-### 20.1 Vitest
+### 20.1 There is no test suite, and that is a decision
 
-Parsing and classification, fixture-id round-tripping, serialization and codecs, overlay application and patch dropping, path rejection (`__proto__` and friends), filter semantics, config resolution, index scanning, collision detection, routing utilities, decorator composition order.
+Earlier drafts of this section specified a Vitest suite and a Playwright matrix,
+and both were built and then removed. The section is rewritten rather than left
+aspirational, because a specification that asks for something the project has
+decided not to do is not a plan — it is a permanent, misleading defect report.
 
-### 20.2 Playwright — required, not optional
+**What replaces them is a set of gates that run on every change**, each of which
+either passes or fails the build:
 
-The M0 questions are browser questions: iframe realm behaviour, Fast Refresh inside a frame, CSP, history, `matchMedia`, focus, and the bootstrap race. Vitest cannot answer any of them.
+| Gate                 | Command                    | What it establishes                                                                         |
+| -------------------- | -------------------------- | ------------------------------------------------------------------------------------------- |
+| Stylesheet freshness | `bun run check`            | The compiled scoped CSS matches the sources it was compiled from (§10.3)                    |
+| Build                | `bun run check`            | Every entry point in §16.1 builds, with declarations                                        |
+| Type check           | `bun run check`            | `tsgo --noEmit` across the package, the examples and the docs site                          |
+| Lint                 | `bun run check`            | oxlint, `correctness` as error (§17.1)                                                      |
+| Format               | `bun run format:check`     | oxfmt against a committed config                                                            |
+| Packaging            | `bun run verify`           | `npm publish --dry-run` — a bad `bin` path or a missing file, which no source check can see |
+| Budgets              | `bun run bench`            | §20.2, failing on a breach and on drift                                                     |
+| Registry resolution  | `bun run registry:resolve` | §11.1's "proof, not plausibility" — a real `shadcn add` (§20.3)                             |
 
-**Matrix:** Chromium, Firefox, WebKit × React 18 and 19 × dev server and production preview × default base, non-root base, relative base.
+**State the cost plainly.** Nothing above executes a fixture, applies an overlay,
+runs a handshake or opens a browser. Every behavioural claim in this document is
+established by construction and by use — the demo corpus indexes 84 files and 593
+fixtures on every run of the dev server — and not by assertion. A regression in
+the frame bootstrap race, in overlay patch dropping, or in decorator composition
+order would land silently and be found by a person.
 
-**Scenarios:** frame bootstrap and handshake; HMR of a fixture; add, delete and rename; `matchMedia` inside the frame; portals and modals; keyboard-only tree and panel; screen-reader labels; focus restoration after fixture change; CSP with nonces; two mounts on one page; production gate removes the chunk; ejected component under host Tailwind.
+That is the trade this project has made: the gates that are cheap, fast and
+total are automated; the ones that need a browser matrix are not run at all
+rather than run partially. `FrameHost` carries three defences against the
+bootstrap race precisely because each covers a different engine's ordering, and
+that reasoning is now load-bearing documentation rather than a tested invariant.
+It is written down in `NOTES.md` for that reason.
 
-### 20.3 Budgets
+### 20.2 Budgets
 
-Measured in CI, failing on regression beyond a threshold:
+Measured by `scripts/bench.ts` against a generated corpus, in CI, failing both on
+a breach and on drift from a committed baseline — because a budget only fires at
+the cliff edge, and three innocuous-looking increases in a row are how a limit
+gets spent without anyone deciding to spend it.
 
-| Metric                                         | Budget          |
-| ---------------------------------------------- | --------------- |
-| Plugin startup, 100 fixture modules            | < 300 ms        |
-| Plugin startup, 500 fixture modules            | < 1.2 s         |
-| Incremental index on one file change           | < 30 ms         |
-| Fixture selection to first paint (frame, warm) | < 250 ms        |
-| Frame handshake                                | < 100 ms        |
-| Chrome bundle, gzipped                         | < 90 KB         |
-| Memory after 100 mount/unmount cycles          | no upward trend |
-| HMR latency, fixture edit to render            | < 150 ms        |
+| Metric                               | Budget   |
+| ------------------------------------ | -------- |
+| Plugin startup, 100 fixture modules  | < 300 ms |
+| Plugin startup, 500 fixture modules  | < 1.2 s  |
+| Incremental index on one file change | < 30 ms  |
+| Chrome bundle, gzipped               | < 90 KB  |
 
-Budgets are set at M0 from measurements, not guessed; the numbers above are the targets to validate.
+These four are the rows that can be measured without a browser, and they are
+therefore the only rows. First paint, handshake latency, memory across
+mount/unmount cycles and HMR latency were budgets here in earlier drafts; they
+were measured once, by the harness §20.1 describes removing, and a budget nothing
+measures is a number, not a gate. They are not listed as targets-in-waiting,
+because listing them implies a plan to enforce them and there is none.
 
----
+### 20.3 The registry gate
+
+§11.1 says the registry example "is not considered correct until this passes",
+and `scripts/registry-resolve.ts` is what passes it. It scaffolds a project,
+points `components.json` at a `{name}` URL template, and runs **shadcn's own
+CLI** — not our reader — over loopback against `packages/uight/registry/`, then
+checks the installed tree: transitive `registryDependencies`, companion files,
+`registry:file` targets, that no specifier still points at this repository's
+layout, that every uight import is the frozen surface, and that §11.4's licence
+header survived the trip. `--deployed` runs the same checks against
+`https://uight.dev/r`.
+
+It is a script rather than a test for the reason §20.1 gives, and what it needs
+is exactly what a unit test could not have supplied: a real network stack and a
+real CLI. It found something on its first run — shadcn's import rewrite discards
+a file's leading trivia, so the licence header was published and then deleted on
+the way to disk.
 
 ## 21. Release plan
 
 Earlier drafts put fixture compatibility, static indexing, inline and frame rendering, full controls with custom serialization, routing, production modes, ejection, CSF, MDX, docgen, inventory and a file-writing endpoint into one release. That is several products.
 
-### 21.1 M0 — spikes
+### 21.1 M0 — spikes, all run
 
-Throwaway code, answering what could invalidate the design.
+Throwaway code, answering what could invalidate the design. Every item below has
+been run; the answers are in §22 and, at length, in `NOTES.md`. Kept as a record
+of what the design was allowed to assume.
 
 1. Frame realm bootstrap, dev and production (Q1)
 2. React Refresh preamble in-frame; public dev renderer URL (Q2)
@@ -1373,13 +1444,20 @@ Throwaway code, answering what could invalidate the design.
 
 ### 21.2 Releases
 
-| Release     | Contents                                                                                                                                                                                                                                                                                        |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **v1.0**    | Discovery and normalization; static index with warm pass and reconciliation; tree, inventory and selection; inline and frame isolation; preview entry; explicit `useFixtureInput` controls with the overlay model and codecs; routing and production modes; replaceable chrome via `components` |
-| **v1.1**    | MDX fixtures; the declared CSF subset                                                                                                                                                                                                                                                           |
-| **v1.2**    | Ejection registry; **hook facade freezes**                                                                                                                                                                                                                                                      |
-| **v1.3**    | Docgen and prop tables, resolver decided by the §15.2 spike                                                                                                                                                                                                                                     |
-| **Post-v1** | Fixture scaffolding and any file-writing endpoint, if it earns its security and maintenance cost — which on current evidence it does not                                                                                                                                                        |
+| Release     | Contents                                                                                                                                                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v1.0**    | Discovery and normalization; static index with warm pass and reconciliation; tree, inventory and selection; inline and frame isolation; preview entry; explicit `useFixtureInput` controls with the overlay model and codecs; routing and production modes; replaceable chrome via `components`. **Shipped.** |
+| **v1.1**    | MDX fixtures; MDX documentation pages; the declared CSF subset. **Shipped.**                                                                                                                                                                                                                                  |
+| **v1.2**    | Ejection registry, resolved from a deployed origin by shadcn's own CLI (§20.3); **hook facade freezes**. Registry shipped; the freeze has not happened.                                                                                                                                                       |
+| **v1.3**    | Docgen and prop tables, resolver decided by the §15.2 spike. The Babel resolver and the prop table are in; the spike is not run, so the resolver is not decided.                                                                                                                                              |
+| **Post-v1** | Fixture scaffolding and any file-writing endpoint, if it earns its security and maintenance cost — which on current evidence it does not. "Copy as fixture" was added instead, which produces the same text without the endpoint.                                                                             |
+
+**Shipped ahead of the plan**, and therefore in no row above: call-site
+harvesting (§12), `@aussieljk/uight/test`, `@aussieljk/uight/mcp`, the static
+explorer build, grid mode, shareable links, the command palette, and a Storybook
+drop-in path §13 had ruled out. Everything published while the surface moves is
+`0.0.1-canary.N`; the milestone names are kept because they name coherent bundles
+of work, not because a `1.0.0` tag is imminent.
 
 v1.0 is the product thesis: two steps to something useful, fixtures when you want more.
 
@@ -1387,22 +1465,29 @@ v1.0 is the product thesis: two steps to something useful, fixtures when you wan
 
 ## 22. Open questions
 
-| #   | Question                                                                                       | Blocks       |
-| --- | ---------------------------------------------------------------------------------------------- | ------------ |
-| Q1  | Frame bootstrap race across Chromium, Firefox, WebKit                                          | M0           |
-| Q2  | Exact preamble specifier for the installed plugin version                                      | M0           |
-| Q3  | Which scheduler; does anything tear?                                                           | M0           |
-| Q4  | Is the warm pass acceptable by default? It executes module-scope code in development           | M0           |
-| Q5  | Does the production gate remove the chunk?                                                     | M0           |
-| Q6  | Does the codec module tree-shake so editors stay out of the renderer chunk?                    | v1.0         |
-| Q7  | Rolldown file-URL token, and whether `resolveFileUrl` is needed for unusual bases              | M0           |
-| Q8  | Does a real `shadcn add` resolve from our registry?                                            | M0           |
-| Q9  | Glob invalidation under Vite 8.1, Rolldown, Bundled Dev Mode                                   | M0           |
-| Q10 | Overlay reapplication across HMR — does anything stale survive?                                | M0           |
-| Q11 | What goes in `UightChromeApiV1`, given it freezes at v1.2                                      | v1.0 design  |
-| Q12 | Is the TypeScript 7.1 API sufficient for `react-docgen-typescript`, and has tsgolint followed? | v1.3         |
-| Q13 | Does `uight` clear a trademark and npm availability check?                                     | First commit |
-| Q14 | Should overlay state persist across reloads?                                                   | v1.0         |
+Answers in full are in `NOTES.md`; `ROADMAP.md` tracks what remains.
+
+| #   | Question                                                                                       | Status                                                                                                                 |
+| --- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Q1  | Frame bootstrap race across Chromium, Firefox, WebKit                                          | Answered — all three defences are needed. **One engine only**, and nothing re-checks it (§20.1)                        |
+| Q2  | Exact preamble specifier for the installed plugin version                                      | Answered — `@vitejs/plugin-react/preamble`                                                                             |
+| Q3  | Which scheduler; does anything tear?                                                           | Answered — microtask by default, injectable                                                                            |
+| Q4  | Is the warm pass acceptable by default? It executes module-scope code in development           | **Open.** Exposure quantified — 1 file of 83 on the demo corpus — but the cost of one such execution is browser-shaped |
+| Q5  | Does the production gate remove the chunk?                                                     | Answered, affirmative, against a real build                                                                            |
+| Q6  | Does the codec module tree-shake so editors stay out of the renderer chunk?                    | Answered — enforced by imports rather than left to tree-shaking                                                        |
+| Q7  | Rolldown file-URL token, and whether `resolveFileUrl` is needed for unusual bases              | Answered — the token does not exist in this toolchain; `emitFile` plus a placeholder rewritten in `generateBundle`     |
+| Q8  | Does a real `shadcn add` resolve from our registry?                                            | **Answered.** shadcn's own CLI, against both loopback and `https://uight.dev/r`, gated in CI (§20.3)                   |
+| Q9  | Glob invalidation under Vite 8.1, Rolldown, Bundled Dev Mode                                   | Answered — add, delete and rename move the tree with no reload. Nothing re-checks the browser half                     |
+| Q10 | Overlay reapplication across HMR — does anything stale survive?                                | Answered — nothing stale survives, by construction (§7.2)                                                              |
+| Q11 | What goes in `UightChromeApiV1`, given it freezes at v1.2                                      | Answered — the `component` and `palette` groups were the gap. The freeze itself has not happened                       |
+| Q12 | Is the TypeScript 7.1 API sufficient for `react-docgen-typescript`, and has tsgolint followed? | **Open.** The spike is unrun; the Babel resolver ships behind the same interface with its limitation documented        |
+| Q13 | Does `uight` clear a trademark and npm availability check?                                     | Answered — published as `@aussieljk/uight`; the bare name was not available                                            |
+| Q14 | Should overlay state persist across reloads?                                                   | Answered — not persisted, but shareable through a link                                                                 |
+
+Two remain open, and both are open for the same reason: **§20.1 removed the
+browser harness.** Q4 needs one execution measured in a browser, and Q1 and Q9
+are answered on one engine rather than three. Q12 is open on an external
+dependency and needs nothing from this repository.
 
 ---
 

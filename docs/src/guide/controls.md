@@ -37,6 +37,37 @@ list in the type:
 const [size] = useFixtureSelect("size", { options: ["sm", "md", "lg"] as const });
 ```
 
+## Borrowing a prop's documentation
+
+A control's metadata is declared where the control is, never guessed from its name —
+there is no reliable mapping from an input called `variant` to a particular prop, because
+a fixture may compose several components, transform values, or expose a control matching
+no prop at all.
+
+The one exception is a reference you write yourself:
+
+```ts
+const [variant] = useFixtureInput("variant", "primary", {
+	from: { component: "Button", prop: "variant" },
+});
+```
+
+That says _which_ prop this input stands for, which is the thing that cannot be derived.
+With [`docgen`](/reference/config) on, the control then takes:
+
+- the prop's **description**, verbatim; and
+- its **options**, but only when the type is a union of string literals —
+  `'primary' | 'secondary'` becomes a select, while `'sm' | number` is left alone.
+
+A union that is only partly understood is rejected whole. Three of a component's five
+variants under a select looks authoritative and is wrong, which is worse than the text box
+you would otherwise have got.
+
+Anything you declare yourself wins, and everything else the prop knows is deliberately
+ignored: its type never chooses a control, and its default is the component's while the
+input's is the fixture's. With `docgen` off — the default — `from` does nothing at all,
+and the input renders exactly as declared.
+
 ## What happens across an edit
 
 Control values are an **overlay** on the fixture's own defaults, not a rewrite of them.

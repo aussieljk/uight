@@ -235,14 +235,19 @@ export function uight(options: UightPluginOptions = {}): Plugin {
 			// Before the `/@uight` catch-all below, which would otherwise
 			// answer this path with the read-only JSON API's 404.
 			s.middlewares.use(DEV_PREVIEW_URL, previewDocumentHandler(s));
-			s.middlewares.use(
-				"/@uight",
-				readOnlyApi(
-					s,
-					() => cfg,
-					() => index,
-				),
-			); // §19.6
+			// §19.6 — `devApi: false` removes the endpoints outright. The explorer
+			// does not use them (the index reaches it through the virtual module
+			// and the `uight:index` event), so this costs external tooling only.
+			if (cfg.devApi !== false) {
+				s.middlewares.use(
+					"/@uight",
+					readOnlyApi(
+						s,
+						() => cfg,
+						() => index,
+					),
+				);
+			}
 
 			// Raw watcher events are used ONLY for topology: add and unlink.
 			// Content changes go through handleHotUpdate, which provides

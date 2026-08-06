@@ -38,8 +38,13 @@ npx shadcn add @uight/fixture-tree
 ```
 
 Items are published per minor at `/r/v{major}.{minor}/{name}.json`, with `/r/{name}.json`
-tracking latest. An ejected file records the version it came from in its header. Items
-from different versions may be combined only within one minor.
+tracking latest. Items from different versions may be combined only within one minor.
+
+An ejected file records the version it came from in a header **at the end of the file**,
+which looks odd and is not a preference: `shadcn add` rewrites an installed file's imports
+through an AST transform, and that transform discards whatever comment the file starts
+with. A header on line one is published, downloaded, and then deleted on the way to your
+disk. At the end it is trailing trivia, and it survives.
 
 ## The frozen surface
 

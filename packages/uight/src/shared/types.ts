@@ -379,6 +379,16 @@ export interface InputOptionsWire {
 	min?: number;
 	max?: number;
 	step?: number;
+	/**
+	 * §7.6's explicit docgen reference, carried across the realm boundary so the
+	 * host can resolve it.
+	 *
+	 * It is resolved on the HOST rather than in the renderer because the docs are
+	 * host data — they ride on the index (§15.1), which the renderer has no need
+	 * of — and because the panel that displays the result is host UI. The
+	 * renderer's job is to say which prop was named, not to go looking for it.
+	 */
+	from?: { component: string; prop: string };
 }
 
 export interface RegisteredInput {
@@ -738,6 +748,24 @@ export interface UightPluginOptions {
 
 	index?: "static" | "warm" | "lazy";
 	production?: "exclude" | "include" | "error";
+
+	/**
+	 * Who may reach the read-only JSON endpoints (§19.6). Default `'loopback'`.
+	 *
+	 * They are development-only and read nothing back, but `/@uight/config.json`
+	 * echoes resolved paths and `/@uight/index.json` lists every fixture file in
+	 * the project — a map of the source tree. On a default dev server that is
+	 * unreachable anyway; run with `--host` on a shared network and it is not,
+	 * and nothing about `vite --host` says "and publish an index of my
+	 * repository".
+	 *
+	 * `'any'` restores the old behaviour, for a dev server behind a proxy or a
+	 * container where the request genuinely arrives from another address.
+	 * `false` removes the endpoints altogether — the explorer does not use them
+	 * (it learns the index from the virtual module and the `uight:index` event),
+	 * so this costs only `@aussieljk/uight/mcp` and any external tooling.
+	 */
+	devApi?: "loopback" | "any" | false;
 
 	/**
 	 * Bundle every fixture module into the entry chunk instead of code-splitting

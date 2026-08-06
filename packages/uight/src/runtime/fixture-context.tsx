@@ -160,6 +160,9 @@ function toOptionsWire(
 			serializer.serialize(option, revision, { name }),
 		);
 	}
+	// §7.6 — passed through, never resolved here. The renderer does not hold the
+	// docs and must not start guessing what this refers to.
+	if (options.from) wire.from = { ...options.from };
 	return wire;
 }
 

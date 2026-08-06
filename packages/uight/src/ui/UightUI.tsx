@@ -80,7 +80,7 @@ import {
 	VIEWPORT_PRESETS,
 } from "./constants.ts";
 import { FOCUS_RING, MOTION, QUIET_BUTTON, SECTION_LABEL, cx } from "./cx.ts";
-import { findDoc } from "./docs.ts";
+import { findDoc, resolveInputDoc } from "./docs.ts";
 import { CSP_BLOCKED_PREFIX, FrameHost } from "./FrameHost.tsx";
 import { GridView } from "./chrome/GridView.tsx";
 import { HelpDialog } from "./HelpDialog.tsx";
@@ -725,6 +725,28 @@ export default function UightUI(props: UightProps): ReactElement {
 	/* ---- overlay store and transport — §7.2, §8 ---- */
 	const store = useMemo(() => createOverlayStore(), []);
 	const overlayState = useOverlayState(store);
+
+	/**
+	 * §7.6 — inputs with `from` filled in from the prop they named.
+	 *
+	 * Applied here, above both the facade and the packaged panel, so an ejected
+	 * `ControlPanel` reading `useUightChrome().inputs.registered` sees exactly
+	 * what ours does. Doing it inside the panel would make the resolution a
+	 * private feature of the copy we happen to ship.
+	 *
+	 * A no-op in the overwhelmingly common case: `docgen` is off by default
+	 * (§15.1), and an input without `from` is returned unchanged and by
+	 * identity, so this costs one pass over a short list.
+	 */
+	const registeredInputs = useMemo(() => {
+		if (!index.docs || !overlayState.registered.some((input) => input.options?.from)) {
+			return overlayState.registered;
+		}
+		return overlayState.registered.map((input) => {
+			const options = resolveInputDoc(input.options, index.docs);
+			return options === input.options ? input : { ...input, options };
+		});
+	}, [overlayState.registered, index.docs]);
 	const [transport, setTransport] = useState<HostTransport | null>(null);
 	const [status, setStatus] = useState<"connecting" | "ready" | "error">("connecting");
 	const [error, setError] = useState<RendererError | null>(null);
@@ -1324,7 +1346,7 @@ export default function UightUI(props: UightProps): ReactElement {
 				previous: () => step(-1),
 			},
 			inputs: {
-				registered: overlayState.registered,
+				registered: registeredInputs,
 				overlay: overlayState.overlays,
 				set: setInput,
 				reset: resetInput,
@@ -1484,7 +1506,7 @@ export default function UightUI(props: UightProps): ReactElement {
 
 	/* ---- layout ---- */
 	const showTree = chrome.tree && mode !== "pinned";
-	const showControls = chrome.controls && overlayState.registered.length > 0;
+	const showControls = chrome.controls && registeredInputs.length > 0;
 
 	/*
 	 * §15.2 — the prop table for the selected detected component.
@@ -1925,7 +1947,7 @@ export default function UightUI(props: UightProps): ReactElement {
 								>
 									{showControls ? (
 										<ControlPanel
-											inputs={overlayState.registered}
+											inputs={registeredInputs}
 											overlay={overlayState.overlays}
 											onSet={setInput}
 											onReset={resetInput}

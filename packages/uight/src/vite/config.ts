@@ -132,6 +132,9 @@ export interface ResolvedUightConfig {
 	/** §7's `eager` — build only; a dev server serves modules unbundled anyway. */
 	eager: boolean;
 
+	/** §19.6 — who may reach the read-only endpoints. */
+	devApi: "loopback" | "any" | false;
+
 	storybook:
 		| false
 		| (Required<NonNullable<StorybookSupport["support"]>> & {
@@ -295,6 +298,7 @@ export function resolveUightConfig(opts: ResolveUightConfigOptions): ResolvedUig
 
 		index: o.index ?? "warm",
 		eager: (o.eager ?? false) && opts.command === "build",
+		devApi: o.devApi ?? "loopback",
 		production: process.env[STATIC_ENV] === "1" ? "include" : (o.production ?? "exclude"),
 
 		storybook: resolveStorybook(o.storybook, Boolean(storybookPreview)),

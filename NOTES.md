@@ -2141,3 +2141,93 @@ Three things worth recording:
 Internal for now: §11.3 wants an ejectable chrome component's props type in
 `shared/types.ts`, and `PropTableProps` has not been added there. Until it is,
 the file stays outside `ui/chrome/` rather than half-following the pattern.
+
+---
+
+## The freshness pass — closing the last spec divergences
+
+### §7.6's `from`, the line that was declared and never read
+
+`InputOptions.from` existed in `shared/types.ts` and nothing anywhere read it.
+That is the worst state for a spec'd feature: it type-checks at every call site,
+so a user can write it, and it does nothing.
+
+**Resolved on the host, not in the renderer.** The docs ride on the index, which
+is host data; the panel that displays the result is host UI; and the renderer's
+job is to say which prop was named, not to go looking for it. So `toOptionsWire`
+passes `from` across the boundary untouched and `resolveInputDoc` does the join
+in `ui/docs.ts`, above both the packaged panel and the facade — an ejected
+`ControlPanel` reading `useUightChrome().inputs.registered` sees exactly what
+ours does. Doing it inside our panel would have made the whole feature a private
+property of the copy we happen to ship.
+
+**Two fields taken, and the rest deliberately refused.** `description` verbatim;
+`options` only from a union of string literals. Everything else a `PropDoc`
+carries is ignored on purpose, and each refusal is a D18 question:
+
+- `type` does not choose a control. That is inference, and it is the thing D18
+  exists to forbid.
+- `required` is not turned into validation. uight does not enforce a component's
+  contract; the fixture does.
+- `defaultValue` is the _component's_ default while the input's default is the
+  _fixture's_. Using one for the other would silently disagree with what is on
+  screen.
+
+**A partly-understood union is rejected whole.** `'sm' | number` yields nothing
+rather than a select offering `sm`. Three of five variants under a select looks
+authoritative and is wrong, which is worse than the text box it replaced.
+Resolution failures are silent throughout — `docgen` is off by default, so "no
+docs at all" is the common case, and an input degrading to its declaration is
+correct rather than broken.
+
+### The registry gate, and what it caught in its first minute
+
+Q8 had been "answered" by a test that resolved our files with our own reader.
+That is a different claim from the one §11.1 makes, and the gap between them was
+not academic.
+
+`scripts/registry-resolve.ts` runs **shadcn's own CLI**. Within one run it
+established that resolution, transitive `registryDependencies`, companions,
+`registry:file` targets and specifier rewriting were all correct — and that
+§11.4's licence header was not arriving. shadcn rewrites an installed file's
+imports through an AST transform, and that transform discards the file's leading
+trivia. The header was published, downloaded, and deleted on the way to disk.
+Interior comments survived; so did the CSS header, because CSS is never parsed as
+TypeScript.
+
+The first fix inserted the header after the import block, which works until a
+file has no imports — `cx.ts` has none, and it is exactly the sort of small
+helper nobody thinks to check. `withHeader` emits it as trailing trivia instead:
+one rule, every file, no exception to forget.
+
+**A script rather than a test**, in the shape of `bench.ts`, because the
+repository has no runner by decision (§20) and what this needed was a real
+network stack and a real CLI — neither of which a unit test could have supplied.
+
+### Loopback for the read-only endpoints
+
+§19.6 said "loopback-bound by default" from the beginning and the middleware
+never was. The reasoning that makes this worth fixing rather than rewording:
+read-only is not the same as harmless. `/@uight/config.json` echoes resolved
+filesystem paths and `/@uight/index.json` lists every fixture file in the
+project. Together they are a map of somebody's source tree, and `vite --host` is
+a statement about the application, not about these.
+
+Non-loopback requests fall through to `next()` rather than being refused, so the
+path 404s: a 403 confirms the endpoint exists, which is information we have just
+decided not to give. `::ffff:127.0.0.1` is matched, because that is what a
+dual-stack Node server actually reports for a loopback connection and matching
+only the plain forms would have refused the case this exists to allow.
+
+### §20 now describes what runs
+
+The specification asked for a Vitest suite and a Playwright matrix, both of which
+had been built and removed. A spec that keeps asking for something the project
+has decided against is not a plan — it is a permanent, misleading defect report,
+and it makes every other divergence harder to see. §20 is now the gates that
+exist, the four budgets that are actually measured, and an explicit statement of
+what none of it establishes.
+
+The browser rows were deleted from the budget table rather than kept as
+targets-in-waiting. A budget nothing measures is a number. Keeping them implied
+a plan to enforce them, and there is none.

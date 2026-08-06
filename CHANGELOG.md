@@ -17,6 +17,90 @@ Section numbers refer to `SPEC.md`; the findings behind most entries are recorde
 
 ## Unreleased
 
+### Added — `eager`, hover prefetch, and a documentation site that switches instantly
+
+Selecting a page on `uight.dev` used to re-tokenize and re-highlight the whole document
+inside the preview frame, because switching unmounts the previous page and takes its
+`useMemo` with it. On the spec — 82 kB, 40 fenced blocks — that was 2.8 seconds of
+synchronous main-thread work, paid again on every return. Rendering now happens at build
+time, and shiki and `marked` are gone from the client bundle entirely. Click to painted
+went from 2800 ms to a steady 30–60 ms across every page.
+
+Three of the changes are package features rather than site ones:
+
+- **`eager`** (§4.1, §9.1) — a build-only option that bundles fixture modules into the
+  entry chunk instead of code-splitting one lazy chunk each. Off by default and wrong for
+  a component corpus of any size; right when the modules are small and switched between
+  constantly, where the round trip per selection _is_ the latency.
+- **`PREFETCH`** (§9.1) — the host knows what the pointer is over and the renderer holds
+  the loaders, so `FixtureTree` warms a file's chunk on hover through a new advisory
+  message. `FixtureTreeProps.onPrefetch` is optional in both directions; an ejected tree
+  may ignore it and nothing about selection depends on it.
+- **A fixture keeps rendering while the next one loads.** `Loaded` records the selection
+  its fixture belongs to, so the outgoing tree stays mounted under its own key rather than
+  being replaced by a blank frame. Only the first load of a realm shows nothing, because
+  only then is there nothing to hold over.
+
+Verified in the built site: one frame document, never rewritten, across six switches.
+
+### Added — §7.6's `from`, the last unimplemented line of the control model
+
+`InputOptions.from` was declared and read by nothing. An input that names a prop —
+`from: { component: "Button", prop: "variant" }` — now picks up that prop's description
+and, where the type is a union of string literals, its options. Resolved on the host,
+where the docs already live, and applied above both the packaged panel and the facade so
+an ejected `ControlPanel` sees the same thing.
+
+D18 is intact: this is a reference the author wrote, not an inference. Nothing reads the
+input's _name_, `type` never chooses a control, and a union containing anything that is
+not a quoted string literal is rejected whole — three of a component's five variants
+under a select is worse than a text box, because it looks authoritative.
+
+### Added — the registry gate, and the licence header it found
+
+`bun run registry:resolve` runs **shadcn's own CLI** against the registry and checks what
+lands: transitive `registryDependencies`, companion files, `registry:file` targets, no
+specifier still pointing at this repository, every uight import being the frozen surface,
+and §11.4's licence header surviving. In CI over a loopback server; `--deployed` runs it
+against `https://uight.dev/r`. This closes Q8, which §11.1 makes a precondition for the
+registry example being correct at all.
+
+**It found a defect immediately.** shadcn rewrites an installed file's imports through an
+AST transform, and that transform discards leading trivia — so the licence header was
+published, downloaded and then deleted on the way to disk. Every `.ts`/`.tsx` file
+arrived without it, while interior comments and the CSS header survived. `withHeader`
+emits it as trailing trivia now. No amount of reading our own files would have found
+this, which is the whole of §11.1's "proof, not plausibility".
+
+### Changed — the read-only endpoints are loopback-bound
+
+§19.6 has always said "loopback-bound by default"; the middleware answered wherever Vite
+bound. Read-only is not the same as harmless — `/@uight/config.json` echoes resolved
+filesystem paths and `/@uight/index.json` lists every fixture file in the project, and
+together they are a map of somebody's source tree. `vite --host` is a statement about the
+application, not about this.
+
+A non-loopback request now falls through rather than being refused, because a 403
+confirms the endpoint exists. `devApi: 'any'` restores the old behaviour for a proxy or
+container that legitimately forwards; `devApi: false` removes the endpoints outright,
+which costs `@aussieljk/uight/mcp` and external tooling and costs the explorer nothing —
+it learns the index from the virtual module and the `uight:index` event, never over HTTP.
+
+### Changed — SPEC §20 describes the verification that exists
+
+The section specified a Vitest suite and a Playwright matrix. Both were built, both were
+removed, and the specification kept asking for them — which makes a document that is
+supposed to be the source of truth into a permanent, misleading defect report. §20 is now
+"Verification": the gates that actually run, the budgets that are actually measured, and
+an explicit statement of what none of them establish. The browser rows are gone from the
+budget table rather than listed as targets-in-waiting, because listing them implies a plan
+to enforce them and there is none.
+
+Also corrected against what shipped: the package is `@aussieljk/uight`, the package
+manager is bun, `Playwright` is an optional peer for the MCP screenshot tool rather than a
+pinned test dependency, §4.1's options block lists every option the plugin accepts, §21.2
+says which rows shipped, and §22's table carries answers instead of questions.
+
 ### Changed — uight.dev is a uight instance
 
 The documentation site was VitePress. It is now `bunx uight build` over a tree of

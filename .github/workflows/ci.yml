@@ -53,3 +53,12 @@ jobs:
    # exists in this repository, and are not approximated here.
    - name: Budgets
      run: bun run bench
+
+   # Q8, and §11.1's "proof, not plausibility": the registry example is not
+   # considered correct until a real `shadcn add` resolves it. This runs
+   # shadcn's own CLI against `packages/uight/registry/` served over loopback,
+   # so it proves the resolver — not our reader — and needs no deploy to be
+   # current. `--deployed` checks uight.dev itself and is run deliberately,
+   # after publishing, rather than on every commit.
+   - name: Registry resolves
+     run: bun run registry:resolve

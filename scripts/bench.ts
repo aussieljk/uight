@@ -34,7 +34,7 @@
  * **What is measurable here, and what is not.** Four of §20.3's eight rows are
  * Node-side and are measured below. The other four — first paint, frame
  * handshake, memory across mount/unmount cycles, HMR latency — need a browser
- * driving a real dev server, so they belong to the Playwright matrix (ROADMAP
+ * driving a real dev server, so they are not measured at all (SPEC §20.2, ROADMAP
  * item 1) and are deliberately absent rather than approximated. A fabricated
  * "handshake: 12 ms" from a Node stub would be worse than a blank cell: it
  * would read as proof.
@@ -431,9 +431,9 @@ function report(results: Measurement[]): void {
 			console.log("\n  no baseline — run with --update-baseline to record one");
 		}
 		console.log(
-			"\n  Not measured here — they need a browser, and belong to the Playwright\n" +
-				"  matrix: first paint, frame handshake, memory across mount/unmount\n" +
-				"  cycles, HMR latency.\n",
+			"\n  Not measured anywhere — these need a browser, and this repository has\n" +
+				"  no browser harness (SPEC §20.1): first paint, frame handshake, memory\n" +
+				"  across mount/unmount cycles, HMR latency.\n",
 		);
 	}
 

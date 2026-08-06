@@ -1,9 +1,9 @@
 {
-	"recorded": "2026-08-04",
+	"recorded": "2026-08-06",
 	"values": {
-		"startup100": 19.86,
-		"startup500": 88.98,
+		"startup100": 20.86,
+		"startup500": 95.32,
 		"incremental": 0.1,
-		"chrome": 59.59
+		"chrome": 60.83
 	}
 }

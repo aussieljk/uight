@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reviewed: 4 August 2026, at `0.0.1-canary.0`. Shipped work is in `CHANGELOG.md`;
+Last reviewed: 6 August 2026, at `0.0.1-canary.0`. Shipped work is in `CHANGELOG.md`;
 the reasoning behind most items is in `NOTES.md`. Section numbers refer to `SPEC.md`.
 
 **Versioning.** Everything published while the surface is still moving is
@@ -18,14 +18,21 @@ and a Storybook drop-in path §13 had ruled out entirely. On top of that,
 `0.0.1-canary.0` adds call-site harvesting, `@aussieljk/uight/test`, `@aussieljk/uight/mcp`, the static
 build, shareable state and the command palette.
 
-**There are no automated tests.** The unit suite, the golden-corpus snapshot and the
-§20.2 browser matrix were all removed deliberately. `bun run check` is now the stylesheet
-freshness check, the build, the type check, lint and format — nothing executes the
-package's behaviour. The demo indexes 84 files and 593 fixtures with zero problems and
-harvests 61 usages across 26 components, but that is now a thing observed by running the
-demo rather than a thing asserted on every change.
+**The site is deployed.** `uight.dev` serves the explorer-as-documentation site and,
+from the same deploy, the ejection registry at `/r` and `/r/v0.0`. That closed the last
+two halves of item 3 at once.
 
-The gap is no longer only cross-browser proof: it is proof of any kind.
+**There is no test runner, by decision.** The unit suite, the golden-corpus snapshot and
+the §20.2 browser matrix were removed and are not coming back; SPEC §20 has been
+rewritten to say so rather than to keep asking for them. What runs instead is a set of
+scripts, each a gate: `check` (stylesheet freshness, build, type check, lint), `verify`
+(the release path, ending in `npm publish --dry-run`), `bench` (§20.2's four Node rows,
+failing on breach and on drift) and `registry:resolve` (§20.3, a real `shadcn add`).
+
+**What that still costs, stated plainly.** Nothing executes a fixture, applies an
+overlay, runs a handshake or opens a browser. The demo indexes 84 files and 593 fixtures
+with zero problems and harvests 61 usages across 26 components, but that is observed by
+running the demo rather than asserted on every change.
 
 ---
 
@@ -33,31 +40,27 @@ The gap is no longer only cross-browser proof: it is proof of any kind.
 
 Ordered by what blocks trusting the canary.
 
-### 1. Automated tests (§20.1, §20.2) — **removed**
+### 1. Browser-shaped questions have no harness — **accepted, not scheduled**
 
-`packages/uight/tests/**`, `playwright.config.ts` and `tests/e2e/**` are gone, along with
-the `test` scripts and CI's `e2e` job. This was a deliberate decision, recorded here
-because SPEC §20 still asks for both halves and the divergence should be visible rather
-than inferred:
+`packages/uight/tests/**`, `playwright.config.ts` and `tests/e2e/**` are gone, with the
+`test` scripts and CI's `e2e` job. SPEC §20 now describes the verification that exists
+instead of the suites that do not, so this is no longer a divergence — it is a known
+limit, and this section records exactly what sits behind it.
 
-- **§20.1's unit suite** — 514 tests across 33 files, including the golden-corpus snapshot
-  that pinned the indexer's output against a real 84-file project.
-- **§20.2's browser matrix** — "required, not optional" in the spec. Chromium, Firefox and
-  WebKit against a purpose-built host app, and the only thing that has ever exercised the
-  frame bootstrap race across more than one engine.
+**Every browser-level answer in `NOTES.md` is a finding rather than a regression test:**
+the frame bootstrap race and `FrameHost`'s three defences, the Refresh preamble, CSP,
+`matchMedia` in-frame, focus and history. The six defects the matrix once found — the
+control-panel edit not reaching the frame, inline isolation never receiving a selection,
+two mounts under StrictMode, the rename leaving its old path, the host-document reload on
+edit, and the CSP message not naming its directive — are still fixed in the source, but
+nothing prevents any of them from returning silently. `FrameHost` carries three defences
+because each covers a different engine's ordering, and losing one is invisible.
 
-**What this costs, stated plainly.** Every browser-level answer in `NOTES.md` reverts to
-being a finding rather than a regression test: the frame bootstrap race and `FrameHost`'s
-three defences, the Refresh preamble, CSP, `matchMedia` in-frame, focus and history. The
-six defects that matrix found — the control-panel edit not reaching the frame, inline
-isolation never receiving a selection, two mounts under StrictMode, the rename leaving its
-old path, the host-document reload on edit, and the CSP message not naming its directive —
-are still fixed in the source, but nothing now prevents any of them from returning
-silently. `FrameHost` carries three defences because each covers a different engine's
-ordering, and losing one of them is once again invisible.
+Two open questions are open _only_ because of this: **Q4** (what one warm-pass module
+execution costs in a browser) and the second and third engines for **Q1** and **Q9**.
 
-The scenario checklist is kept below, because it remains the right list for whatever
-replaces this.
+The scenario list is kept because it remains the right list for whatever ever replaces
+this — not as a backlog item.
 
 - **Matrix:** Chromium, Firefox, WebKit × React 18 and 19 × dev server and production
   preview × default base, non-root base, relative base.
@@ -66,72 +69,65 @@ replaces this.
   panel; screen-reader labels; focus restoration after fixture change; CSP with nonces;
   two mounts on one page; the production gate removing the chunk; an ejected component
   under host Tailwind.
-- **New since the canary, and untested in a browser:** ⌘K focus handling and the palette's
+- **Never observed in a browser at all:** ⌘K focus handling and the palette's
   scroll-into-view; a shared `?state=` link seeding overlays before inputs register; a
   call-site fixture whose props drive the control panel; the static build served from a
-  non-root base.
-- **New with the UX pass, and browser-shaped by nature:** roving focus across the tree's
-  _virtualized_ window (a focused row can leave the DOM); the shared overlay's focus trap
-  and focus restoration for both the palette and the help dialog; `sessionStorage`
-  restoration racing the router's first read; the pane resizers under pointer capture; and
-  `/__open-in-editor` degrading in the static build.
+  non-root base; roving focus across the tree's _virtualized_ window (a focused row can
+  leave the DOM); the shared overlay's focus trap and focus restoration; `sessionStorage`
+  restoration racing the router's first read; the pane resizers under pointer capture;
+  `/__open-in-editor` degrading in the static build; and grid mode's 30-frame budget,
+  which was chosen by reasoning rather than measurement.
 
-The bootstrap race is still the highest-value scenario: `FrameHost` carries three defences
-because each covers a different engine's ordering, and only one engine has been observed.
-
-### 2. Budgets that fail on regression (§20.3) — **done for the Node rows**
+### 2. Budgets that fail on regression (§20.2) — **done**
 
 `scripts/bench.ts` measures the four rows that do not need a browser, against a generated
-synthetic corpus, and fails the build on a breach. CI runs it after `verify`, which is
-what builds the bundle it measures.
+synthetic corpus, and fails the build on a breach _and_ on drift from a committed
+baseline. CI runs it after `verify`, which is what builds the bundle it measures.
 
-| Metric                                         | Budget          | Status                             |
-| ---------------------------------------------- | --------------- | ---------------------------------- |
-| Plugin startup, 100 fixture modules            | < 300 ms        | **21–42 ms**, measured             |
-| Plugin startup, 500 fixture modules            | < 1.2 s         | **95–114 ms**, measured            |
-| Incremental index on one file change           | < 30 ms         | **0.1 ms**, measured               |
-| Fixture selection to first paint (frame, warm) | < 250 ms        | **14 ms**, measured (Chromium)     |
-| Frame handshake                                | < 100 ms        | **10 ms**, measured (Chromium)     |
-| Chrome bundle, gzipped                         | < 90 KB         | **57.8 KB**, measured              |
-| Memory after 100 mount/unmount cycles          | no upward trend | **+0.23 MB / 10 cycles**, measured |
-| HMR latency, fixture edit to render            | < 150 ms        | **37 ms**, measured (Chromium)     |
+| Metric                               | Budget   | Status                  |
+| ------------------------------------ | -------- | ----------------------- |
+| Plugin startup, 100 fixture modules  | < 300 ms | **21–42 ms**, measured  |
+| Plugin startup, 500 fixture modules  | < 1.2 s  | **95–114 ms**, measured |
+| Incremental index on one file change | < 30 ms  | **0.1 ms**, measured    |
+| Chrome bundle, gzipped               | < 90 KB  | **57.8 KB**, measured   |
 
-The four browser rows were measured once, by the browser matrix that item 1 removed.
-**The numbers above are a historical observation, not a gate**: nothing measures them now,
-and a regression in any of the four would land silently. HMR latency is the cautionary
-one — it was 880 ms and over for as long as an edit was a page load, and only a measured
-budget made that visible at all. The Node rows in `scripts/bench.ts` still run in CI and
-still fail on a breach.
+The four browser rows are no longer budgets — SPEC §20.2 lists only what is measured, on
+the grounds that a budget nothing runs is a number rather than a gate. They were, once,
+by the harness item 1 describes: first paint 14 ms, handshake 10 ms, HMR 37 ms, memory
++0.23 MB per 10 cycles, all on Chromium. HMR is the cautionary one — it sat at 880 ms for
+as long as an edit was a page load, and only a measured budget made that visible.
 
-The startup rows are ranges because the harness reports best-of-N and the two figures are
-an idle machine and a loaded one; both are an order of magnitude inside the budget. The
-chrome bundle has gone 32.7 → 41.2 → 54.3 → 57.8 KB gzipped, the last step being grid
-mode. Still inside its budget, and by some distance the metric that would fail first.
+The startup rows are ranges because the harness reports best-of-N across an idle machine
+and a loaded one; both are an order of magnitude inside budget. The chrome bundle has
+gone 32.7 → 41.2 → 54.3 → 57.8 KB gzipped, the last step being grid mode, and remains by
+some distance the metric that would fail first.
 
-### 3. Prove the registry resolves (Q8) — **partly**
+### 3. Prove the registry resolves (Q8) — **done**
 
-The `$schema` divergence is settled: the emitted items always used `registry-item.json`,
-and SPEC §11.2's example — which named the _index_ schema on an item, and depended on an
-`@uight/tree-item` that §11.3 never listed — has been corrected.
+`scripts/registry-resolve.ts` runs **shadcn's own CLI** against the registry, in CI,
+failing the build if anything about the install is wrong. It scaffolds a project, points
+`components.json` at a `{name}` template, installs three items chosen to cover every
+mechanism, and then checks the tree that landed: transitive `registryDependencies`,
+companion files, `registry:file` targets, no specifier still pointing at this
+repository's layout, every uight import being the frozen surface, and §11.4's licence
+header surviving. A bare item URL is exercised separately, with no namespace configured.
 
-Resolution was proven by a since-deleted test (`tests/registry-resolve.test.ts`) that
-served `registry/` over a real loopback HTTP server and resolved it the way `shadcn add`
-does — a `{name}` URL template as a `components.json` `registries` entry, transitive
-`registryDependencies` resolved dependencies-first, files written to their `target` — and
-asserts the installed tree.
+Both halves are now closed:
 
-**Hosting now exists in the repository:** `docs/` is the uight.dev site, and its sync
-script copies the built registry into `public/r/`, so the URLs the versioned copies point
-at are served by the same deploy as the page documenting them. That closes the _where_,
-not the _whether_ — nothing has resolved from a deployed origin yet, because nothing has
-been deployed.
+- **Locally**, over a loopback server, on every commit. No deploy required, so the gate
+  cannot go stale.
+- **From the deployed origin**, `https://uight.dev/r`, with `--deployed`. Run after
+  publishing rather than per commit.
 
-**Still open, and specific:** nothing proves the items are reachable at
-`https://uight.dev/r/…` from a real deploy; and nothing runs shadcn's own resolver, so its schema validation,
-`components.json` path aliasing and dependency installer remain untested against these
-files. Needs hosting, then a scratch project.
+**It found a real defect on its first run.** shadcn rewrites an installed file's imports
+through an AST transform, and that transform discards the file's leading trivia — so
+§11.4's licence header was published, downloaded and then deleted on the way to disk.
+Every `.ts`/`.tsx` file arrived without it while interior comments and the CSS header
+survived. `withHeader` in `build-registry.ts` now emits it as trailing trivia. That is
+precisely the class of defect §11.1's "proof, not plausibility" exists to catch, and no
+amount of reading our own files would have found it.
 
-### 4. Two open M0 questions — **narrowed**
+### 4. One open M0 question — **narrowed**
 
 - **Q9 — glob invalidation.** ~~The browser half is open.~~ **Answered.** The Node half was
   already exercised: add (in sorted position, not arrival order), delete, rename (both
@@ -152,24 +148,19 @@ files. Needs hosting, then a scratch project.
 
 ### 5. Follow-ups the canary created
 
-- **The docs site is written and unhosted.** `bun run docs:build` produces it; no deploy
-  exists, no domain is pointed at it, and item 3 above stays open until one is. Deploying
-  it is also what makes `/r` real, so the two are one task.
-- **Grid mode's budget is a guess.** 30 live frames was chosen by reasoning about what two
-  screens of tiles costs, not by measuring — and the corpus that would prove it wrong (591
-  fixtures) is the one the demo already ships. Measuring it needs a browser harness, which
-  the repository no longer has.
-
+- ~~**The docs site is written and unhosted.**~~ **Done.** `uight.dev` is deployed, and
+  the same deploy serves `/r` — which is what made item 3's second half checkable.
+- ~~**Grid mode's budget is a guess.**~~ Still true, and moved into item 1's list of
+  things no harness observes, where it belongs. 30 live frames was chosen by reasoning
+  about what two screens of tiles costs, not by measuring.
 - ~~**Call sites are name-matched.**~~ **Done.** Aliased specifiers resolve through
-  `configResolved`'s alias table, by prefix match against its string entries rather than by
-  running Vite's resolver per import. RegExp finds are dropped rather than approximated,
-  because a half-implemented regex alias produces a _wrong_ path. Two components sharing a
-  name still share a group when no import resolved at all — a bare specifier is a package,
-  and that stays name-matched.
-- **`oxfmt --check` is in CI; the reformat has not happened.** `.oxfmtrc.json` is
-  committed — tabs, width 90, chosen by measurement: 165 files disagree with it against
-  243 for the default. CI's format step and `bun run check` fail until the reformat commit
-  lands, which is deliberately its own change.
+  `configResolved`'s alias table, by prefix match against its string entries rather than
+  by running Vite's resolver per import. RegExp finds are dropped rather than
+  approximated, because a half-implemented regex alias produces a _wrong_ path. Two
+  components sharing a name still share a group when no import resolved at all — a bare
+  specifier is a package, and that stays name-matched.
+- ~~**`oxfmt --check` is in CI; the reformat has not happened.**~~ **Done.** The tree is
+  formatted against the committed `.oxfmtrc.json` and CI's format step passes.
 - ~~**The static build writes two scaffold files** into the project root.~~ **Done.** They
   live under `node_modules/.uight/` now, so a crashed build leaves nothing in the working
   tree — and the build no longer has to reserve two filenames in the user's root. The
@@ -180,9 +171,17 @@ files. Needs hosting, then a scratch project.
   the frame (`fullPage` for the whole explorer), with viewport presets and a resolved
   theme. Playwright is an **optional** peer, imported dynamically the way `react-docgen`
   is, so no install pays for three browser engines; absent, the tool says so and names the
-  fix. (`--url` is not required: the dev server is discovered via `/@uight/health`.)
+  fix. This is the one browser dependency the repository keeps, and it is a feature rather
+  than a harness.
 
----
+### 6. Documentation-site performance — **done**
+
+Every page is rendered to HTML at build time by `docs/plugins/docs-markdown.ts`, so
+shiki and `marked` leave the client bundle entirely; development renders in the browser
+through a source-keyed cache that survives the unmount a `useMemo` cannot. With `eager`,
+a hover prefetch and a fixture that stays mounted while the next one loads, a page switch
+went from 2.8 s on the largest page to a steady 30–60 ms. The `eager` and `PREFETCH`
+halves are package features, not site ones (§9.1).
 
 ## v1.1 — MDX, and the honesty items
 
@@ -220,17 +219,23 @@ The registry shipped early, so this is about the commitment rather than the code
 - **Q11 — settle `UightChromeApiV1`.** What belongs on it, given it is permanent after.
   The palette raised a concrete candidate: it needs call sites and the inventory together,
   and today it gets them as props rather than from the facade.
-- **`UightComponents.ControlPanelInputs`** — §11.3 lists the component as ejectable but
-  the type has no member for it, so passing one through `components` works at runtime and
-  fails the type check.
-- **A `component: { current, select }` group on the facade**, if shareable links to
-  detected components (and to a specific call site) are wanted. `onSelect` is
-  `(id: FixtureId | null) => void` and an `InventoryItem` is not a `FixtureId`, so both
-  are unroutable local state until the facade can express them.
+- ~~**`UightComponents.ControlPanelInputs`**~~ **Done.** The type has the member, so
+  passing a replacement through `components` type-checks.
+- ~~**A `component: { current, select }` group on the facade**~~ **Done.** The facade
+  carries `component` and `palette` groups, which is what Q11 was asking. Detected
+  components and their call sites are expressible.
+
+- **`FixtureTreeProps.onPrefetch`** is optional and not on the facade. It is a hint about
+  a file, not state, and putting it on a surface that freezes permanently for the sake of
+  a performance affordance would be the wrong trade — but the decision should be made
+  deliberately before the freeze rather than by omission.
 - ~~**`IndexProblem.kind: "confinement"`**~~ **Done.** An out-of-root `fixturesDir` is
   reported as `confinement`; `unreadable` described the outcome and named the wrong cause.
-- **Registry hosting and versioning** made real, and a documented upgrade path for anyone
-  who ejected from a canary.
+- ~~**Registry hosting and versioning** made real~~ **Done.** `uight.dev/r` serves both
+  the latest items and the per-minor copies under `/r/v0.0`, and a real `shadcn add`
+  resolves from both (item 3). Still to write: **a documented upgrade path for anyone who
+  ejected from a canary** — the items say which minor they came from, and nothing yet
+  tells a reader what to do when that minor moves.
 
 ## v1.3 — docgen and prop tables
 
@@ -243,11 +248,20 @@ Blocked on **Q12**, which §15.2 states as three gates that must _all_ pass:
 3. Has `oxlint-tsgolint` shipped a build tracking 7.1?
 
 Until all three hold, ship the Babel resolver behind the same interface, with the
-documented limitation that inherited props will not appear. **That resolver now exists** —
+documented limitation that inherited props will not appear. **That resolver exists** —
 `createBabelDocgenResolver()` behind `DocgenResolver`, populating `FixtureIndex.docs` when
 `docgen` is on and carrying `inherited-props` on every entry, so a prop table cannot render
 without the caveat. `react-docgen` is optional, imported dynamically, and absent by
-default. Nothing consumes `docs` yet: the prop table itself is the v1.3 work.
+default.
+
+**Both consumers now exist.** `PropTable` renders the docs for a selected component, and
+§7.6's `from` resolves an input against them — the one sanctioned path from docgen to a
+control, and the last unimplemented line of the spec's control model. `resolveInputDoc`
+takes a prop's description verbatim and its options only from a union of string literals,
+rejecting a partially-understood union whole rather than offering three of five variants
+under a select that looks authoritative.
+
+What remains for v1.3 is Q12 itself: which resolver ships.
 
 D18 stands regardless: prop tables are display metadata, and docgen never starts inferring
 controls from prop names. Call-site harvesting is not a hole in that rule — it quotes
@@ -276,19 +290,19 @@ instead, which gives the same output without the endpoint.
 
 ## Open questions
 
-| #   | Question                                                  | Status                                                                                                                                         |
-| --- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | Frame bootstrap race across engines                       | Answered; needs all three defences. One engine only                                                                                            |
-| Q2  | Exact preamble specifier                                  | Answered — `@vitejs/plugin-react/preamble`                                                                                                     |
-| Q3  | Which scheduler; does anything tear?                      | Answered — microtask default, injectable                                                                                                       |
-| Q4  | Is the warm pass acceptable by default?                   | **Open** — exposure quantified (1 file of 83); cost is browser-only                                                                            |
-| Q5  | Does the production gate remove the chunk?                | Answered, affirmative, against a real build                                                                                                    |
-| Q6  | Do codec editors stay out of the renderer chunk?          | Answered — enforced by imports, not tree-shaking                                                                                               |
-| Q7  | Rolldown file-URL token                                   | Answered — absent; `emitFile` + placeholder                                                                                                    |
-| Q8  | Does a real `shadcn add` resolve from our registry?       | **Open** — resolves from local files; the docs site serves `/r`, but nothing has resolved from a deploy, and shadcn's own resolver is untested |
-| Q9  | Glob invalidation under Vite 8.1 / Rolldown / Bundled Dev | Answered — add, delete and rename, in a browser, with no reload                                                                                |
-| Q10 | Overlay reapplication across HMR                          | Answered — nothing stale survives; one caveat                                                                                                  |
-| Q11 | What goes in `UightChromeApiV1`                           | Answered — `component` and `palette` groups; NOTES                                                                                             |
-| Q12 | TypeScript 7.1 API sufficiency, tsgolint parity           | **Open**                                                                                                                                       |
-| Q13 | Trademark and npm availability for `uight`                | Answered — the name was free; published 4 Aug 2026                                                                                             |
-| Q14 | Should overlay state persist across reloads?              | Answered — not persisted, but now _shareable_                                                                                                  |
+| #   | Question                                                  | Status                                                                                                                               |
+| --- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Q1  | Frame bootstrap race across engines                       | Answered; needs all three defences. One engine only                                                                                  |
+| Q2  | Exact preamble specifier                                  | Answered — `@vitejs/plugin-react/preamble`                                                                                           |
+| Q3  | Which scheduler; does anything tear?                      | Answered — microtask default, injectable                                                                                             |
+| Q4  | Is the warm pass acceptable by default?                   | **Open** — exposure quantified (1 file of 83); cost is browser-only                                                                  |
+| Q5  | Does the production gate remove the chunk?                | Answered, affirmative, against a real build                                                                                          |
+| Q6  | Do codec editors stay out of the renderer chunk?          | Answered — enforced by imports, not tree-shaking                                                                                     |
+| Q7  | Rolldown file-URL token                                   | Answered — absent; `emitFile` + placeholder                                                                                          |
+| Q8  | Does a real `shadcn add` resolve from our registry?       | **Answered** — shadcn's own CLI, over loopback in CI and against `uight.dev/r` on demand. Found the stripped licence header (item 3) |
+| Q9  | Glob invalidation under Vite 8.1 / Rolldown / Bundled Dev | Answered — add, delete and rename, in a browser, with no reload                                                                      |
+| Q10 | Overlay reapplication across HMR                          | Answered — nothing stale survives; one caveat                                                                                        |
+| Q11 | What goes in `UightChromeApiV1`                           | Answered — `component` and `palette` groups; NOTES                                                                                   |
+| Q12 | TypeScript 7.1 API sufficiency, tsgolint parity           | **Open**                                                                                                                             |
+| Q13 | Trademark and npm availability for `uight`                | Answered — the name was free; published 4 Aug 2026                                                                                   |
+| Q14 | Should overlay state persist across reloads?              | Answered — not persisted, but now _shareable_                                                                                        |

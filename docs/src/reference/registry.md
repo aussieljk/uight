@@ -87,3 +87,15 @@ Honesty about the state of this, because "it should work" is how registries stay
   serving this build before any of the URLs above are real. Nothing in the emitted items
   names a host any more, so the proof above transfers to the deploy — and the deploy now
   exists: the docs site is on Vercel at `uight.dev`, serving these items from `/r/`.
+
+## This is checked, not assumed
+
+`bun run registry:resolve` in the repository runs shadcn's own CLI against these files and
+inspects what lands: transitive dependencies, companion files, `registry:file` targets,
+that no import still points at uight's own source layout, that the only uight import is
+the frozen `@aussieljk/uight/chrome`, and that the licence header survived. It runs on
+every commit against a loopback copy, and on demand against this origin.
+
+It is worth saying why that exists. The first time it ran it found that ejected files were
+arriving with their licence headers stripped — published correctly, deleted by the
+installer. Nothing that reads our own files could have found it.

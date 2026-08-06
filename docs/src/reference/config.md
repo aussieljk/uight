@@ -29,7 +29,7 @@ says so rather than emitting a glob that silently matches nothing.
 | `callSites` | `true`  | Harvest real usages from your source. `{ max }` caps sites per component (default 8) |
 | `storybook` | `false` | Read CSF. See [From Storybook](/guide/storybook)                                     |
 | `docs`      | `true`  | MDX pages, `**/*.docs.mdx`. `{ fileSuffix }` to rename                               |
-| `docgen`    | `false` | Prop metadata via `react-docgen`, if installed. Nothing renders it yet               |
+| `docgen`    | `false` | Prop metadata via `react-docgen`, if installed. Feeds the prop table and `from`      |
 
 ## The preview realm
 
@@ -45,8 +45,40 @@ says so rather than emitting a glob that silently matches nothing.
 | ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `index`      | `"warm"`              | `"static"` never executes a module; `"warm"` executes only the files the parser could not decide; `"lazy"` defers to selection |
 | `production` | `"exclude"`           | `"include"` ships the explorer; `"error"` fails the build if it would be                                                       |
+| `eager`      | `false`               | Bundle fixtures into the entry chunk instead of one lazy chunk each. Build only — see below                                    |
 | `route`      | `"/uight"`            | `false` disables the dev route entirely                                                                                        |
 | `configPath` | `"uight.config.json"` | `false` ignores the config file                                                                                                |
 
 `"warm"` is the default because it is the only one that both names every fixture up front
 and executes almost nothing: on the demo corpus it runs 1 file out of 83.
+
+### `eager`
+
+Off by default, and it should stay off for a component library. Each fixture module is
+normally its own lazy chunk, which is what stops the explorer's first download from
+containing every component you have. `eager: true` gives that up and bundles them all into
+the entry chunk.
+
+It earns its place when the modules are small, few, and switched between constantly — the
+case it exists for is a documentation site, where each page is a few kilobytes of prose
+and the round trip for its chunk _is_ the time you wait. This site uses it. A corpus of
+any size should not.
+
+Independently of the option, the tree warms a file's chunk when you hover its row, so the
+click that follows resolves from cache.
+
+## The dev endpoints
+
+| Option   | Default      | What                                                                          |
+| -------- | ------------ | ----------------------------------------------------------------------------- |
+| `devApi` | `"loopback"` | Who may reach `/@uight/*.json`. `"any"` for a proxy or container; `false` off |
+
+The [read-only endpoints](/reference/cli) are development-only and write nothing, but
+`config.json` echoes resolved filesystem paths and `index.json` lists every fixture file
+in your project. On a default dev server nothing off-machine can reach them; run
+`vite --host` and everything on the network could, and choosing `--host` is a statement
+about your app rather than about these.
+
+`false` removes them entirely. The explorer does not use them — it learns the index from
+the virtual module and an HMR event — so the cost is `@aussieljk/uight/mcp` and any
+external tooling you point at them.

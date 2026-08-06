@@ -17,6 +17,7 @@
 		"typecheck:only": "bun x tsc --noEmit -p packages/uight/tsconfig.json",
 		"check": "bun run scripts/check.ts",
 		"bench": "bun run scripts/bench.ts",
+		"registry:resolve": "bun run scripts/registry-resolve.ts",
 		"lint": "bun x oxlint@1.76.0 .",
 		"format": "bun x oxfmt@0.61.0 .",
 		"format:check": "bun x oxfmt@0.61.0 --check .",

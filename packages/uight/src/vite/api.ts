@@ -6,6 +6,19 @@
  * which removes CSRF and path-confinement risk entirely rather than
  * mitigating it. Nothing here accepts a path, a name or a body.
  *
+ * **Loopback-bound by default**, which §19.6 required and this handler did not
+ * do. Read-only is not the same as harmless: `/@uight/config.json` echoes
+ * resolved filesystem paths and `/@uight/index.json` lists every fixture file
+ * in the project, which together are a map of somebody's source tree. On a
+ * default dev server nothing off-machine can reach them; run `vite --host` on a
+ * shared network and everything could, and choosing `--host` is a statement
+ * about the app, not about this. `devApi: 'any'` restores the old behaviour for
+ * a proxy or container where the request legitimately arrives from elsewhere.
+ *
+ * A non-loopback request falls through to `next()` rather than being refused:
+ * a 403 confirms the endpoint exists, and there is nothing to gain by
+ * answering a question we have just decided not to answer.
+ *
  * | Path                      | Returns                                        |
  * | ------------------------- | ---------------------------------------------- |
  * | `/@uight/index.json`     | Fixture index: paths, names, `null`s, hashes   |
@@ -27,12 +40,29 @@ import type { ResolvedUightConfig } from "./config.ts";
 import { isReadRequest } from "./dev-route.ts";
 import { indexStats } from "./scan.ts";
 
+/**
+ * Whether a socket address is this machine talking to itself.
+ *
+ * IPv6-mapped IPv4 (`::ffff:127.0.0.1`) is what a dual-stack Node server
+ * actually reports for a `127.0.0.1` connection, so matching only the plain
+ * forms would refuse the loopback case on most machines. The whole `127/8`
+ * block counts, because it is all loopback.
+ */
+export function isLoopback(address: string | undefined): boolean {
+	if (!address) return false;
+	const host = address.startsWith("::ffff:") ? address.slice(7) : address;
+	return host === "::1" || host === "localhost" || /^127\.\d+\.\d+\.\d+$/.test(host);
+}
+
 export function readOnlyApi(
 	server: ViteDevServer,
 	getConfig: () => ResolvedUightConfig,
 	getIndex: () => FixtureIndex,
 ): Connect.NextHandleFunction {
 	return (req, res, next) => {
+		if (getConfig().devApi === "loopback" && !isLoopback(req.socket.remoteAddress)) {
+			return next();
+		}
 		const pathname = (req.url ?? "/").split("?")[0] ?? "/";
 		const route = pathname.replace(/\/+$/, "") || "/";
 
