@@ -18,6 +18,7 @@
  *     accident — but it also means a plain `npm publish` fails outright.
  *  3. **Auth fails last, otherwise.** `npm whoami` costs one request; running
  *     it first turns a four-minute verify-then-fail into an immediate answer.
+ *     Except under OIDC, where there is nobody to be: see `oidc` below.
  */
 
 import { spawnSync } from "node:child_process";
@@ -76,8 +77,18 @@ function capture(command: string, args: string[], cwd = ROOT): string | null {
  * Preflight
  * ------------------------------------------------------------------ */
 
-const who = capture("npm", ["whoami"]);
-if (!who && !dryRun) {
+/**
+ * Trusted publishing (OIDC), which is how `.github/workflows/release.yml`
+ * authenticates. There is no token and no user, so `npm whoami` correctly says
+ * nobody and the preflight below would refuse a release that is perfectly able
+ * to publish. The npm CLI mints its credential from this endpoint at publish
+ * time; Actions sets the variable only when the job was granted
+ * `id-token: write`, which makes it exactly the right thing to ask.
+ */
+const oidc = !!process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+
+const who = oidc ? null : capture("npm", ["whoami"]);
+if (!who && !dryRun && !oidc) {
 	process.stdout.write(
 		"\n\x1b[31m✗ not logged in to npm\x1b[0m\n\n" +
 			"  Run this yourself — it needs a browser:\n\n" +
@@ -101,7 +112,7 @@ const version = capture("node", ["-p", "require('./package.json').version"], PKG
 process.stdout.write(
 	`\n\x1b[1muight ${version ?? "?"}\x1b[0m` +
 		`${dryRun ? "  (dry run)" : `  → npm, tag "${tag}"`}` +
-		`${who ? `  as ${who}` : ""}\n`,
+		`${who ? `  as ${who}` : oidc ? "  as a trusted publisher (OIDC)" : ""}\n`,
 );
 
 /* ------------------------------------------------------------------ *

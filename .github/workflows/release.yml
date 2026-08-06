@@ -1,0 +1,147 @@
+# Publish the next canary to npm.
+#
+# Authentication is OIDC trusted publishing, not a token. npm mints a
+# short-lived credential for this exact repository and workflow filename, so
+# there is no `NPM_TOKEN` secret to leak or rotate — which matters now that
+# npm's classic tokens are revoked, granular write tokens expire after 90 days,
+# and bypass-2FA tokens lose the ability to publish at all in January 2027.
+#
+# One-time setup on npmjs.com, under the package's Settings → Trusted
+# publisher:
+#
+#     Organization or user   aussieljk
+#     Repository             uight
+#     Workflow filename      release.yml      (the filename, not the path)
+#     Environment            (leave empty)
+#
+# Two constraints npm imposes and this file satisfies: `id-token: write`, and a
+# GitHub-hosted runner (self-hosted is not supported).
+
+name: Release
+
+on:
+ workflow_dispatch:
+  inputs:
+   dry_run:
+    description: "Run every gate and pack the tarball, but publish nothing"
+    type: boolean
+    default: false
+
+# Never two releases at once, and never cancel one: a cancelled job can be one
+# that has published to npm but not yet pushed the version commit.
+concurrency:
+ group: release
+ cancel-in-progress: false
+
+permissions:
+ # Mint the OIDC token npm trades for a publish credential.
+ id-token: write
+ # Push the bumped version and its tag back to master.
+ contents: write
+
+jobs:
+ release:
+  runs-on: ubuntu-latest
+
+  steps:
+   - uses: actions/checkout@v4
+     with:
+      # The version commit is pushed from here, so the checkout has to be a
+      # branch rather than the detached SHA `workflow_dispatch` gives us.
+      ref: master
+
+   - uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   # Bun runs the repository; npm does the publishing, and only a recent one
+   # knows how to authenticate with OIDC at all. `setup-node` is here for the
+   # npm it brings, not for the Node the scripts run on.
+   #
+   # Deliberately no `registry-url`: that option exists to write an `.npmrc`
+   # pointing `_authToken` at `NODE_AUTH_TOKEN`, and with no such token the
+   # entry is an empty credential that npm sends before it ever considers OIDC.
+   # The default registry is npmjs.org regardless.
+   - uses: actions/setup-node@v4
+     with:
+      node-version: "22"
+
+   - name: npm with trusted publishing support
+     run: |
+      npm install -g npm@latest
+      npm --version
+
+   - name: Install
+     run: bun install --frozen-lockfile
+
+   # `--bump` moves 0.0.1-canary.N to N+1 and refuses outright to do anything
+   # else: `packages/uight/scripts/version.ts` throws on a version that is not
+   # in the canary series, so leaving it takes a deliberate `--set` by hand.
+   # It writes both files that carry the version, which §16.2 compares at
+   # runtime and the first release gate re-checks.
+   - name: Bump the canary counter
+     run: bun run version:bump
+     working-directory: packages/uight
+
+   - name: Read the version
+     id: version
+     run: echo "version=$(node -p "require('./packages/uight/package.json').version")" >> "$GITHUB_OUTPUT"
+
+   # Belt and braces. The bump script cannot produce a non-canary version, so
+   # this can only fire if someone has hand-edited package.json — which is
+   # exactly the case worth catching before it reaches npm as a `latest`.
+   - name: Refuse anything that is not 0.0.1-canary.N
+     run: |
+      version="${{ steps.version.outputs.version }}"
+      if [[ ! "$version" =~ ^0\.0\.1-canary\.[0-9]+$ ]]; then
+        echo "::error::$version is not in the 0.0.1-canary.N series. Releases from this workflow are canaries only."
+        exit 1
+      fi
+      echo "Releasing $version"
+
+   # Every gate CI runs, in the same order, and then the publish itself —
+   # `scripts/release.ts` is the single description of what a release is, so
+   # this workflow and a release from a laptop cannot drift apart.
+   #
+   # `--tag canary` is not optional: npm refuses a prerelease without an
+   # explicit tag, and publishing one as `latest` would point every plain
+   # `npm i @aussieljk/uight` at a canary.
+   #
+   # Provenance is automatic here — a public repository publishing a public
+   # package over OIDC gets an attestation without asking for one.
+   - name: Release
+     run: bun run release --tag canary ${{ inputs.dry_run && '--dry-run' || '' }}
+
+   # After the publish, deliberately. A failed release must not leave master
+   # claiming a version that was never released; the opposite order would.
+   - name: Push the version commit
+     if: ${{ !inputs.dry_run }}
+     env:
+      VERSION: ${{ steps.version.outputs.version }}
+     run: |
+      git config user.name "github-actions[bot]"
+      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      # Exactly the two files `version.ts` writes. Every other gate fails on
+      # drift, so anything else appearing here would be a surprise, and a
+      # surprise is not something to commit unread.
+      git add packages/uight/package.json packages/uight/src/shared/version.ts
+      git commit -m "release: uight $VERSION"
+      # Annotated, because `--follow-tags` pushes nothing else.
+      git tag -a "v$VERSION" -m "uight $VERSION"
+      git push origin master --follow-tags
+
+   - name: Summary
+     run: |
+      {
+        echo "### uight ${{ steps.version.outputs.version }}"
+        echo
+        if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+          echo "Dry run — every gate passed and nothing was published."
+        else
+          echo 'Published to npm under the `canary` tag.'
+          echo
+          echo '```'
+          echo 'bun add -D @aussieljk/uight@canary'
+          echo '```'
+        fi
+      } >> "$GITHUB_STEP_SUMMARY"
