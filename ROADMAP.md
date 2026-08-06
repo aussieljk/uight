@@ -4,13 +4,13 @@ Last reviewed: 6 August 2026, at `0.0.1-canary.0`. Shipped work is in `CHANGELOG
 the reasoning behind most items is in `NOTES.md`. Section numbers refer to `SPEC.md`.
 
 **Versioning.** Everything published while the surface is still moving is
-`0.0.x`. The milestone names below (v1.1, v1.2, v1.3) are `SPEC.md` §21.2's
+`0.0.1-canary.N`. The milestone names below (v1.1, v1.2, v1.3) are `SPEC.md` §21.2's
 release plan, kept because they name coherent bundles of work — not because a `1.0.0`
-tag is imminent. A release can contain any of them.
+tag is imminent. A canary can contain any of them.
 
 ---
 
-## Where the package stands
+## Where the canary stands
 
 Everything in §21.2's v1.0 row is implemented and verified against a real corpus, plus
 three rows that were scheduled later: the CSF subset (v1.1), the ejection registry (v1.2),
@@ -38,7 +38,7 @@ running the demo rather than asserted on every change.
 
 ## Next
 
-Ordered by what blocks trusting the package.
+Ordered by what blocks trusting the canary.
 
 ### 1. Browser-shaped questions have no harness — **accepted, not scheduled**
 
@@ -146,7 +146,7 @@ amount of reading our own files would have found it.
   such execution _costs_, in a browser, on a side-effect-heavy corpus, is still unmeasured
   and still needs item 1.
 
-### 5. Follow-ups the early releases created
+### 5. Follow-ups the canary created
 
 - ~~**The docs site is written and unhosted.**~~ **Done.** `uight.dev` is deployed, and
   the same deploy serves `/r` — which is what made item 3's second half checkable.
@@ -234,7 +234,7 @@ The registry shipped early, so this is about the commitment rather than the code
 - ~~**Registry hosting and versioning** made real~~ **Done.** `uight.dev/r` serves both
   the latest items and the per-minor copies under `/r/v0.0`, and a real `shadcn add`
   resolves from both (item 3). Still to write: **a documented upgrade path for anyone who
-  ejected from an early release** — the items say which minor they came from, and nothing yet
+  ejected from a canary** — the items say which minor they came from, and nothing yet
   tells a reader what to do when that minor moves.
 
 ## v1.3 — docgen and prop tables

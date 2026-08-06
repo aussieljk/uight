@@ -1,8 +1,9 @@
 name: CI
 
+# Pull requests only. A push to master runs `release.yml`, which runs these
+# same gates through `scripts/release.ts` before it publishes — running both
+# would check the same commit twice.
 on:
- push:
-  branches: [main, master]
  pull_request:
 
 # A second push to the same branch makes the first run irrelevant.

@@ -1,5 +1,5 @@
 /**
- * Release versioning — plain semver, `X.Y.Z`.
+ * Release versioning — `0.0.1-canary.N`.
  *
  * Two files carry the version and they must never disagree: `package.json` is
  * what npm publishes, and `src/shared/version.ts` is what the runtime compares
@@ -7,17 +7,16 @@
  * "one of them is a stale build artefact", which is a confusing way to learn
  * that a release script forgot a file.
  *
- * There is no prerelease series any more. Everything published goes to the
- * `latest` dist-tag under a real version, so a plain `npm i @aussieljk/uight`
- * resolves to the newest release rather than to whatever the last non-canary
- * publish happened to be.
+ * The counter is the only part that moves. `--bump` refuses anything that is
+ * not in the series, so no automated path can walk the version off it; leaving
+ * it takes a deliberate `--set` by hand. Every release still goes out under the
+ * `latest` tag, so a plain `npm i @aussieljk/uight` gets the newest canary
+ * rather than whichever one happened to be published first.
  *
- *   bun run scripts/version.ts              # print the current version
- *   bun run scripts/version.ts --bump       # 0.0.1 → 0.0.2
- *   bun run scripts/version.ts --bump minor # 0.1.4 → 0.2.0
- *   bun run scripts/version.ts --bump major # 0.2.0 → 1.0.0
- *   bun run scripts/version.ts --set X      # set an explicit version
- *   bun run scripts/version.ts --check      # exit 1 if the two disagree
+ *   bun run scripts/version.ts            # print the current version
+ *   bun run scripts/version.ts --bump     # 0.0.1-canary.3 → 0.0.1-canary.4
+ *   bun run scripts/version.ts --set X    # set an explicit version
+ *   bun run scripts/version.ts --check    # exit 1 if the two disagree
  */
 
 import fs from "node:fs";
@@ -28,14 +27,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgPath = path.join(here, "..", "package.json");
 const versionPath = path.join(here, "..", "src", "shared", "version.ts");
 
-/**
- * A release version, and nothing else. A prerelease suffix is rejected rather
- * than carried: it needs its own dist-tag to publish at all, and publishing it
- * under `latest` is what left `npm i @aussieljk/uight` resolving to a canary.
- */
-const RELEASE = /^(\d+)\.(\d+)\.(\d+)$/;
-
-export type Level = "patch" | "minor" | "major";
+export const CANARY = /^(\d+\.\d+\.\d+)-canary\.(\d+)$/;
 
 function readPackageVersion(): string {
 	const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { version: string };
@@ -63,28 +55,16 @@ function write(version: string): void {
 	);
 }
 
-/** `0.0.1` → `0.0.2`, `0.1.4` --bump minor → `0.2.0`, and so on. */
-function bump(current: string, level: Level): string {
-	const match = RELEASE.exec(current);
+/** `0.0.1-canary.3` → `0.0.1-canary.4`. A non-canary version is an error. */
+function bump(current: string): string {
+	const match = CANARY.exec(current);
 	if (!match) {
 		throw new Error(
-			`${current} is not a plain X.Y.Z version, so there is no next one to compute. ` +
-				`Use --set to say what it should be.`,
+			`${current} is not a canary version. --bump only moves the canary counter; ` +
+				`use --set to leave the 0.0.1-canary.N series.`,
 		);
 	}
-	const [major, minor, patch] = [Number(match[1]), Number(match[2]), Number(match[3])];
-	if (level === "major") return `${major + 1}.0.0`;
-	if (level === "minor") return `${major}.${minor + 1}.0`;
-	return `${major}.${minor}.${patch + 1}`;
-}
-
-function readLevel(args: string[]): Level {
-	const next = args[args.indexOf("--bump") + 1];
-	if (next === "minor" || next === "major" || next === "patch") return next;
-	if (next && !next.startsWith("--")) {
-		throw new Error(`unknown bump level "${next}" — use patch, minor or major`);
-	}
-	return "patch";
+	return `${match[1]}-canary.${Number(match[2]) + 1}`;
 }
 
 const args = process.argv.slice(2);
@@ -107,7 +87,7 @@ if (args.includes("--check")) {
 	write(next);
 	console.log(`uight ${next}`);
 } else if (args.includes("--bump")) {
-	const next = bump(readPackageVersion(), readLevel(args));
+	const next = bump(readPackageVersion());
 	write(next);
 	console.log(`uight ${next}`);
 } else if (args.includes("--sync")) {

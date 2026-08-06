@@ -1456,8 +1456,8 @@ of what the design was allowed to assume.
 harvesting (§12), `@aussieljk/uight/test`, `@aussieljk/uight/mcp`, the static
 explorer build, grid mode, shareable links, the command palette, and a Storybook
 drop-in path §13 had ruled out. Everything published while the surface moves is
-`0.0.x` under the `latest` tag; the milestone names are kept because they name
-coherent bundles of work, not because a `1.0.0` tag is imminent.
+`0.0.1-canary.N`; the milestone names are kept because they name coherent bundles
+of work, not because a `1.0.0` tag is imminent.
 
 v1.0 is the product thesis: two steps to something useful, fixtures when you want more.
 

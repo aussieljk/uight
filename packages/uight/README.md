@@ -3,8 +3,8 @@
 A component explorer that runs inside your application's own Vite dev server and needs no
 configuration to be useful.
 
-> **Early days.** Published as `0.0.x` while the API settles. It is complete and
-> tested, but the surface can still move between releases — see
+> **Canary.** Published as `0.0.1-canary.N` while the API settles. It is complete and
+> tested, but the surface can still move between canaries — see
 > [ROADMAP.md](https://github.com/aussieljk/uight/blob/master/ROADMAP.md).
 
 ```bash

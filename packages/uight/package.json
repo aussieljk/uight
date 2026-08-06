@@ -1,6 +1,6 @@
 {
 	"name": "@aussieljk/uight",
-	"version": "0.0.1",
+	"version": "0.0.1-canary.2",
 	"description": "A component explorer that runs inside your application's own Vite dev server.",
 	"keywords": [
 		"vite",

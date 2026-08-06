@@ -3,8 +3,7 @@
  *
  *   bun run verify                  # every gate CI runs, and nothing else
  *   bun run release                 # verify, then publish
- *   bun run release --bump          # 0.0.1 → 0.0.2 first
- *   bun run release --bump minor    # 0.1.4 → 0.2.0 first
+ *   bun run release --bump          # move the canary counter first
  *   bun run release --tag next      # publish under a different dist-tag
  *
  * Three things this exists to get right, all of which are easy to get wrong by
@@ -14,10 +13,10 @@
  *     declares the `virtual:uight/*` modules and resolves `RuntimeConfig`
  *     through the package's own `dist`, so type-checking against a stale dist
  *     checks last release's contract and passes when it should not.
- *  2. **`latest` is the default, and it means it.** Every release goes out as a
- *     real `X.Y.Z` under `latest`, so `npm i @aussieljk/uight` resolves to the
- *     newest one. `--tag` exists for the day something needs to ship beside it,
- *     not as a way to park a prerelease where nobody installs it.
+ *  2. **`latest` is the default, and it means it.** The versions are canaries,
+ *     but they are the newest thing there is, so they go where a plain
+ *     `npm i @aussieljk/uight` will find them. A prerelease parked under its own
+ *     tag leaves `latest` pointing at whatever was published first, forever.
  *  3. **Auth fails last, otherwise.** `npm whoami` costs one request; running
  *     it first turns a four-minute verify-then-fail into an immediate answer.
  *     Except under OIDC, where there is nobody to be: see `oidc` below.
@@ -33,8 +32,6 @@ const PKG = path.join(ROOT, "packages/uight");
 const argv = process.argv.slice(2);
 const dryRun = argv.includes("--dry-run");
 const bump = argv.includes("--bump");
-/** `patch` unless the next argument names a level. `version.ts` validates it. */
-const bumpLevel = bump ? (argv[argv.indexOf("--bump") + 1] ?? "") : "";
 
 /** Default `latest`: the newest release is what a plain install should get. */
 const tagIndex = argv.indexOf("--tag");
@@ -99,13 +96,9 @@ if (!who && !dryRun && !oidc) {
 
 if (bump) {
 	run({
-		title: `Bump the version${bumpLevel && !bumpLevel.startsWith("--") ? ` (${bumpLevel})` : ""}`,
+		title: "Bump the canary counter",
 		command: "bun",
-		args: [
-			"run",
-			"version:bump",
-			...(bumpLevel.startsWith("--") ? [] : [bumpLevel]),
-		].filter(Boolean),
+		args: ["run", "version:bump"],
 		cwd: PKG,
 	});
 }
