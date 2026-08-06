@@ -54,7 +54,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PKG = path.join(ROOT, "packages/uaight");
+const PKG = path.join(ROOT, "packages/uight");
 const DIST = path.join(PKG, "dist");
 
 const json = process.argv.includes("--json");
@@ -173,8 +173,8 @@ async function writeCorpus(dir: string, count: number): Promise<void> {
 	}
 
 	// Two decorators, at two depths, so the composition sort has real input.
-	await fsp.writeFile(path.join(src, "uaight.decorator.tsx"), decoratorModule());
-	await fsp.writeFile(path.join(src, "group0", "uaight.decorator.tsx"), decoratorModule());
+	await fsp.writeFile(path.join(src, "uight.decorator.tsx"), decoratorModule());
+	await fsp.writeFile(path.join(src, "group0", "uight.decorator.tsx"), decoratorModule());
 }
 
 function componentModule(name: string): string {
@@ -255,10 +255,10 @@ async function best(runs: number, fn: () => Promise<unknown>): Promise<number> {
 
 async function measureStartup(
 	scanFixtures: (cfg: unknown) => Promise<unknown>,
-	resolveUaightConfig: (opts: unknown) => unknown,
+	resolveUightConfig: (opts: unknown) => unknown,
 	dir: string,
 ): Promise<number> {
-	const cfg = resolveUaightConfig({ root: dir, options: {}, command: "serve" });
+	const cfg = resolveUightConfig({ root: dir, options: {}, command: "serve" });
 	// One untimed pass first: the first scan pays for oxc's module init and the
 	// OS's directory cache, neither of which is what the budget is about.
 	await scanFixtures(cfg);
@@ -272,9 +272,9 @@ async function measureStartup(
 /**
  * The explorer chrome, gzipped.
  *
- * The `UaightUI-*` chunk specifically, because that is the thing the budget is
- * about: §9.2 makes it a lazy import behind `__UAIGHT_ENABLED__`, so it is
- * exactly the code a host downloads *because* uaight is there, and exactly the
+ * The `UightUI-*` chunk specifically, because that is the thing the budget is
+ * about: §9.2 makes it a lazy import behind `__UIGHT_ENABLED__`, so it is
+ * exactly the code a host downloads *because* uight is there, and exactly the
  * code the production gate removes. The renderer, the serializer and the Node
  * entries are all separate chunks and are not what grows when a panel is added.
  *
@@ -286,10 +286,10 @@ function measureChrome(): { value: number; note: string } {
 	}
 	const chunk = fs
 		.readdirSync(DIST)
-		.find((file) => file.startsWith("UaightUI-") && file.endsWith(".js"));
+		.find((file) => file.startsWith("UightUI-") && file.endsWith(".js"));
 	if (!chunk) {
 		throw new Error(
-			"dist/ has no UaightUI-*.js chunk — the chrome was inlined into another " +
+			"dist/ has no UightUI-*.js chunk — the chrome was inlined into another " +
 				"chunk, which would defeat §9.2's production gate. Check the build.",
 		);
 	}
@@ -310,11 +310,11 @@ async function main(): Promise<void> {
 	const { buildFixtureIndex, applyParse } = await import(
 		path.join(PKG, "src/vite/scan.ts")
 	);
-	const { resolveUaightConfig } = await import(path.join(PKG, "src/vite/config.ts"));
+	const { resolveUightConfig } = await import(path.join(PKG, "src/vite/config.ts"));
 	const { parseFixtureFile } = await import(path.join(PKG, "src/vite/parse.ts"));
 
 	const results: Measurement[] = [];
-	const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "uaight-bench-"));
+	const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "uight-bench-"));
 
 	try {
 		for (const [key, count] of [
@@ -325,7 +325,7 @@ async function main(): Promise<void> {
 			await writeCorpus(dir, count);
 			results.push({
 				key,
-				value: await measureStartup(buildFixtureIndex, resolveUaightConfig, dir),
+				value: await measureStartup(buildFixtureIndex, resolveUightConfig, dir),
 				note: `${count} fixture files, ${count} component modules`,
 			});
 		}
@@ -335,7 +335,7 @@ async function main(): Promise<void> {
 		// which is the expensive case because collision detection re-runs over
 		// the whole file list.
 		const big = path.join(tmp, "corpus-500");
-		const cfg = resolveUaightConfig({ root: big, options: {}, command: "serve" });
+		const cfg = resolveUightConfig({ root: big, options: {}, command: "serve" });
 		const index = await buildFixtureIndex(cfg);
 		const target = path.join(big, "src", "group0", "Button0.fixture.tsx");
 		const source = await fsp.readFile(target, "utf8");
@@ -404,7 +404,7 @@ function report(results: Measurement[]): void {
 			JSON.stringify({ baseline: baseline?.recorded ?? null, results: rows }, null, 2),
 		);
 	} else {
-		console.log("\nuaight budgets (SPEC §20.3)\n");
+		console.log("\nuight budgets (SPEC §20.3)\n");
 		for (const row of rows) {
 			// One decimal below 10: an incremental index that takes 0.4 ms and one
 			// that takes 4 ms are both "0 ms" rounded, and the difference between

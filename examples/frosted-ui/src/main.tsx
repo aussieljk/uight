@@ -1,6 +1,6 @@
 /**
- * The host application's entry. Note what is absent: no uaight bootstrap, no
- * second dev server, no second port. The explorer at /uaight is served by the
+ * The host application's entry. Note what is absent: no uight bootstrap, no
+ * second dev server, no second port. The explorer at /uight is served by the
  * Vite plugin from the same server this page is served from.
  */
 

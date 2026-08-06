@@ -1,25 +1,25 @@
 # From Storybook
 
-uaight reads Component Story Format directly. You do not port anything, and you do not
+uight reads Component Story Format directly. You do not port anything, and you do not
 have to delete Storybook to try it.
 
 ## One command
 
 ```bash
-bunx uaight init
+bunx uight init
 ```
 
-It adds `uaight` to `devDependencies`, adds `uaight({ storybook: true })` to your Vite
+It adds `uight` to `devDependencies`, adds `uight({ storybook: true })` to your Vite
 config's plugins array, and then prints the honest half: how many of your stories use
-features uaight declines, and which ones.
+features uight declines, and which ones.
 
 ```
 Storybook found: .storybook/; @storybook/react-vite, storybook in package.json
 
-  ✓ package.json  uaight@latest → devDependencies
-  ✓ vite.config.ts  uaight({ storybook: true }) → the plugins array
+  ✓ package.json  uight@latest → devDependencies
+  ✓ vite.config.ts  uight({ storybook: true }) → the plugins array
 
-42 CSF files, 180 stories — 31 use nothing uaight declines
+42 CSF files, 180 stories — 31 use nothing uight declines
 
 declined, by frequency (each is badged in the UI, never silently skipped):
   parameters.docs  27
@@ -57,8 +57,8 @@ theme and global styles.
 ## The report on its own
 
 ```bash
-bunx uaight storybook          # a summary
-bunx uaight storybook --json   # per file, for CI
+bunx uight storybook          # a summary
+bunx uight storybook --json   # per file, for CI
 ```
 
 Syntax only: nothing is imported and nothing is executed, so it is cheap enough to run in
@@ -68,7 +68,7 @@ count grows is a corpus drifting away from being portable.
 ## Options
 
 ```ts
-uaight({
+uight({
 	storybook: {
 		csfVersion: 3,
 		fileSuffix: "stories",

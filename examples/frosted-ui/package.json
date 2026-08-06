@@ -1,5 +1,5 @@
 {
-	"name": "@uaight-example/frosted-ui",
+	"name": "@uight-example/frosted-ui",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -28,7 +28,7 @@
 		"input-otp": "1.4.2",
 		"react-aria-components": "1.2.1",
 		"react-hook-form": "7.54.2",
-		"uaight": "workspace:*",
+		"@aussieljk/uight": "workspace:*",
 		"vite": "8.1.5",
 		"zod": "3.24.2"
 	}

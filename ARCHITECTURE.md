@@ -1,25 +1,25 @@
-# uaight — integration contract
+# uight — integration contract
 
 This file is the **binding interface** between the parts of the package. SPEC.md is the
 requirements document; this file says exactly which module owns which symbol, so that
 independently written parts link together. If SPEC.md and this file disagree on a
 signature, this file wins for the signature and SPEC.md wins for the behaviour.
 
-Package root: `packages/uaight`. Monorepo uses **bun** workspaces.
-`examples/frosted-ui/node_modules/uaight` symlinks to `packages/uaight`.
+Package root: `packages/uight`. Monorepo uses **bun** workspaces.
+`examples/frosted-ui/node_modules/uight` symlinks to `packages/uight`.
 
 ## Already written — DO NOT EDIT
 
 | File                       | Exports                                                                                                           |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `src/shared/types.ts`      | every public type (`FixtureId`, `RuntimeConfig`, `Wire`, `UaightProps`, `UaightPluginOptions`, …)                 |
+| `src/shared/types.ts`      | every public type (`FixtureId`, `RuntimeConfig`, `Wire`, `UightProps`, `UightPluginOptions`, …)                   |
 | `src/shared/fixture-id.ts` | `serializeFixtureId`, `parseFixtureId`, `fixtureIdsEqual`, `fixtureLabel`                                         |
 | `src/shared/filter.ts`     | `matchesFilter`, `globToRegExp`                                                                                   |
 | `src/shared/protocol.ts`   | `PROTOCOL_VERSION`, message types, `validateBootstrap`, `validateEnvelope`, `isChannelled`, `CHANNEL`, schedulers |
 | `src/shared/wire.ts`       | `applyPatches`, `wireSet`, `wireAt`, `mergePatch`, `wireEqual`, `isSafePath`, `pathKey`, `isEditableWire`         |
 | `src/shared/tree.ts`       | `buildTree`, `flattenSelectable`, `searchTree`                                                                    |
-| `src/shared/version.ts`    | `UAIGHT_VERSION`                                                                                                  |
-| `src/client.d.ts`          | virtual module declarations + `__UAIGHT_ENABLED__`                                                                |
+| `src/shared/version.ts`    | `UIGHT_VERSION`                                                                                                   |
+| `src/client.d.ts`          | virtual module declarations + `__UIGHT_ENABLED__`                                                                 |
 
 Read them before writing anything. Import with **explicit `.ts` extensions**
 (`import { x } from "../shared/types.ts"`) — the repo uses
@@ -41,54 +41,54 @@ against the signature below and assume it exists.
 
 ---
 
-## 1. `src/vite/index.ts` — the plugin (`uaight/vite`)
+## 1. `src/vite/index.ts` — the plugin (`uight/vite`)
 
 ```ts
-export function uaight(options?: UaightPluginOptions): Plugin;
-export function defineUaightConfig(config: UaightPluginOptions): UaightPluginOptions;
-export function buildFixtureIndex(config: ResolvedUaightConfig): Promise<FixtureIndex>;
-export function validateFixtures(config: ResolvedUaightConfig): Promise<IndexProblem[]>;
+export function uight(options?: UightPluginOptions): Plugin;
+export function defineUightConfig(config: UightPluginOptions): UightPluginOptions;
+export function buildFixtureIndex(config: ResolvedUightConfig): Promise<FixtureIndex>;
+export function validateFixtures(config: ResolvedUightConfig): Promise<IndexProblem[]>;
 export function parseFixtureFile(source: string, filename: string): ParsedFixtureFile;
-export function resolveUaightConfig(opts: {
+export function resolveUightConfig(opts: {
 	root: string;
-	options: UaightPluginOptions;
+	options: UightPluginOptions;
 	command: "serve" | "build";
-}): ResolvedUaightConfig;
+}): ResolvedUightConfig;
 ```
 
 ### Virtual modules it must emit (§4.3)
 
-| Id                             | Must export                                                                           |
-| ------------------------------ | ------------------------------------------------------------------------------------- |
-| `virtual:uaight/runtime`       | `config: RuntimeConfig`, `fixtureModules`, `decoratorModules`, `inventoryModules`     |
-| `virtual:uaight/renderer-url`  | `rendererEntryUrl: string`                                                            |
-| `virtual:uaight/renderer`      | side-effecting frame entry (calls `mountRenderer`)                                    |
-| `virtual:uaight/preview-entry` | `Preview: React.ComponentType<{children}> \| undefined`                               |
-| `virtual:uaight/codecs`        | `codecs: FixtureCodec[]`                                                              |
-| `virtual:uaight/inventory`     | `inventoryItems: InventoryItem[]`                                                     |
-| `virtual:uaight/dev-entry`     | side-effecting: mounts `<Uaight router="history" height="100%" />` into `#uaight-app` |
+| Id                            | Must export                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| `virtual:uight/runtime`       | `config: RuntimeConfig`, `fixtureModules`, `decoratorModules`, `inventoryModules`   |
+| `virtual:uight/renderer-url`  | `rendererEntryUrl: string`                                                          |
+| `virtual:uight/renderer`      | side-effecting frame entry (calls `mountRenderer`)                                  |
+| `virtual:uight/preview-entry` | `Preview: React.ComponentType<{children}> \| undefined`                             |
+| `virtual:uight/codecs`        | `codecs: FixtureCodec[]`                                                            |
+| `virtual:uight/inventory`     | `inventoryItems: InventoryItem[]`                                                   |
+| `virtual:uight/dev-entry`     | side-effecting: mounts `<Uight router="history" height="100%" />` into `#uight-app` |
 
 `fixtureModules` / `decoratorModules` / `inventoryModules` are
 `import.meta.glob(..., { eager: false })` maps **keyed by the glob path**
 (root-relative, leading slash — e.g. `/src/components/Button.fixture.tsx`). This key is
 `FixtureFileIndex.globPath`, so the runtime can go index → module without guessing.
 
-The renderer entry (`virtual:uaight/renderer`) must be exactly:
+The renderer entry (`virtual:uight/renderer`) must be exactly:
 
 ```js
 import "@vitejs/plugin-react/refresh-runtime-preamble"; // dev only; see §6.3 note below
-import { mountRenderer } from "uaight/runtime";
+import { mountRenderer } from "@aussieljk/uight/runtime";
 import {
 	config,
 	fixtureModules,
 	decoratorModules,
 	inventoryModules,
-} from "virtual:uaight/runtime";
-import * as preview from "virtual:uaight/preview-entry";
-import { codecs } from "virtual:uaight/codecs";
+} from "virtual:uight/runtime";
+import * as preview from "virtual:uight/preview-entry";
+import { codecs } from "virtual:uight/codecs";
 
 mountRenderer({
-	root: document.getElementById("uaight-root"),
+	root: document.getElementById("uight-root"),
 	fixtureModules,
 	decoratorModules,
 	inventoryModules,
@@ -116,19 +116,19 @@ to Q2 in `NOTES.md`.
 
 ### Dev endpoints (§19.6, serve mode only)
 
-- `GET <route>` (default `/uaight`) — HTML through `server.transformIndexHtml`, containing
-  `<div id="uaight-app">` and `<script type="module" src="/@uaight/dev-entry">`.
-- `GET /@uaight/renderer` — `server.transformRequest("virtual:uaight/renderer")`, served as
+- `GET <route>` (default `/uight`) — HTML through `server.transformIndexHtml`, containing
+  `<div id="uight-app">` and `<script type="module" src="/@uight/dev-entry">`.
+- `GET /@uight/renderer` — `server.transformRequest("virtual:uight/renderer")`, served as
   `application/javascript`. Public, stable URL.
-- `GET /@uaight/dev-entry` — same treatment for `virtual:uaight/dev-entry`.
-- `GET /@uaight/index.json`, `/inventory.json`, `/config.json`, `/health` — read-only JSON.
+- `GET /@uight/dev-entry` — same treatment for `virtual:uight/dev-entry`.
+- `GET /@uight/index.json`, `/inventory.json`, `/config.json`, `/health` — read-only JSON.
 
-`DEV_RENDERER_URL = "/@uaight/renderer"`.
+`DEV_RENDERER_URL = "/@uight/renderer"`.
 
 ### Scan (§4.4, §3.4)
 
 One `tinyglobby` pass at init. Fixture files: `**/*.{fixtureFileSuffix}.{js,jsx,ts,tsx,mdx}`
-under `fixturesDir`. Decorators: `**/{cosmos,uaight}.decorator.{js,jsx,ts,tsx}`. When
+under `fixturesDir`. Decorators: `**/{cosmos,uight}.decorator.{js,jsx,ts,tsx}`. When
 `storybook` is enabled, also `**/*.stories.{js,jsx,ts,tsx}` — those get `csf: true` and
 `names: null` unless the CSF named exports are statically parseable (they usually are:
 take every exported const that is not `default`/`__namedExportsOrder`, and honour a
@@ -142,10 +142,10 @@ Collisions are a build error naming both files.
 
 ### Config
 
-`resolveUaightConfig` returns:
+`resolveUightConfig` returns:
 
 ```ts
-export interface ResolvedUaightConfig {
+export interface ResolvedUightConfig {
 	root: string;
 	command: "serve" | "build";
 	route: string | false;
@@ -169,11 +169,11 @@ export interface ResolvedUaightConfig {
 }
 ```
 
-Resolve in `config()`, never mutate `ResolvedConfig` (§4.5). `define: { __UAIGHT_ENABLED__ }`.
+Resolve in `config()`, never mutate `ResolvedConfig` (§4.5). `define: { __UIGHT_ENABLED__ }`.
 
 ---
 
-## 2. `src/runtime/index.ts` — the renderer (`uaight/runtime`)
+## 2. `src/runtime/index.ts` — the renderer (`uight/runtime`)
 
 ```ts
 export interface MountRendererOptions {
@@ -231,7 +231,7 @@ export function createSerializer(codecs: FixtureCodec[]): {
 export const builtinCodecs: FixtureCodec[];
 export function defineCodec<T, S>(c: FixtureCodec<T, S>): FixtureCodec<T, S>;
 
-/** Fixture-side hooks implementation. Re-exported from `uaight`. */
+/** Fixture-side hooks implementation. Re-exported from `uight`. */
 export function useFixtureInput<T>(
 	name: string,
 	initial: T,
@@ -279,10 +279,10 @@ fixtures (§3.1). Named exports are never fixtures except in a CSF module.
 
 ## 3. `src/ui/**`, `src/chrome/**`, `src/index.ts` — the explorer
 
-`src/index.ts` (the `uaight` entry) exports:
+`src/index.ts` (the `uight` entry) exports:
 
 ```ts
-export { Uaight, UaightProvider, Fixture, UaightErrorBoundary } from "./ui/entry.tsx";
+export { Uight, UightProvider, Fixture, UightErrorBoundary } from "./ui/entry.tsx";
 export {
 	useFixtureInput,
 	useFixtureSelect,
@@ -297,36 +297,36 @@ export { matchesFilter } from "./shared/filter.ts";
 export type {} from /* every type in shared/types.ts */ "./shared/types.ts";
 ```
 
-`Uaight` is the compile-time gate (§9.2). Write it so Rollup can drop the chunk:
+`Uight` is the compile-time gate (§9.2). Write it so Rollup can drop the chunk:
 
 ```tsx
-const UaightUI = __UAIGHT_ENABLED__ ? React.lazy(() => import("./UaightUI.tsx")) : null;
+const UightUI = __UIGHT_ENABLED__ ? React.lazy(() => import("./UightUI.tsx")) : null;
 ```
 
-`src/chrome/index.ts` exports `useUaightChrome(): UaightChromeApiV1` exactly as §19.3
-defines it. The facade reads a React context published by `UaightUI`; calling it outside
+`src/chrome/index.ts` exports `useUightChrome(): UightChromeApiV1` exactly as §19.3
+defines it. The facade reads a React context published by `UightUI`; calling it outside
 throws a clear error. This is the surface that freezes at v1.2 (§11.4) — nothing else is
 frozen, so keep implementation detail out of it.
 
-`UaightUI` owns: selection precedence (§5.3), routing + ownership refcounting (§5.4),
+`UightUI` owns: selection precedence (§5.3), routing + ownership refcounting (§5.4),
 the overlay store, host transport, frame/inline hosting, and the chrome layout.
 Ejectable components (§11.3) live one per file in `src/ui/chrome/` and are all
 replaceable through `props.components`.
 
-Styles: `import { UAIGHT_CSS } from "../styles/generated.ts"` — a string. Inject it once
+Styles: `import { UIGHT_CSS } from "../styles/generated.ts"` — a string. Inject it once
 per document (host document, and again into the frame document) via a `<style>` element
-carrying any CSP nonce (§6.7). Every element you render lives under a `.uaight-root`
+carrying any CSP nonce (§6.7). Every element you render lives under a `.uight-root`
 ancestor; the compiled CSS only matches inside it.
 
 ---
 
 ## 4. `src/styles/**`, `scripts/**`, `tests/**`
 
-- `src/styles/uaight.css` — Tailwind v4 source. **Never `@import "tailwindcss"` whole**;
+- `src/styles/uight.css` — Tailwind v4 source. **Never `@import "tailwindcss"` whole**;
   import `theme.css` + `utilities.css` only, so preflight never ships (§10.2).
 - `scripts/build-css.ts` — compile with `@tailwindcss/cli`, then rewrite every selector to
-  require a `.uaight-root` ancestor (§10.3), and write both `dist/styles.css` and
-  `src/styles/generated.ts` (`export const UAIGHT_CSS = "…"`). Commit a placeholder
+  require a `.uight-root` ancestor (§10.3), and write both `dist/styles.css` and
+  `src/styles/generated.ts` (`export const UIGHT_CSS = "…"`). Commit a placeholder
   `generated.ts` so the type-check passes before the first build.
 - `scripts/build-registry.ts` — emit shadcn registry items (§11.2) into `registry/`.
 - `tests/**` — vitest for §20.1's list.
@@ -336,5 +336,5 @@ ancestor; the compiled CSS only matches inside it.
 ## 5. Demo — `examples/frosted-ui/**`
 
 Consumes the built package through the workspace symlink, exactly as a real user would:
-`import { uaight } from "uaight/vite"`. Renders **frosted-ui's own Storybook stories** as
+`import { uight } from "@aussieljk/uight/vite"`. Renders **frosted-ui's own Storybook stories** as
 fixtures through the §13 CSF subset.

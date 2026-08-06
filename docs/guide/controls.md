@@ -54,8 +54,8 @@ A `Date`, a `Map`, a class instance — anything whose identity is lost by
 `JSON.stringify` — needs a codec:
 
 ```ts
-// src/uaight.codecs.ts
-import { defineCodec } from "uaight";
+// src/uight.codecs.ts
+import { defineCodec } from "@aussieljk/uight";
 
 export default [
 	defineCodec<Date, string>({
@@ -68,7 +68,7 @@ export default [
 ```
 
 ```ts
-uaight({ codecs: "src/uaight.codecs.ts" });
+uight({ codecs: "src/uight.codecs.ts" });
 ```
 
 A codec may also supply an `editor`, which renders in the panel. The `serialize`,

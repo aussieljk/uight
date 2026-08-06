@@ -1,7 +1,7 @@
 {
 	/* Type-checks only the copied frosted-ui stories and their two shims.
 	   Kept separate from tsconfig.json so the stories can be verified without
-	   depending on `uaight`'s built output, which the rest of the demo imports. */
+	   depending on `uight`'s built output, which the rest of the demo imports. */
 	"extends": "./tsconfig.json",
 	"include": ["src/stories"]
 }

@@ -1,6 +1,6 @@
 /*
  * Styles for the landing page only. Fixtures never see this file — they render
- * in the frame realm, which loads src/uaight.preview.css instead (§6.4).
+ * in the frame realm, which loads src/uight.preview.css instead (§6.4).
  *
  * The one exception is the inline-isolation embed further down the page: inline
  * mode shares the host's realm, so it shares the host's CSS too (§5.2). That is

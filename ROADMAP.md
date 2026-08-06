@@ -15,7 +15,7 @@ tag is imminent. A canary can contain any of them.
 Everything in §21.2's v1.0 row is implemented and verified against a real corpus, plus
 three rows that were scheduled later: the CSF subset (v1.1), the ejection registry (v1.2),
 and a Storybook drop-in path §13 had ruled out entirely. On top of that,
-`0.0.1-canary.0` adds call-site harvesting, `uaight/test`, `uaight/mcp`, the static
+`0.0.1-canary.0` adds call-site harvesting, `uight/test`, `uight/mcp`, the static
 build, shareable state and the command palette.
 
 **There are no automated tests.** The unit suite, the golden-corpus snapshot and the
@@ -35,7 +35,7 @@ Ordered by what blocks trusting the canary.
 
 ### 1. Automated tests (§20.1, §20.2) — **removed**
 
-`packages/uaight/tests/**`, `playwright.config.ts` and `tests/e2e/**` are gone, along with
+`packages/uight/tests/**`, `playwright.config.ts` and `tests/e2e/**` are gone, along with
 the `test` scripts and CI's `e2e` job. This was a deliberate decision, recorded here
 because SPEC §20 still asks for both halves and the divergence should be visible rather
 than inferred:
@@ -112,7 +112,7 @@ mode. Still inside its budget, and by some distance the metric that would fail f
 
 The `$schema` divergence is settled: the emitted items always used `registry-item.json`,
 and SPEC §11.2's example — which named the _index_ schema on an item, and depended on an
-`@uaight/tree-item` that §11.3 never listed — has been corrected.
+`@uight/tree-item` that §11.3 never listed — has been corrected.
 
 Resolution was proven by a since-deleted test (`tests/registry-resolve.test.ts`) that
 served `registry/` over a real loopback HTTP server and resolved it the way `shadcn add`
@@ -120,14 +120,14 @@ does — a `{name}` URL template as a `components.json` `registries` entry, tran
 `registryDependencies` resolved dependencies-first, files written to their `target` — and
 asserts the installed tree.
 
-**Hosting now exists in the repository:** `docs/` is the uaight.dev site, and its sync
+**Hosting now exists in the repository:** `docs/` is the uight.dev site, and its sync
 script copies the built registry into `public/r/`, so the URLs the versioned copies point
 at are served by the same deploy as the page documenting them. That closes the _where_,
 not the _whether_ — nothing has resolved from a deployed origin yet, because nothing has
 been deployed.
 
 **Still open, and specific:** nothing proves the items are reachable at
-`https://uaight.dev/r/…` from a real deploy; and nothing runs shadcn's own resolver, so its schema validation,
+`https://uight.dev/r/…` from a real deploy; and nothing runs shadcn's own resolver, so its schema validation,
 `components.json` path aliasing and dependency installer remain untested against these
 files. Needs hosting, then a scratch project.
 
@@ -171,16 +171,16 @@ files. Needs hosting, then a scratch project.
   243 for the default. CI's format step and `bun run check` fail until the reformat commit
   lands, which is deliberately its own change.
 - ~~**The static build writes two scaffold files** into the project root.~~ **Done.** They
-  live under `node_modules/.uaight/` now, so a crashed build leaves nothing in the working
+  live under `node_modules/.uight/` now, so a crashed build leaves nothing in the working
   tree — and the build no longer has to reserve two filenames in the user's root. The
   virtual-HTML-input route stays rejected for the reason given.
 - ~~**MCP has no screenshot tool.**~~ **Done.** `render_fixture` drives a headless
-  Chromium to the fixture's deep link, waits for `#uaight-root` inside the frame document
+  Chromium to the fixture's deep link, waits for `#uight-root` inside the frame document
   to have children — an attached iframe proves nothing — and returns a PNG image block of
   the frame (`fullPage` for the whole explorer), with viewport presets and a resolved
   theme. Playwright is an **optional** peer, imported dynamically the way `react-docgen`
   is, so no install pays for three browser engines; absent, the tool says so and names the
-  fix. (`--url` is not required: the dev server is discovered via `/@uaight/health`.)
+  fix. (`--url` is not required: the dev server is discovered via `/@uight/health`.)
 
 ---
 
@@ -204,7 +204,7 @@ files. Needs hosting, then a scratch project.
   `OverlayState.droppedInputs` carries them per input, and the panel says
   "`variant`, `size` and 2 more no longer apply".
 - ~~**Let the preview entry read the theme.**~~ Done. `FrameHost` stamps
-  `data-uaight-theme` on the frame document's `documentElement`, and `InlineHost` stamps
+  `data-uight-theme` on the frame document's `documentElement`, and `InlineHost` stamps
   this page's — inline, the renderer document is this one.
 - ~~**Resolve an identifier default export in the index (§3.4).**~~ **Done.** §3.4's table
   gained a row above the identifier row: a uniquely declared module-scope `const` with an
@@ -217,10 +217,10 @@ files. Needs hosting, then a scratch project.
 The registry shipped early, so this is about the commitment rather than the code.
 **Everything that changes a published type must land before the freeze:**
 
-- **Q11 — settle `UaightChromeApiV1`.** What belongs on it, given it is permanent after.
+- **Q11 — settle `UightChromeApiV1`.** What belongs on it, given it is permanent after.
   The palette raised a concrete candidate: it needs call sites and the inventory together,
   and today it gets them as props rather than from the facade.
-- **`UaightComponents.ControlPanelInputs`** — §11.3 lists the component as ejectable but
+- **`UightComponents.ControlPanelInputs`** — §11.3 lists the component as ejectable but
   the type has no member for it, so passing one through `components` works at runtime and
   fails the type check.
 - **A `component: { current, select }` group on the facade**, if shareable links to
@@ -266,7 +266,7 @@ instead, which gives the same output without the endpoint.
 - Bundlers other than Vite 8.1+
 - SSR of the explorer chrome, React Server Components
 - Visual regression testing and screenshots — but the static build and the fixture-id
-  addressing make uaight a substrate any VRT tool can drive
+  addressing make uight a substrate any VRT tool can drive
 - Storybook `play`, loaders and interactions
 - Remote renderers, React Native
 - Becoming an MDX documentation framework
@@ -288,7 +288,7 @@ instead, which gives the same output without the endpoint.
 | Q8  | Does a real `shadcn add` resolve from our registry?       | **Open** — resolves from local files; the docs site serves `/r`, but nothing has resolved from a deploy, and shadcn's own resolver is untested |
 | Q9  | Glob invalidation under Vite 8.1 / Rolldown / Bundled Dev | Answered — add, delete and rename, in a browser, with no reload                                                                                |
 | Q10 | Overlay reapplication across HMR                          | Answered — nothing stale survives; one caveat                                                                                                  |
-| Q11 | What goes in `UaightChromeApiV1`                          | Answered — `component` and `palette` groups; NOTES                                                                                             |
+| Q11 | What goes in `UightChromeApiV1`                           | Answered — `component` and `palette` groups; NOTES                                                                                             |
 | Q12 | TypeScript 7.1 API sufficiency, tsgolint parity           | **Open**                                                                                                                                       |
-| Q13 | Trademark and npm availability for `uaight`               | Answered — the name was free; published 4 Aug 2026                                                                                             |
+| Q13 | Trademark and npm availability for `uight`                | Answered — the name was free; published 4 Aug 2026                                                                                             |
 | Q14 | Should overlay state persist across reloads?              | Answered — not persisted, but now _shareable_                                                                                                  |

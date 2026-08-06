@@ -1,12 +1,12 @@
 {/\*
 An MDX fixture — SPEC §14, proving the documented path end to end.
 
-§14's division of labour is the whole point of this file: uaight contributes
+§14's division of labour is the whole point of this file: uight contributes
 the glob pattern (`.mdx` is in the fixture extension list) and the rule that
 an `.mdx` module normalizes to exactly **one** fixture. Compiling it is
 `@mdx-js/rollup`, which this example adds to its own Vite config — ordered
 before `react()`, because MDX emits JSX and the JSX transform has to run
-after it. uaight reads the resolved plugin list and says so if it is not.
+after it. uight reads the resolved plugin list and says so if it is not.
 
 Note what is not happening here: nothing in the plugin compiles MDX, and
 nothing infers that the host wants it. Remove `mdx()` from vite.config.ts and

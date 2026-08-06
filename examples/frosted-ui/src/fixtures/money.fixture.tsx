@@ -1,6 +1,6 @@
 /**
  * The codec path (SPEC §7.7). `Money` and `Sku` are class instances, so
- * without `src/uaight.codecs.tsx` registered they would cross the realm
+ * without `src/uight.codecs.tsx` registered they would cross the realm
  * boundary as `opaque` (§7.3) and the control panel would show two uneditable
  * chips. With the codecs registered, `price` gets the custom editor and `sku`
  * gets a label and no editor, because its codec omits one.
@@ -11,7 +11,7 @@
  */
 
 import { Badge, Card, DataList, Heading, Text } from "frosted-ui";
-import { useFixtureInput } from "uaight";
+import { useFixtureInput } from "@aussieljk/uight";
 import { Money, Sku } from "../domain/money";
 
 interface Line {

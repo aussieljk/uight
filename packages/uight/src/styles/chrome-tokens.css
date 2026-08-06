@@ -1,0 +1,91 @@
+/**
+ * uight chrome tokens — the ejected half of SPEC.md §10.3.
+ *
+ * Packaged, our chrome is compiled and scoped to `.uight-root`. Ejected, the
+ * same `.tsx` sources are plain Tailwind v4 compiled by *your* build, so the
+ * token names they reference (`bg-sunken`, `text-muted`, `border-line`) have to
+ * exist in your theme. This file supplies them, and does it by deferring to
+ * your palette first: each value reads a Tailwind colour variable and only
+ * falls back to ours when you have not defined one. Retheme your neutrals and
+ * the ejected chrome follows.
+ *
+ * Ejection requires Tailwind v4 — that is the documented cost of §10.3.
+ *
+ *   @import "tailwindcss";
+ *   @import "./uight-chrome.css";
+ *
+ * Everything here is a plain custom property. Edit it: it is your file now.
+ */
+
+@theme inline {
+	--color-surface: var(--uight-surface);
+	--color-sunken: var(--uight-sunken);
+	--color-hover: var(--uight-hover);
+	--color-canvas: var(--uight-canvas);
+	--color-fg: var(--uight-fg);
+	--color-muted: var(--uight-muted);
+	--color-subtle: var(--uight-subtle);
+	--color-line: var(--uight-line);
+	--color-line-strong: var(--uight-line-strong);
+	--color-accent: var(--uight-accent);
+	--color-accent-fg: var(--uight-accent-fg);
+	--color-accent-soft: var(--uight-accent-soft);
+	--color-danger: var(--uight-danger);
+	--color-danger-soft: var(--uight-danger-soft);
+}
+
+:root {
+	--uight-surface: var(--color-white, #ffffff);
+	--uight-sunken: var(--color-neutral-50, #fafafa);
+	--uight-hover: var(--color-neutral-100, #f5f5f5);
+	--uight-canvas: var(--color-neutral-100, #f5f5f5);
+	--uight-fg: var(--color-neutral-900, #171717);
+	--uight-muted: var(--color-neutral-500, #737373);
+	--uight-subtle: var(--color-neutral-400, #a3a3a3);
+	--uight-line: var(--color-neutral-200, #e5e5e5);
+	--uight-line-strong: var(--color-neutral-300, #d4d4d4);
+	--uight-accent: var(--color-blue-600, #2563eb);
+	--uight-accent-fg: var(--color-white, #ffffff);
+	--uight-accent-soft: var(--color-blue-50, #eff6ff);
+	--uight-danger: var(--color-red-700, #b91c1c);
+	--uight-danger-soft: var(--color-red-50, #fef2f2);
+}
+
+/* Both of the conventions a Tailwind v4 host is likely to use for dark mode. */
+@media (prefers-color-scheme: dark) {
+	:root:not(.light) {
+		--uight-surface: var(--color-neutral-950, #0a0a0a);
+		--uight-sunken: var(--color-neutral-900, #171717);
+		--uight-hover: var(--color-neutral-800, #262626);
+		--uight-canvas: var(--color-black, #000000);
+		--uight-fg: var(--color-neutral-100, #f5f5f5);
+		--uight-muted: var(--color-neutral-400, #a3a3a3);
+		--uight-subtle: var(--color-neutral-500, #737373);
+		--uight-line: var(--color-neutral-800, #262626);
+		--uight-line-strong: var(--color-neutral-700, #404040);
+		--uight-accent: var(--color-blue-400, #60a5fa);
+		--uight-accent-fg: var(--color-neutral-950, #0a0a0a);
+		--uight-accent-soft: var(--color-blue-950, #172554);
+		--uight-danger: var(--color-red-400, #f87171);
+		--uight-danger-soft: var(--color-red-950, #450a0a);
+	}
+}
+
+.dark,
+:root.dark,
+[data-theme="dark"] {
+	--uight-surface: var(--color-neutral-950, #0a0a0a);
+	--uight-sunken: var(--color-neutral-900, #171717);
+	--uight-hover: var(--color-neutral-800, #262626);
+	--uight-canvas: var(--color-black, #000000);
+	--uight-fg: var(--color-neutral-100, #f5f5f5);
+	--uight-muted: var(--color-neutral-400, #a3a3a3);
+	--uight-subtle: var(--color-neutral-500, #737373);
+	--uight-line: var(--color-neutral-800, #262626);
+	--uight-line-strong: var(--color-neutral-700, #404040);
+	--uight-accent: var(--color-blue-400, #60a5fa);
+	--uight-accent-fg: var(--color-neutral-950, #0a0a0a);
+	--uight-accent-soft: var(--color-blue-950, #172554);
+	--uight-danger: var(--color-red-400, #f87171);
+	--uight-danger-soft: var(--color-red-950, #450a0a);
+}

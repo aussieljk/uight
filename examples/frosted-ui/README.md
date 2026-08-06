@@ -1,6 +1,6 @@
-# uaight × frosted-ui
+# uight × frosted-ui
 
-The demo application for [uaight](../../), a component explorer that runs inside
+The demo application for [uight](../../), a component explorer that runs inside
 your application's own Vite dev server.
 
 It renders **all 581 Storybook stories from [frosted-ui](https://storybook.whop.dev)**
@@ -9,7 +9,7 @@ fixtures covering the things Component Story Format cannot express.
 
 ## Attribution
 
-**frosted-ui is Whop's design system. It is not part of uaight, and uaight is
+**frosted-ui is Whop's design system. It is not part of uight, and uight is
 not affiliated with, endorsed by, or connected to Whop in any way.**
 
 frosted-ui is MIT licensed, and this demo uses it in two ways:
@@ -41,16 +41,16 @@ bun run demo          # or: bun run --cwd examples/frosted-ui dev
 
 Then:
 
-| URL       | What it is                                                   |
-| --------- | ------------------------------------------------------------ |
-| `/`       | The host application — a landing page that explains the demo |
-| `/uaight` | The explorer, served from memory by the plugin               |
+| URL      | What it is                                                   |
+| -------- | ------------------------------------------------------------ |
+| `/`      | The host application — a landing page that explains the demo |
+| `/uight` | The explorer, served from memory by the plugin               |
 
 Both come from the same Vite server on the same port. There is no second
 process and no second config file.
 
-> **Note.** This example consumes uaight through the workspace symlink exactly
-> as a published consumer would, so it resolves `uaight` and `uaight/vite` from
+> **Note.** This example consumes uight through the workspace symlink exactly
+> as a published consumer would, so it resolves `uight` and `uight/vite` from
 > `dist/`. Run `bun run build` at the repository root first on a fresh clone.
 
 ## What it demonstrates
@@ -61,13 +61,13 @@ The entire installation is `vite.config.ts`:
 
 ```ts
 import react from "@vitejs/plugin-react";
-import { uaight } from "uaight/vite";
+import { uight } from "@aussieljk/uight/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [
 		react(),
-		uaight({ storybook: true, previewEntry: "src/uaight.preview.tsx", inventory: true }),
+		uight({ storybook: true, previewEntry: "src/uight.preview.tsx", inventory: true }),
 	],
 });
 ```
@@ -75,7 +75,7 @@ export default defineConfig({
 Everything past that is optional. `storybook`, `previewEntry`, `codecs` and
 `optimizeDeps` are in the real config file because this demo needs them; a
 project with no fixtures and no design system gets a useful explorer from
-`uaight()` with no arguments at all.
+`uight()` with no arguments at all.
 
 ### Storybook stories as fixtures (§13)
 
@@ -84,7 +84,7 @@ is not a dependency of this project**. CSF is a file format — a default export
 of metadata plus named exports of stories — so reading it needs a parser, not a
 runtime.
 
-uaight supports a declared subset: meta and story `args`, `argTypes`, `render`,
+uight supports a declared subset: meta and story `args`, `argTypes`, `render`,
 and decorators at meta and story level. It does not run `play`, loaders,
 interactions or globals, and badges the stories that ask for them rather than
 quietly skipping them. The two Storybook types the copied files import come
@@ -102,7 +102,7 @@ which exists purely so the files type-check.
 | `money.fixture.tsx`             | Class instances made editable by codecs instead of showing as opaque chips (§7.7)                               |
 | `swatches.fixture.tsx`          | A default export whose names **cannot** be parsed statically — progressive disclosure (§3.4, §3.5)              |
 | `swatches-declared.fixture.tsx` | The same file with `export const fixtureNames`, which wins outright                                             |
-| `uaight.decorator.tsx`          | A decorator scoped to this directory, calling `useFixtureId()` (§3.3)                                           |
+| `uight.decorator.tsx`           | A decorator scoped to this directory, calling `useFixtureId()` (§3.3)                                           |
 
 ### The component inventory (§12)
 
@@ -120,7 +120,7 @@ listeners, not network requests, storage, cookies or backend effects.
 
 ### The preview entry (§6.4)
 
-[`src/uaight.preview.tsx`](src/uaight.preview.tsx) runs **inside the frame
+[`src/uight.preview.tsx`](src/uight.preview.tsx) runs **inside the frame
 realm**, once. It imports `frosted-ui/styles.css` and wraps every fixture in
 frosted-ui's `<Theme>` with a `<Toaster />`, which is the supported equivalent
 of the global decorator in frosted-ui's own `.storybook/preview.tsx`. Providers
@@ -129,7 +129,7 @@ in a decorator.
 
 ### Value codecs (§7.7)
 
-[`src/uaight.codecs.tsx`](src/uaight.codecs.tsx) registers codecs for `Money`
+[`src/uight.codecs.tsx`](src/uight.codecs.tsx) registers codecs for `Money`
 and `Sku`, two class instances from `src/domain/money.ts`. Without them, a
 non-plain object crosses the realm boundary as `opaque` and the control panel
 shows an uneditable chip — "editable control panel" would quietly mean
@@ -142,10 +142,10 @@ The landing page in `src/App.tsx` mounts the explorer twice:
 
 ```tsx
 // Pinned to one fixture, no chrome, sharing the host's realm.
-<Uaight fixture="fixtures/controls" chrome={false} isolation="inline" />
+<Uight fixture="fixtures/controls" chrome={false} isolation="inline" />
 
 // Controlled selection — the host owns the URL (§5.4).
-<Uaight selected={parseFixtureId(param)} onSelect={(id) => setParam(id && serializeFixtureId(id))} />
+<Uight selected={parseFixtureId(param)} onSelect={(id) => setParam(id && serializeFixtureId(id))} />
 ```
 
 Controlled selection is the recommended integration for any app that already
@@ -188,6 +188,6 @@ bun x tsc --noEmit -p examples/frosted-ui/tsconfig.stories.json   # stories only
 
 ## Licence
 
-The uaight demo code in this directory follows the repository's licence. The
+The uight demo code in this directory follows the repository's licence. The
 files under `src/stories/` are frosted-ui's, MIT, © 2023 WorkOS and © 2023 Whop
 — see [`src/stories/LICENSE-frosted-ui.md`](src/stories/LICENSE-frosted-ui.md).

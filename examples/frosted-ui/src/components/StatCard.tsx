@@ -2,7 +2,7 @@
  * A component with **no fixture and no story**, here to populate the component
  * inventory (SPEC §12).
  *
- * Job 1 in §1.3 is "see what exists": point uaight at a codebase with no
+ * Job 1 in §1.3 is "see what exists": point uight at a codebase with no
  * fixtures at all and get something immediately useful. The detection pass is
  * syntax only — an exported PascalCase name with a function, `memo` or
  * `forwardRef` shape — so it stays fast and needs no docgen (§15.1).

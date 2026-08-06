@@ -2,18 +2,18 @@
  * A local stand-in for the handful of types the copied frosted-ui stories
  * import from `@storybook/react`.
  *
- * The point of this demo is that uaight reads Component Story Format directly
+ * The point of this demo is that uight reads Component Story Format directly
  * (SPEC §13), so Storybook itself is deliberately **not** a dependency here.
  * CSF is a file format, not a runtime: a `.stories.tsx` file is a default
  * export of metadata plus named exports of stories, and nothing about that
  * requires the Storybook packages to be installed.
  *
  * These types are intentionally permissive. They exist to let the story files
- * type-check, not to police them — uaight validates and badges the CSF subset
+ * type-check, not to police them — uight validates and badges the CSF subset
  * it supports at normalization time (§13), which is where the real contract
  * lives. Anything outside the supported subset (`play`, `loaders`, `globals`)
  * is typed here so upstream files still compile, and is marked below with the
- * support status uaight declares for it.
+ * support status uight declares for it.
  */
 
 import type * as React from "react";
@@ -53,7 +53,7 @@ export interface StoryContext<TArgs = Args> {
 
 /**
  * Supported at meta and story level (§13: `metaDecorators`, `storyDecorators`).
- * Storybook applies an array innermost-first; uaight nests outermost-first and
+ * Storybook applies an array innermost-first; uight nests outermost-first and
  * reverses when adapting.
  */
 export type Decorator<TArgs = Args> = (
@@ -142,9 +142,9 @@ export type StoryFn<TMetaOrCmpOrArgs = Args> = {
 export type ComponentStory<T = Args> = StoryFn<T>;
 
 /**
- * The default export of a `.storybook/preview.tsx`. uaight does not read one
+ * The default export of a `.storybook/preview.tsx`. uight does not read one
  * (§13: `globalDecorators: false`) — global providers belong in the preview
- * entry (§6.4), which is `src/uaight.preview.tsx` in this demo. The type is
+ * entry (§6.4), which is `src/uight.preview.tsx` in this demo. The type is
  * here so a copied preview file would still compile.
  */
 export interface Preview {

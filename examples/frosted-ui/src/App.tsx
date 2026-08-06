@@ -2,7 +2,7 @@
  * The host application.
  *
  * There is deliberately almost nothing here. The explorer is already running
- * at /uaight because vite.config.ts has one plugin in it; this page exists to
+ * at /uight because vite.config.ts has one plugin in it; this page exists to
  * explain that, and to show the second entry path (SPEC §1.2) — the same
  * explorer mounted as a component inside an ordinary React tree.
  */
@@ -20,8 +20,8 @@ import {
 	Theme,
 } from "frosted-ui";
 import * as React from "react";
-import { parseFixtureId, serializeFixtureId, Uaight } from "uaight";
-import type { FixtureId } from "uaight";
+import { parseFixtureId, serializeFixtureId, Uight } from "@aussieljk/uight";
+import type { FixtureId } from "@aussieljk/uight";
 
 /* ------------------------------------------------------------------ *
  * §5.4 — controlled selection over a URL parameter the host owns.
@@ -31,10 +31,10 @@ import type { FixtureId } from "uaight";
  * A miniature router. A real app would use its own — `useSearchParams` from
  * React Router, `useRouter` from TanStack, whatever it already has.
  *
- * The point of §5.4 is that uaight does not guess. `router="history"` calls
+ * The point of §5.4 is that uight does not guess. `router="history"` calls
  * `pushState` directly, and `pushState` does not emit `popstate`, so a host
  * router would never learn about the navigation. Passing `selected`/`onSelect`
- * instead makes the host the single owner of the URL, and uaight ignores
+ * instead makes the host the single owner of the URL, and uight ignores
  * `router` entirely (§5.3, precedence 1).
  */
 function useSearchParam(key: string) {
@@ -122,7 +122,7 @@ function ControlledSelection() {
 			</div>
 
 			<div className="embed-frame" style={{ height: 520 }}>
-				<Uaight
+				<Uight
 					selected={selected}
 					onSelect={onSelect}
 					filter={["fixtures/*", "stories/components/*"]}
@@ -148,15 +148,15 @@ export function App() {
 			<div className="page">
 				<div className="stack">
 					<div className="row">
-						<Heading size="8">uaight × frosted-ui</Heading>
+						<Heading size="8">uight × frosted-ui</Heading>
 						<Badge color="blue">demo</Badge>
 					</div>
 
 					<Text size="3" color="gray">
 						This is an ordinary Vite + React application. Its <Code>vite.config.ts</Code> has
 						one extra plugin in it, and that is the entire installation. Open{" "}
-						<Link href="/uaight">
-							<Code>/uaight</Code>
+						<Link href="/uight">
+							<Code>/uight</Code>
 						</Link>{" "}
 						— same server, same port, no second process, no HTML file in the repository.
 					</Text>
@@ -165,7 +165,7 @@ export function App() {
 						What you will find there is all 581 of frosted-ui's Storybook stories, read straight
 						off disk as fixtures. <strong>Storybook is not installed in this project.</strong>{" "}
 						Component Story Format is a file format, not a runtime: a default export of metadata
-						and named exports of stories. uaight reads the subset it can honestly run (§13) and
+						and named exports of stories. uight reads the subset it can honestly run (§13) and
 						badges anything it declines — <Code>play</Code>, loaders and interactions do not
 						silently no-op.
 					</Text>
@@ -178,7 +178,7 @@ export function App() {
 							frosted-ui
 						</Link>{" "}
 						is Whop's design system, used here under its MIT licence and unmodified apart from
-						import rewriting. uaight is an unaffiliated project and this demo is not endorsed by
+						import rewriting. uight is an unaffiliated project and this demo is not endorsed by
 						Whop. The licence travels with the copied files, in{" "}
 						<Code>src/stories/LICENSE-frosted-ui.md</Code>.
 					</Callout.Description>
@@ -196,7 +196,7 @@ export function App() {
 					</Text>
 
 					<Card size="2">
-						<Uaight
+						<Uight
 							fixture="fixtures/controls"
 							chrome={false}
 							isolation="inline"
@@ -206,7 +206,7 @@ export function App() {
 
 					<Text size="1" color="gray">
 						<Code>
-							{'<Uaight fixture="fixtures/controls" chrome={false} isolation="inline" />'}
+							{'<Uight fixture="fixtures/controls" chrome={false} isolation="inline" />'}
 						</Code>
 					</Text>
 				</div>
@@ -217,7 +217,7 @@ export function App() {
 					<Heading size="6">Controlled selection</Heading>
 					<Text size="2" color="gray">
 						The recommended integration for any app that already has a router (§5.4). The host
-						owns the query parameter; uaight is told what is selected and reports what the user
+						owns the query parameter; uight is told what is selected and reports what the user
 						picked. Nothing calls <Code>pushState</Code> behind your router's back.
 					</Text>
 					<ControlledSelection />
@@ -238,9 +238,9 @@ export function App() {
 						<Code>src/components/</Code> — three components with no fixture and no story, so the
 						component inventory has something to find.
 						<br />
-						<Code>src/uaight.preview.tsx</Code> — the frame realm's CSS and providers.
+						<Code>src/uight.preview.tsx</Code> — the frame realm's CSS and providers.
 						<br />
-						<Code>src/uaight.codecs.tsx</Code> — codecs that make two domain classes editable
+						<Code>src/uight.codecs.tsx</Code> — codecs that make two domain classes editable
 						instead of opaque.
 					</Text>
 				</div>

@@ -1,12 +1,12 @@
 import { defineConfig } from "vitepress";
 
 /**
- * uaight.dev.
+ * uight.dev.
  *
- * VitePress rather than uaight's own MDX pages, deliberately: §1.4 lists
+ * VitePress rather than uight's own MDX pages, deliberately: §1.4 lists
  * "becoming an MDX documentation framework" as a non-goal, and a project whose
  * docs site is its own unshipped feature cannot publish a page about a bug in
- * that feature. The docs pages uaight *does* have are for documenting a design
+ * that feature. The docs pages uight *does* have are for documenting a design
  * system next to its components, which is a different job from this.
  *
  * `scripts/sync.ts` copies the repository's own documents into `reference/` and
@@ -14,7 +14,7 @@ import { defineConfig } from "vitepress";
  * each and never a second stale copy to maintain.
  */
 export default defineConfig({
-	title: "uaight",
+	title: "uight",
 	description:
 		"A component explorer that runs inside your application's own Vite dev server.",
 	cleanUrls: true,
@@ -58,18 +58,18 @@ export default defineConfig({
 			},
 		],
 
-		socialLinks: [{ icon: "github", link: "https://github.com/aussieljk/uaight" }],
+		socialLinks: [{ icon: "github", link: "https://github.com/aussieljk/uight" }],
 
 		search: { provider: "local" },
 
 		editLink: {
-			pattern: "https://github.com/aussieljk/uaight/edit/master/docs/:path",
+			pattern: "https://github.com/aussieljk/uight/edit/master/docs/:path",
 			text: "Edit this page on GitHub",
 		},
 
 		footer: {
 			message: "MIT licensed. Published as 0.0.1-canary.N while the surface settles.",
-			copyright: "© uaight",
+			copyright: "© uight",
 		},
 	},
 });

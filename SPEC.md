@@ -1,4 +1,4 @@
-# uaight — Technical Specification
+# uight — Technical Specification
 
 **Status:** Draft v1.0 — pre-implementation
 **Lineage:** Independent implementation. Fixture-format compatible with react-cosmos 7.x, plus extensions (§3, §18)
@@ -41,32 +41,32 @@ Two lists, because they have different audiences and different rules. Consumer r
 
 ## 1. Overview
 
-### 1.1 What uaight is
+### 1.1 What uight is
 
 A component explorer that runs inside your application's own Vite dev server and needs no configuration to be useful.
 
 **Two steps:**
 
 ```bash
-npm i -D uaight
+npm i -D @aussieljk/uight
 ```
 
 ```ts
 // vite.config.ts
-import { uaight } from "uaight/vite";
-export default defineConfig({ plugins: [react(), uaight()] });
+import { uight } from "@aussieljk/uight/vite";
+export default defineConfig({ plugins: [react(), uight()] });
 ```
 
-Then open `/uaight` alongside your app. With no config file and no fixtures, it finds your components and lists them. Write fixtures when you want states and controls; you never have to.
+Then open `/uight` alongside your app. With no config file and no fixtures, it finds your components and lists them. Write fixtures when you want states and controls; you never have to.
 
-That is the whole onboarding. No second process, no second port, no `uaight.config.json`, no HTML file in your repository, and no third step.
+That is the whole onboarding. No second process, no second port, no `uight.config.json`, no HTML file in your repository, and no third step.
 
 ### 1.2 The two entry paths
 
-| Path          | How                                                 | For                                               |
-| ------------- | --------------------------------------------------- | ------------------------------------------------- |
-| **Dev route** | Plugin serves `/uaight` from memory in `serve` mode | Zero-config exploration and daily development     |
-| **Embedded**  | `<Uaight />` mounted anywhere in your app           | Docs pages, an auth-gated internal route, a panel |
+| Path          | How                                                | For                                               |
+| ------------- | -------------------------------------------------- | ------------------------------------------------- |
+| **Dev route** | Plugin serves `/uight` from memory in `serve` mode | Zero-config exploration and daily development     |
+| **Embedded**  | `<Uight />` mounted anywhere in your app           | Docs pages, an auth-gated internal route, a panel |
 
 Same explorer, same code. The dev route is the embedded component mounted into a document the plugin generates and never writes to disk (§6.1).
 
@@ -100,7 +100,7 @@ Job 1 is new in v1.0 and is what the zero-config requirement buys. It also inver
 | D1      | Vite 8.1+ only                                                                       | `import.meta.glob` plus one index scan                                       |
 | D2      | Independent implementation, format-compatible                                        | §18                                                                          |
 | D3      | Vite owns loading, watching and HMR; the plugin owns one index scan                  | §4.4                                                                         |
-| D4      | **Zero-config by default; `uaight.config.json` optional**                            | Every option has a working default. Component inventory is on                |
+| D4      | **Zero-config by default; `uight.config.json` optional**                             | Every option has a working default. Component inventory is on                |
 | D5      | **One published package with subpath exports**                                       | Fixes the package-graph inconsistency and enables the two-step install (§16) |
 | D6      | No plugin/slot system in v1                                                          |                                                                              |
 | D7      | Production inclusion opt-in, default excluded                                        | Gated at compile time (§9.2)                                                 |
@@ -185,11 +185,11 @@ interface FixtureId {
 **Canonical encoding**, not address-bar readability:
 
 ```
-single    → uaight:1|<encodedPath>
-named     → uaight:1|<encodedPath>|<encodedName>
+single    → uight:1|<encodedPath>
+named     → uight:1|<encodedPath>|<encodedName>
 ```
 
-Both segments are `encodeURIComponent`-encoded, so `''` encodes to an empty third segment and `null` produces no third segment at all. The `uaight:1|` prefix versions the format, so a v2 encoding can be introduced without ambiguity. `parseFixtureId` is total and returns `null` on anything malformed, including a missing or unknown version prefix.
+Both segments are `encodeURIComponent`-encoded, so `''` encodes to an empty third segment and `null` produces no third segment at all. The `uight:1|` prefix versions the format, so a v2 encoding can be introduced without ambiguity. `parseFixtureId` is total and returns `null` on anything malformed, including a missing or unknown version prefix.
 
 The convenience form `path:name` remains accepted **on input only** — in the `fixture` prop and hand-written links — and is normalized to canonical form immediately. It rejects `:` in the path segment. Never emitted.
 
@@ -198,7 +198,7 @@ The convenience form `path:name` remains accepted **on input only** — in the `
 A decorator file default-exports a component receiving `children`:
 
 ```tsx
-// src/cosmos.decorator.tsx  (or uaight.decorator.tsx — both recognized)
+// src/cosmos.decorator.tsx  (or uight.decorator.tsx — both recognized)
 export default function Decorator({ children }: { children: React.ReactNode }) {
 	return <ThemeProvider>{children}</ThemeProvider>;
 }
@@ -276,17 +276,17 @@ Filtering scopes the **tree**. It never prevents a `fixture` prop from rendering
 
 ### 4.1 Configuration
 
-Everything has a default. `uaight.config.json` is optional and most projects never create one.
+Everything has a default. `uight.config.json` is optional and most projects never create one.
 
 ```ts
-export interface UaightPluginOptions {
-	/** Dev route. Default '/uaight'. Set false to disable the route entirely. */
+export interface UightPluginOptions {
+	/** Dev route. Default '/uight'. Set false to disable the route entirely. */
 	route?: string | false;
 
 	configPath?: string | false;
 	fixturesDir?: string; // default 'src'
 	fixtureFileSuffix?: string; // default 'fixture'
-	decoratorFileSuffix?: string; // default 'cosmos.decorator|uaight.decorator'
+	decoratorFileSuffix?: string; // default 'cosmos.decorator|uight.decorator'
 	include?: string[];
 	exclude?: string[];
 	caseSensitive?: boolean; // default true
@@ -308,7 +308,7 @@ export interface UaightPluginOptions {
 
 Options resolve in `config()`, not `configResolved()` — see §4.5.
 
-**Structural options require a server restart:** `route`, `fixturesDir`, `include`, `exclude`, `previewEntry`, `previewHtmlPath`, `codecs`, `inventory`. They determine middleware and watcher wiring that cannot be safely rebuilt in place. Changing one in `uaight.config.json` prints a message telling the user to restart, rather than half-applying. Non-structural options (`index`, `production`, `storybook`) reload live.
+**Structural options require a server restart:** `route`, `fixturesDir`, `include`, `exclude`, `previewEntry`, `previewHtmlPath`, `codecs`, `inventory`. They determine middleware and watcher wiring that cannot be safely rebuilt in place. Changing one in `uight.config.json` prints a message telling the user to restart, rather than half-applying. Non-structural options (`index`, `production`, `storybook`) reload live.
 
 ### 4.2 Two path representations
 
@@ -325,20 +325,20 @@ Never interchange them. Consequently, **fixtures outside the Vite root cannot be
 
 ### 4.3 Virtual modules
 
-v0.6 had `virtual:uaight/fixtures` export the renderer's own URL while the renderer imported that same module — a self-referential graph, with needless circular-chunk risk. Split:
+v0.6 had `virtual:uight/fixtures` export the renderer's own URL while the renderer imported that same module — a self-referential graph, with needless circular-chunk risk. Split:
 
-| Id                             | Imported by     | Contents                                                   |
-| ------------------------------ | --------------- | ---------------------------------------------------------- |
-| `virtual:uaight/runtime`       | **Both realms** | Fixture index, globs, resolved runtime config              |
-| `virtual:uaight/renderer-url`  | Host only       | The emitted renderer chunk URL                             |
-| `virtual:uaight/renderer`      | (entry)         | Frame realm entry. Imports `runtime`, never `renderer-url` |
-| `virtual:uaight/preview-entry` | Renderer        | Consumer preview entry or a pass-through                   |
-| `virtual:uaight/codecs`        | Both realms     | Consumer codecs (§7.7)                                     |
-| `virtual:uaight/inventory`     | Host            | Component auto-detection glob (§12)                        |
+| Id                            | Imported by     | Contents                                                   |
+| ----------------------------- | --------------- | ---------------------------------------------------------- |
+| `virtual:uight/runtime`       | **Both realms** | Fixture index, globs, resolved runtime config              |
+| `virtual:uight/renderer-url`  | Host only       | The emitted renderer chunk URL                             |
+| `virtual:uight/renderer`      | (entry)         | Frame realm entry. Imports `runtime`, never `renderer-url` |
+| `virtual:uight/preview-entry` | Renderer        | Consumer preview entry or a pass-through                   |
+| `virtual:uight/codecs`        | Both realms     | Consumer codecs (§7.7)                                     |
+| `virtual:uight/inventory`     | Host            | Component auto-detection glob (§12)                        |
 
 The renderer imports only `runtime`; the host imports `runtime` and `renderer-url`. No cycle.
 
-Declarations ship as `uaight/client`.
+Declarations ship as `uight/client`.
 
 ### 4.4 The index scan
 
@@ -355,17 +355,17 @@ import type { Plugin, ViteDevServer } from "vite";
 import path from "node:path";
 
 const V = {
-	runtime: "virtual:uaight/runtime",
-	rendererUrl: "virtual:uaight/renderer-url",
-	renderer: "virtual:uaight/renderer",
-	preview: "virtual:uaight/preview-entry",
-	codecs: "virtual:uaight/codecs",
-	inventory: "virtual:uaight/inventory",
+	runtime: "virtual:uight/runtime",
+	rendererUrl: "virtual:uight/renderer-url",
+	renderer: "virtual:uight/renderer",
+	preview: "virtual:uight/preview-entry",
+	codecs: "virtual:uight/codecs",
+	inventory: "virtual:uight/inventory",
 } as const;
 const R = (id: string) => "\0" + id;
-const DEV_RENDERER_URL = "/@uaight/renderer";
+const DEV_RENDERER_URL = "/@uight/renderer";
 
-export function uaight(options: UaightPluginOptions = {}): Plugin {
+export function uight(options: UightPluginOptions = {}): Plugin {
 	let cfg: ResolvedConfig;
 	let index: FixtureIndex;
 	let rendererRef: string | undefined;
@@ -373,7 +373,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 	const disposers: Array<() => void> = [];
 
 	return {
-		name: "uaight",
+		name: "uight",
 
 		// Config is resolved HERE, where Vite documents configuration changes.
 		// `env.command` is already available, so nothing needs configResolved,
@@ -388,18 +388,18 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 
 			if (env.command === "build" && cfg.production === "error" && index.files.length) {
 				throw new Error(
-					`[uaight] production: "error" — ${index.files.length} fixture files present`,
+					`[uight] production: "error" — ${index.files.length} fixture files present`,
 				);
 			}
 
 			const enabled = env.command === "serve" || cfg.production === "include";
 			return {
-				define: { __UAIGHT_ENABLED__: JSON.stringify(enabled) },
+				define: { __UIGHT_ENABLED__: JSON.stringify(enabled) },
 				...(cfg.previewHtmlPath && env.command === "build"
 					? {
 							build: {
 								rollupOptions: {
-									input: { uaightPreview: cfg.previewHtmlPath },
+									input: { uightPreview: cfg.previewHtmlPath },
 								},
 							},
 						}
@@ -412,7 +412,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 				rendererRef = this.emitFile({
 					type: "chunk",
 					id: V.renderer,
-					name: "uaight-renderer",
+					name: "uight-renderer",
 				});
 			}
 		},
@@ -422,7 +422,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 			if (cfg.route) s.middlewares.use(cfg.route, devRouteHandler(s, cfg)); // §6.1
 			s.middlewares.use(DEV_RENDERER_URL, rendererHandler(s));
 			s.middlewares.use(
-				"/@uaight",
+				"/@uight",
 				readOnlyApi(s, cfg, () => index),
 			); // §19.6
 
@@ -436,7 +436,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 					invalidate(s, [V.runtime, V.inventory]);
 					s.hot.send({
 						type: "custom",
-						event: "uaight:index",
+						event: "uight:index",
 						data: index.serialize(),
 					});
 				}),
@@ -455,7 +455,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 				const next = await safeReloadConfig(cfg, await ctx.read());
 				if (isStructural(cfg, next)) {
 					ctx.server.config.logger.warn(
-						"[uaight] structural config change — restart the dev server to apply",
+						"[uight] structural config change — restart the dev server to apply",
 					);
 					return [];
 				}
@@ -473,7 +473,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 					invalidate(ctx.server, [V.runtime]);
 					ctx.server.hot.send({
 						type: "custom",
-						event: "uaight:index",
+						event: "uight:index",
 						data: index.serialize(),
 					});
 				}
@@ -509,7 +509,7 @@ export function uaight(options: UaightPluginOptions = {}): Plugin {
 }
 ```
 
-The browser learns about topology changes through a namespaced `uaight:index` custom event, which the explorer subscribes to. Invalidating a virtual module in the server graph does not by itself cause the browser to re-import it — v0.6 assumed it did.
+The browser learns about topology changes through a namespaced `uight:index` custom event, which the explorer subscribes to. Invalidating a virtual module in the server graph does not by itself cause the browser to re-import it — v0.6 assumed it did.
 
 Rescans are debounced and serialized, and a content change reparses **one file** rather than the corpus.
 
@@ -517,12 +517,12 @@ Rescans are debounced and serialized, and a content change reparses **one file**
 
 ---
 
-## 5. The `<Uaight />` component
+## 5. The `<Uight />` component
 
 ### 5.1 Props
 
 ```ts
-export interface UaightProps {
+export interface UightProps {
 	filter?: string | string[] | ((path: string) => boolean); // §3.6
 	fixture?: FixtureId | string;
 	isolation?: "frame" | "inline";
@@ -539,7 +539,7 @@ export interface UaightProps {
 	fallback?: React.ReactNode;
 	loading?: React.ReactNode;
 
-	components?: Partial<UaightComponents>;
+	components?: Partial<UightComponents>;
 	theme?: "light" | "dark" | "system";
 	height?: number | string | "auto";
 	previewDocumentUrl?: string;
@@ -588,7 +588,7 @@ v0.6 claimed router-agnosticism while calling `history.pushState` directly. Sinc
 
 ```tsx
 const [params, setParams] = useSearchParams();
-<Uaight
+<Uight
 	selected={parseFixtureId(params.get("fixture"))}
 	onSelect={(id) => setParams({ fixture: id ? serializeFixtureId(id) : "" })}
 />;
@@ -620,7 +620,7 @@ Other rules:
 
 Nothing is written to your repository. The dev route's document is generated in memory by the middleware; the frame's document is constructed at runtime. A custom preview document (§6.6) is a supported opt-in that does introduce a file — which is why this section is no longer titled "No HTML file."
 
-The dev route handler returns a minimal document that mounts `<Uaight />`, passed through `transformIndexHtml` so `@vitejs/plugin-react` injects its Fast Refresh preamble and any nonce handling applies.
+The dev route handler returns a minimal document that mounts `<Uight />`, passed through `transformIndexHtml` so `@vitejs/plugin-react` injects its Fast Refresh preamble and any nonce handling applies.
 
 ### 6.2 Frame bootstrap
 
@@ -634,20 +634,20 @@ Cookies, storage partitioning and `location` are all likewise not what the
 fixture would see in the app. The written document also can never pass through
 `transformIndexHtml`, which is why §6.3 has to import the React preamble by hand.
 
-Both the dev server and `uaight build` therefore emit a preview document of their
-own — in memory at `/@uaight/preview` in `serve`, and as `preview.html` beside
+Both the dev server and `uight build` therefore emit a preview document of their
+own — in memory at `/@uight/preview` in `serve`, and as `preview.html` beside
 `index.html` in the static build. Neither writes to your repository (§6.1); the
-static build's scaffold lives under `node_modules/.uaight/` like the explorer's.
+static build's scaffold lives under `node_modules/.uight/` like the explorer's.
 
 1. Point the iframe's `src` at the preview document's URL.
-2. On load, adopt it: it already contains `<div id="uaight-root">`.
+2. On load, adopt it: it already contains `<div id="uight-root">`.
 3. Stamp the theme, and inject our scoped stylesheet (§10.3).
 4. Inject `<script type="module" src={rendererEntryUrl}>`.
 5. Handshake (§8.2), then render.
 
 `previewDocumentUrl` (§6.6) overrides which URL that is. Writing into
 `about:blank` remains the fallback for a mount that has no URL to offer — an
-embedded `<Uaight />` in an app that ships no preview document — and carries the
+embedded `<Uight />` in an app that ships no preview document — and carries the
 initial-load race (Q1) that a served document does not have: create with no
 `src`, wait for `contentDocument`, write, and keep a `load` listener for the
 about:blank load already in flight.
@@ -658,13 +658,13 @@ The frame document never passes through `transformIndexHtml`, so the React plugi
 
 ```ts
 import "@vitejs/plugin-react/preamble"; // dev only; verify specifier (Q2)
-import { mountRenderer } from "uaight/runtime";
-import { fixtureModules, decoratorModules, config } from "virtual:uaight/runtime";
-import * as preview from "virtual:uaight/preview-entry";
-import * as codecs from "virtual:uaight/codecs";
+import { mountRenderer } from "@aussieljk/uight/runtime";
+import { fixtureModules, decoratorModules, config } from "virtual:uight/runtime";
+import * as preview from "virtual:uight/preview-entry";
+import * as codecs from "virtual:uight/codecs";
 
 mountRenderer({
-	root: document.getElementById("uaight-root")!,
+	root: document.getElementById("uight-root")!,
 	fixtureModules,
 	decoratorModules,
 	config,
@@ -673,14 +673,14 @@ mountRenderer({
 });
 ```
 
-The dev URL is public and stable at `/@uaight/renderer`. Vite's `/@id/__x00__…` encoding is private and must not be relied on.
+The dev URL is public and stable at `/@uight/renderer`. Vite's `/@id/__x00__…` encoding is private and must not be relied on.
 
 ### 6.4 The preview entry
 
 Reconstructing the host's global CSS is guesswork, and worse under CSS code splitting where each async chunk gets its own file. The consumer declares what fixtures need, in a module that runs **inside the frame realm**:
 
 ```tsx
-// src/uaight.preview.tsx
+// src/uight.preview.tsx
 import "./styles/global.css";
 
 // Module scope. Constructing this inside the component would hand every
@@ -705,12 +705,12 @@ Optional. Omitting it yields an unstyled frame and a one-time warning.
 v0.6 offered two options and deferred the choice. **Decision: a Vite HTML input.**
 
 ```ts
-uaight({ previewHtmlPath: "uaight/preview.html" });
+uight({ previewHtmlPath: "uight/preview.html" });
 ```
 
 The plugin adds it to `build.rollupOptions.input` (§4.5) and it is served through the dev server's HTML pipeline. `public/` was the alternative and is rejected: files there are copied verbatim, bypassing HTML transformation, which means no preamble injection, no nonce handling, no asset rewriting — precisely the capabilities someone reaches for a custom document to get.
 
-Contract: contains `id="uaight-root"`; does not boot the renderer itself; same-origin, so not a security boundary.
+Contract: contains `id="uight-root"`; does not boot the renderer itself; same-origin, so not a security boundary.
 
 - **`previewHtmlPath`** (plugin option) — a build-time file path.
 - **`previewDocumentUrl`** (component prop) — a runtime URL.
@@ -853,10 +853,10 @@ export interface FixtureCodec<T = unknown, S = unknown> {
 }
 ```
 
-`serialize`/`deserialize`/`test` run in the renderer realm; `editor` renders in the UI realm. A single registry object cannot cross realms, so codecs live in one module both realms import via `virtual:uaight/codecs`:
+`serialize`/`deserialize`/`test` run in the renderer realm; `editor` renders in the UI realm. A single registry object cannot cross realms, so codecs live in one module both realms import via `virtual:uight/codecs`:
 
 ```ts
-uaight({ codecs: "src/uaight.codecs.tsx" });
+uight({ codecs: "src/uight.codecs.tsx" });
 ```
 
 Rules: consumer codecs are tested before built-ins, so `Date` can be overridden; no match falls through to `opaque`; `serialize` output is validated as structured-cloneable in development and fails loudly with the codec name; codecs must be pure, since §7.2's structural sharing assumes the renderer's value is untouched; an unknown codec name on the wire degrades to `opaque` with a warning.
@@ -930,27 +930,27 @@ Scheduling is injectable (`queueMicrotask` or a `MessageChannel` task); both sat
 ### 9.2 The gate is a compile-time constant
 
 ```tsx
-declare const __UAIGHT_ENABLED__: boolean;
-const UaightUI = React.lazy(() => import("./ui/UaightUI"));
+declare const __UIGHT_ENABLED__: boolean;
+const UightUI = React.lazy(() => import("./ui/UightUI"));
 
-export function Uaight(props: UaightProps) {
-	if (!__UAIGHT_ENABLED__ || props.enabled === false) return <>{props.fallback ?? null}</>;
+export function Uight(props: UightProps) {
+	if (!__UIGHT_ENABLED__ || props.enabled === false) return <>{props.fallback ?? null}</>;
 	return (
 		<React.Suspense fallback={props.loading ?? null}>
-			<UaightUI {...props} />
+			<UightUI {...props} />
 		</React.Suspense>
 	);
 }
 ```
 
-`__UAIGHT_ENABLED__` is injected via `define` from the `config` hook (§4.5), so `production: 'exclude'` genuinely removes the UI chunk rather than loading it and declining to render. Ship a declaration for non-Vite type-checking, and prove removal with a bundle test (Q5).
+`__UIGHT_ENABLED__` is injected via `define` from the `config` hook (§4.5), so `production: 'exclude'` genuinely removes the UI chunk rather than loading it and declining to render. Ship a declaration for non-Vite type-checking, and prove removal with a bundle test (Q5).
 
 ### 9.3 Modes and manifest
 
 `'exclude'` (default) · `'include'` · `'error'`.
 
 ```
-[uaight] production build with fixtures INCLUDED
+[uight] production build with fixtures INCLUDED
   96 fixture modules → 148 fixtures    entry chunks   3.1 MB
   19 decorators                        shared chunks  0.9 MB
                                        CSS + assets   0.4 MB
@@ -972,13 +972,13 @@ Recessive: the chrome should disappear next to the fixture. Monochrome plus one 
 
 ### 10.2 Tailwind v4 internally
 
-CSS-first configuration; tokens in `@theme`. **Never ship preflight** — a published library that resets the host's elements is hostile. Our reset applies only within `.uaight-root`.
+CSS-first configuration; tokens in `@theme`. **Never ship preflight** — a published library that resets the host's elements is hostile. Our reset applies only within `.uight-root`.
 
 ### 10.3 Dual-mode styling
 
 Consumers usually have Tailwind, but not always, so neither assumption is safe.
 
-**Packaged: compiled, scoped CSS.** Our build compiles our classes and rewrites every rule to require a `.uaight-root` ancestor. Works with no host Tailwind, is immune to the host's `@theme`, and cannot leak outward. Preferable to Tailwind's `prefix()`, which requires prefixed class names in _source_ and would break ejected components in any host without the same prefix.
+**Packaged: compiled, scoped CSS.** Our build compiles our classes and rewrites every rule to require a `.uight-root` ancestor. Works with no host Tailwind, is immune to the host's `@theme`, and cannot leak outward. Preferable to Tailwind's `prefix()`, which requires prefixed class names in _source_ and would break ejected components in any host without the same prefix.
 
 **Ejected: host-native.** Ejected sources are plain Tailwind compiled by the host, inheriting their theme. Use the package and it looks like ours; eject it and it looks like yours. Documented cost: **ejection requires Tailwind v4.**
 
@@ -994,13 +994,13 @@ Namespaced registry dependencies only resolve once the namespace is configured. 
 
 ```json
 // components.json
-{ "registries": { "@uaight": "https://uaight.dev/r/{name}.json" } }
+{ "registries": { "@uight": "https://uight.dev/r/{name}.json" } }
 ```
 
 ```bash
-npx shadcn add @uaight/fixture-tree
+npx shadcn add @uight/fixture-tree
 # or, without configuring a namespace:
-npx shadcn add https://uaight.dev/r/fixture-tree.json
+npx shadcn add https://uight.dev/r/fixture-tree.json
 ```
 
 - **Versioning:** registry output is published per minor at `/r/v{major}.{minor}/{name}.json`, with `/r/{name}.json` tracking latest. Ejected items record the version they came from in their file header.
@@ -1015,16 +1015,16 @@ npx shadcn add https://uaight.dev/r/fixture-tree.json
 	"name": "fixture-tree",
 	"type": "registry:component",
 	"title": "Fixture Tree",
-	"description": "Hierarchical navigation for fixtures. Reads useUaightChrome().fixtureTree and reports selection through onSelect.",
-	"dependencies": ["uaight"],
-	"registryDependencies": ["@uaight/control-panel-inputs"],
+	"description": "Hierarchical navigation for fixtures. Reads useUightChrome().fixtureTree and reports selection through onSelect.",
+	"dependencies": ["uight"],
+	"registryDependencies": ["@uight/control-panel-inputs"],
 	"files": [{ "path": "ui/fixture-tree/FixtureTree.tsx", "type": "registry:component" }]
 }
 ```
 
 **Two schemas, not one.** shadcn publishes `registry.json` for the _index_ and `registry-item.json` for a _single item_; an item carrying the index schema does not validate. Earlier drafts of this section named `registry.json` here, which was wrong — the emitted items use `registry-item.json` and only `registry/registry.json` uses `registry.json`.
 
-`registryDependencies` must be namespaced — a bare `"tree-item"` resolves against shadcn's own registry, and must also name an item this registry actually publishes: `@uaight/tree-item` appeared in an earlier draft and is not in §11.3's table. Any `registry:file` entry requires an explicit `target`.
+`registryDependencies` must be namespaced — a bare `"tree-item"` resolves against shadcn's own registry, and must also name an item this registry actually publishes: `@uight/tree-item` appeared in an earlier draft and is not in §11.3's table. Any `registry:file` entry requires an explicit `target`.
 
 ### 11.3 What is ejectable
 
@@ -1041,7 +1041,7 @@ npx shadcn add https://uaight.dev/r/fixture-tree.json
 ### 11.4 The frozen surface is the hook facade
 
 ```ts
-export function useUaightChrome(): UaightChromeApiV1;
+export function useUightChrome(): UightChromeApiV1;
 ```
 
 Component props stay free to change; the facade is the commitment. Designed in v1, frozen at v1.2 (§21).
@@ -1054,9 +1054,9 @@ Ejected files carry a header naming the project, version and licence, since repo
 
 The zero-config experience, and now a v1 feature rather than an afterthought.
 
-With no fixtures present, `/uaight` lists what it found:
+With no fixtures present, `/uight` lists what it found:
 
-1. Glob candidate files (`virtual:uaight/inventory`).
+1. Glob candidate files (`virtual:uight/inventory`).
 2. Filter with `oxc-parser`: exported names, PascalCase, function or `memo`/`forwardRef` shape. **No docgen in v1** (§15) — this pass is syntax only, which keeps it fast and dependency-light.
 3. Group by directory, matching the fixture tree's shape so the two merge naturally when fixtures appear.
 4. **Selecting a component renders it** in frame isolation, behind an error boundary, with required-prop names shown when it fails.
@@ -1095,7 +1095,7 @@ Storybook applies decorators innermost-first from the array; we nest outermost-f
 
 **Documentation pages.** `**/*.docs.mdx` under the fixtures directory is a documentation page: prose that lives beside the components it is about. Mechanically it is a fixture — the same glob map, the same index entry, the same selection and the same frame realm, and one page per module by the rule above — and it carries `docsPage: true` so the tree can say which it is. `docs: false` turns the pattern off, `docs: { fileSuffix }` renames it.
 
-Compiling MDX is still entirely the host's job, and this does not change that: uaight exports a component, a host MDX setup puts it in scope, and we do not try to detect whether the host already has an MDX plugin — plugin ordering is configuration, not something to infer. Startup naming a _missing_ plugin is not inference; it reads the resolved list and reports it.
+Compiling MDX is still entirely the host's job, and this does not change that: uight exports a component, a host MDX setup puts it in scope, and we do not try to detect whether the host already has an MDX plugin — plugin ordering is configuration, not something to infer. Startup naming a _missing_ plugin is not inference; it reads the resolved list and reports it.
 
 **This is not a documentation framework** (§1.4). No router, no authored navigation, no page hierarchy separate from the fixture tree.
 
@@ -1125,21 +1125,21 @@ Until all three hold, v1.3 ships the Babel resolver behind the same interface, w
 
 ### 16.1 One package (D5)
 
-v0.6 referenced five package names and defined three, using an undefined one as an ejected component's dependency. Worse, a multi-package install cannot be two steps. **One published package, `uaight`, with subpath exports:**
+v0.6 referenced five package names and defined three, using an undefined one as an ejected component's dependency. Worse, a multi-package install cannot be two steps. **One published package, `uight`, with subpath exports:**
 
-| Entry            | Contents                                            | Environment |
-| ---------------- | --------------------------------------------------- | ----------- |
-| `uaight`         | `<Uaight />`, fixture hooks, `defineCodec`, types   | Browser     |
-| `uaight/vite`    | The plugin, config resolution, index builder        | Node        |
-| `uaight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
-| `uaight/chrome`  | `useUaightChrome`, chrome component types           | Browser     |
-| `uaight/client`  | Virtual module declarations                         | Types only  |
+| Entry           | Contents                                            | Environment |
+| --------------- | --------------------------------------------------- | ----------- |
+| `uight`         | `<Uight />`, fixture hooks, `defineCodec`, types    | Browser     |
+| `uight/vite`    | The plugin, config resolution, index builder        | Node        |
+| `uight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
+| `uight/chrome`  | `useUightChrome`, chrome component types            | Browser     |
+| `uight/client`  | Virtual module declarations                         | Types only  |
 
-`useFixtureInput` is exported from `uaight`; the runtime implementation lives in `uaight/runtime` and is not imported directly by consumers.
+`useFixtureInput` is exported from `uight`; the runtime implementation lives in `uight/runtime` and is not imported directly by consumers.
 
 ```json
 {
-	"name": "uaight",
+	"name": "uight",
 	"type": "module",
 	"exports": {
 		".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
@@ -1167,13 +1167,13 @@ v0.6 referenced five package names and defined three, using an undefined one as 
 
 - **ESM only.** A project that exists because of `import.meta.glob`, targeting an ESM-only Vite, has no reason to ship CJS.
 - **React is external**, never bundled — two React copies would break hooks in inline mode.
-- **Vite is an optional peer** so that a consumer who only embeds `<Uaight />` in an app built elsewhere is not warned about a dependency they do not use.
+- **Vite is an optional peer** so that a consumer who only embeds `<Uight />` in an app built elsewhere is not warned about a dependency they do not use.
 - **`sideEffects: ["*.css"]`.** JavaScript entries are side-effect-free; stylesheet imports are side effects.
 - **Browser target: Baseline 2024.**
 
 ### 16.2 Plugin and runtime version compatibility
 
-Both ship in one package, so they cannot skew by installation — but they can by stale build artefacts or a cached virtual module. The runtime carries the package version; the plugin embeds its own into `virtual:uaight/runtime`. On mismatch, the explorer renders an explicit version-mismatch panel (§8.2) naming both, rather than failing in a way that looks like a protocol bug.
+Both ship in one package, so they cannot skew by installation — but they can by stale build artefacts or a cached virtual module. The runtime carries the package version; the plugin embeds its own into `virtual:uight/runtime`. On mismatch, the explorer renders an explicit version-mismatch panel (§8.2) naming both, rather than failing in a way that looks like a protocol bug.
 
 Protocol version is negotiated separately (§8.2) so a future split into multiple packages remains possible.
 
@@ -1221,16 +1221,16 @@ Where a behaviour is genuinely undocumented upstream, specify our own and docume
 
 Tiers: **Stable** (semver-protected) · **Experimental** (may change in a minor) · **Internal** (not exported).
 
-### 19.1 Components — `uaight`
+### 19.1 Components — `uight`
 
-| Export                                                    | Tier         |
-| --------------------------------------------------------- | ------------ |
-| `<Uaight>`                                                | Stable       |
-| `<UaightProvider>` — shared `components`, `theme`, codecs | Stable       |
-| `<Fixture>` — render one fixture, no chrome               | Stable       |
-| `<UaightErrorBoundary>`                                   | Experimental |
+| Export                                                   | Tier         |
+| -------------------------------------------------------- | ------------ |
+| `<Uight>`                                                | Stable       |
+| `<UightProvider>` — shared `components`, `theme`, codecs | Stable       |
+| `<Fixture>` — render one fixture, no chrome              | Stable       |
+| `<UightErrorBoundary>`                                   | Experimental |
 
-### 19.2 Fixture hooks — `uaight`
+### 19.2 Fixture hooks — `uight`
 
 | Hook                  | Tier         | Signature                                                                |
 | --------------------- | ------------ | ------------------------------------------------------------------------ |
@@ -1241,12 +1241,12 @@ Tiers: **Stable** (semver-protected) · **Experimental** (may change in a minor)
 | `useSelectFixture`    | Stable       | `() => (id: FixtureId \| string) => void`                                |
 | `useFixtureIsolation` | Experimental | `() => 'frame' \| 'inline'`                                              |
 
-### 19.3 Chrome facade — `uaight/chrome`
+### 19.3 Chrome facade — `uight/chrome`
 
 ```ts
-export function useUaightChrome(): UaightChromeApiV1;
+export function useUightChrome(): UightChromeApiV1;
 
-export interface UaightChromeApiV1 {
+export interface UightChromeApiV1 {
 	fixtureTree: {
 		nodes: TreeNode[];
 		expanded: ReadonlySet<string>;
@@ -1281,33 +1281,33 @@ export interface UaightChromeApiV1 {
 }
 ```
 
-### 19.4 Build API — `uaight/vite`
+### 19.4 Build API — `uight/vite`
 
-| Export                       | Tier         | Purpose                                            |
-| ---------------------------- | ------------ | -------------------------------------------------- |
-| `uaight(options)`            | Stable       | The plugin                                         |
-| `defineUaightConfig(config)` | Stable       | Typed `uaight.config.ts`                           |
-| `buildFixtureIndex(config)`  | Stable       | Standalone scan. Measures parse coverage (§3.5)    |
-| `validateFixtures(config)`   | Stable       | Collisions, confinement, unparseable files. For CI |
-| `parseFixtureFile(source)`   | Experimental | The single-file classifier                         |
-| `resolveUaightConfig(opts)`  | Experimental | Config resolution alone                            |
+| Export                      | Tier         | Purpose                                            |
+| --------------------------- | ------------ | -------------------------------------------------- |
+| `uight(options)`            | Stable       | The plugin                                         |
+| `defineUightConfig(config)` | Stable       | Typed `uight.config.ts`                            |
+| `buildFixtureIndex(config)` | Stable       | Standalone scan. Measures parse coverage (§3.5)    |
+| `validateFixtures(config)`  | Stable       | Collisions, confinement, unparseable files. For CI |
+| `parseFixtureFile(source)`  | Experimental | The single-file classifier                         |
+| `resolveUightConfig(opts)`  | Experimental | Config resolution alone                            |
 
-### 19.5 Shared — `uaight`
+### 19.5 Shared — `uight`
 
-`parseFixtureId`, `serializeFixtureId`, `matchesFilter`, `defineCodec`, and the types `FixtureId`, `FixtureIndex`, `FixtureFileIndex`, `FixtureFileMeta`, `FixtureMeta`, `TreeNode`, `InventoryItem`, `Wire`, `EditableWire`, `InputOverlay`, `InputOptions`, `FixtureCodec`, `CodecEditorProps`, `UaightProps`, `ChromeOptions`, `UaightComponents`, `UaightChromeApiV1`, `RouterAdapter`, `ViewportPreset`, `RendererError`, `UaightPluginOptions` — all Stable. `UaightTransport`, `MountedEnvelope`, `Scheduler` — Experimental.
+`parseFixtureId`, `serializeFixtureId`, `matchesFilter`, `defineCodec`, and the types `FixtureId`, `FixtureIndex`, `FixtureFileIndex`, `FixtureFileMeta`, `FixtureMeta`, `TreeNode`, `InventoryItem`, `Wire`, `EditableWire`, `InputOverlay`, `InputOptions`, `FixtureCodec`, `CodecEditorProps`, `UightProps`, `ChromeOptions`, `UightComponents`, `UightChromeApiV1`, `RouterAdapter`, `ViewportPreset`, `RendererError`, `UightPluginOptions` — all Stable. `UightTransport`, `MountedEnvelope`, `Scheduler` — Experimental.
 
 ### 19.6 HTTP endpoints
 
 **Development only.** Registered solely in `serve` mode, loopback-bound by default, absent in production builds. All read-only — v1 writes no files (§1.4), which removes CSRF and path-confinement risk entirely rather than mitigating it.
 
-| Method | Path                      | Tier     | Returns                                                                  |
-| ------ | ------------------------- | -------- | ------------------------------------------------------------------------ |
-| `GET`  | `/uaight`                 | Stable   | The explorer document (§6.1). Configurable via `route`                   |
-| `GET`  | `/@uaight/renderer`       | Internal | Transformed renderer entry. Stable URL, opaque body                      |
-| `GET`  | `/@uaight/index.json`     | Stable   | Fixture index: paths, names, `null` markers, hashes                      |
-| `GET`  | `/@uaight/inventory.json` | Stable   | Detected components                                                      |
-| `GET`  | `/@uaight/config.json`    | Stable   | Resolved config echo. Answers "why is my fixture not found"              |
-| `GET`  | `/@uaight/health`         | Stable   | `{ version, viteVersion, protocolVersion, fixtureCount, indexMode, ok }` |
+| Method | Path                     | Tier     | Returns                                                                  |
+| ------ | ------------------------ | -------- | ------------------------------------------------------------------------ |
+| `GET`  | `/uight`                 | Stable   | The explorer document (§6.1). Configurable via `route`                   |
+| `GET`  | `/@uight/renderer`       | Internal | Transformed renderer entry. Stable URL, opaque body                      |
+| `GET`  | `/@uight/index.json`     | Stable   | Fixture index: paths, names, `null` markers, hashes                      |
+| `GET`  | `/@uight/inventory.json` | Stable   | Detected components                                                      |
+| `GET`  | `/@uight/config.json`    | Stable   | Resolved config echo. Answers "why is my fixture not found"              |
+| `GET`  | `/@uight/health`         | Stable   | `{ version, viteVersion, protocolVersion, fixtureCount, indexMode, ok }` |
 
 Prefer the Node API for CI; the HTTP surface exists for tools that cannot import the package — editor extensions, dashboards, scripts.
 
@@ -1399,9 +1399,9 @@ v1.0 is the product thesis: two steps to something useful, fixtures when you wan
 | Q8  | Does a real `shadcn add` resolve from our registry?                                            | M0           |
 | Q9  | Glob invalidation under Vite 8.1, Rolldown, Bundled Dev Mode                                   | M0           |
 | Q10 | Overlay reapplication across HMR — does anything stale survive?                                | M0           |
-| Q11 | What goes in `UaightChromeApiV1`, given it freezes at v1.2                                     | v1.0 design  |
+| Q11 | What goes in `UightChromeApiV1`, given it freezes at v1.2                                      | v1.0 design  |
 | Q12 | Is the TypeScript 7.1 API sufficient for `react-docgen-typescript`, and has tsgolint followed? | v1.3         |
-| Q13 | Does `uaight` clear a trademark and npm availability check?                                    | First commit |
+| Q13 | Does `uight` clear a trademark and npm availability check?                                     | First commit |
 | Q14 | Should overlay state persist across reloads?                                                   | v1.0         |
 
 ---
@@ -1411,15 +1411,15 @@ v1.0 is the product thesis: two steps to something useful, fixtures when you wan
 **Minimum:**
 
 ```bash
-npm i -D uaight
+npm i -D @aussieljk/uight
 ```
 
 ```ts
-import { uaight } from "uaight/vite";
-export default defineConfig({ plugins: [react(), uaight()] });
+import { uight } from "@aussieljk/uight/vite";
+export default defineConfig({ plugins: [react(), uight()] });
 ```
 
-Open `/uaight`.
+Open `/uight`.
 
 **Add fixtures when you want states:**
 
@@ -1451,15 +1451,15 @@ export default () => {
 **Add providers when fixtures need them:**
 
 ```ts
-uaight({ previewEntry: "src/uaight.preview.tsx" });
+uight({ previewEntry: "src/uight.preview.tsx" });
 ```
 
 **Embed it anywhere:**
 
 ```tsx
-<Uaight fixture="components/Button:Primary" chrome={false} isolation="inline" />
+<Uight fixture="components/Button:Primary" chrome={false} isolation="inline" />
 
-<Uaight enabled={user?.isInternal ?? false} fallback={<NotFound />}
+<Uight enabled={user?.isInternal ?? false} fallback={<NotFound />}
         selected={parseFixtureId(params.get('fixture'))}
         onSelect={(id) => setParams({ fixture: id ? serializeFixtureId(id) : '' })} />
 ```
@@ -1472,7 +1472,7 @@ uaight({ previewEntry: "src/uaight.preview.tsx" });
 | ----------------- | -------------------------------------------------------------------------- |
 | **Fixture**       | One exported component instance from a `*.fixture.*` file                  |
 | **Multi-fixture** | A fixture file whose default export is an object; keys are names           |
-| **Fixture id**    | `{ path, name }`; canonically `uaight:1\|path\|name` (§3.2)                |
+| **Fixture id**    | `{ path, name }`; canonically `uight:1\|path\|name` (§3.2)                 |
 | **Decorator**     | A wrapper applied to fixtures at or below a directory                      |
 | **Chrome**        | Tree, control panel, toolbar, viewport                                     |
 | **Realm**         | A JavaScript execution context. Frame mode has its own                     |

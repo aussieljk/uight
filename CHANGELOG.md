@@ -1,11 +1,11 @@
 # Changelog
 
-Notable changes to `uaight`. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+Notable changes to `uight`. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project follows [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 **Release format: `0.0.1-canary.N`.** Everything published while the surface is still
 moving is a canary, and the counter is the only part that changes. `package.json` and
-`UAIGHT_VERSION` are held in lockstep by `scripts/version.ts` and asserted by
+`UIGHT_VERSION` are held in lockstep by `scripts/version.ts` and asserted by
 `version:check`, which the release gate runs first — the runtime compares them at §16.2,
 so drift reaches users as "one of them is a stale build artefact". The `1.0.0` in earlier
 drafts of this file was never published; it is folded into the first canary below.
@@ -28,10 +28,10 @@ rejected, the wrapper never flipped to ready, and the only evidence was a consol
 line naming neither MSW nor the frame. Cookies, storage partitioning and
 `location` were all likewise not what the fixture would see in the app.
 
-The dev server now serves the same document at `/@uaight/preview`, generated in
+The dev server now serves the same document at `/@uight/preview`, generated in
 memory by the middleware exactly like the explorer document above it (§6.1), and
-`uaight build` emits it as `preview.html` beside `index.html`. Both pass it to
-`<Uaight previewDocumentUrl>`, which already existed for §6.6's custom documents
+`uight build` emits it as `preview.html` beside `index.html`. Both pass it to
+`<Uight previewDocumentUrl>`, which already existed for §6.6's custom documents
 — the adopt path was written and reachable only by hand.
 
 Two things come free. The served document goes through `transformIndexHtml`, so
@@ -40,13 +40,13 @@ being imported by hand in §6.3. And a fixture now behaves the same in `bun dev`
 and in a deployed static explorer, which it did not before.
 
 Writing into `about:blank` stays as the fallback for a mount with no URL to
-offer, so an embedded `<Uaight />` is unaffected.
+offer, so an embedded `<Uight />` is unaffected.
 
-### Fixed — `uaight build` ran the app's framework plugins
+### Fixed — `uight build` ran the app's framework plugins
 
 `buildStatic` runs the user's own Vite config on purpose, so the explorer is
 built by the same resolver, aliases and transforms as their app. A
-meta-framework's plugins are the exception: they are not transforms, they *are*
+meta-framework's plugins are the exception: they are not transforms, they _are_
 an application — they own the document, the SSR entry, the route tree and the
 client manifest — and pointing them at the explorer's document asks them to
 build an app that is not there.
@@ -66,7 +66,7 @@ The user's config is now loaded through `loadConfigFromFile` and passed inline
 with `configFile: false` — a plugin cannot remove another plugin, so before the
 config reaches Vite is the only place a filter can run.
 
-### Fixed — `uaight build` passed `input` as an array
+### Fixed — `uight build` passed `input` as an array
 
 A plugin in the user's own config that appends its entry to
 `build.rollupOptions.input` turned the array into a mixed array of strings and
@@ -80,7 +80,7 @@ Object` for `input.2` — naming neither plugin. It is a record now, which is wh
 
 ### Removed — every automated test
 
-`packages/uaight/tests/**` (514 tests across 33 files), `tests/e2e/**` and
+`packages/uight/tests/**` (514 tests across 33 files), `tests/e2e/**` and
 `playwright.config.ts` (§20.2's Chromium/Firefox/WebKit matrix), and
 `scripts/corpus.ts` (the golden-corpus harness) are all gone, with the `test`
 scripts, CI's `e2e` job and the test step in `check` and `release`.
@@ -118,11 +118,11 @@ Returns a real image rather than a URL. Playwright is an **optional peer depende
 dynamically imported; without it the tool explains itself and points at `fixture_url`.
 Chromium only, deliberately: this is a capture, not a compatibility matrix.
 
-### Added — `uaight doctor`
+### Added — `uight doctor`
 
 Config, index, problems by kind, call sites, and what is on — the answer to "why is my
 component missing" without opening the UI. It loads the **Vite config**, not just
-`uaight.config.json`, so it sees options passed inline to `uaight()` and agrees with
+`uight.config.json`, so it sees options passed inline to `uight()` and agrees with
 the dev server (84 files / 593 fixtures on the demo, where a config-file-only read
 reported 6).
 
@@ -130,13 +130,13 @@ reported 6).
 
 A real `shadcn` CLI run over HTTP resolved and installed the items, and the installed
 files did not typecheck: emitted bodies kept in-repo specifiers (`../../shared/types.ts`,
-`../cx.ts`). Specifiers are now rewritten at emit — published ones to `uaight/chrome`,
+`../cx.ts`). Specifiers are now rewritten at emit — published ones to `uight/chrome`,
 internal helpers shipped as companion files — and an unmapped relative import **fails
-the build** rather than passing through silently. `uaight/chrome` gained the surface
+the build** rather than passing through silently. `uight/chrome` gained the surface
 that required: `fixtureIdsEqual`, `serializeFixtureId`, `applyPatches`, `pathKey`,
 `builtinCodecEditors`, `withBuiltinEditors`, and seven types. **No emitted artifact
-names a host any more** — pinned items use an `@uaight-v0-0/` namespace instead of
-absolute `uaight.dev` URLs, so they resolve against any mirror. Verified: 13 files
+names a host any more** — pinned items use an `@uight-v0-0/` namespace instead of
+absolute `uight.dev` URLs, so they resolve against any mirror. Verified: 13 files
 installed into a scratch project, `tsc --noEmit` exits 0.
 
 ### Fixed — six defects the browser matrix found before it was removed
@@ -161,26 +161,26 @@ palette and the help dialog; the type scale moved to Tailwind's predefined utili
 
 ### Changed — plugin and tooling
 
-Call sites resolve path aliases through `configResolved`'s alias table. `uaight mcp`
+Call sites resolve path aliases through `configResolved`'s alias table. `uight mcp`
 discovers the dev server instead of assuming port 5173. The static build writes its
-scaffold under `node_modules/.uaight/` rather than the project root, so a crashed build
+scaffold under `node_modules/.uight/` rather than the project root, so a crashed build
 cannot leave files in your working tree. An out-of-root `fixturesDir` reports
 `kind: "confinement"` rather than `unreadable`. `.mdx` fixtures are documented and
 demonstrated. `const fixtures = {…}; export default fixtures` now resolves in the index
 (§3.4's decision table changed). `bun run check` runs the local gate; `bench` enforces
 an 8 KB drift limit on the chrome bundle alongside the absolute 90 KB budget.
 
-### Added — `uaight init`, one command from a Storybook repository
+### Added — `uight init`, one command from a Storybook repository
 
-`uaight init` (also `uaight migrate`) adds `uaight` to `devDependencies`, adds
-`uaight({ storybook: true })` to the Vite config's `plugins` array, and prints the §13
+`uight init` (also `uight migrate`) adds `uight` to `devDependencies`, adds
+`uight({ storybook: true })` to the Vite config's `plugins` array, and prints the §13
 compatibility report so the move is quantified before it is committed to. The config edit
 is made against the parsed config — the import goes after the last existing one, the
 plugin is prepended to the `plugins` array the parser found — and a config with no
 `plugins` array, or one that does not parse, is **declined with the line to paste** rather
 than half-edited. `--dry-run` computes every change and writes none; re-running skips what
 is already done. Nothing is installed and no package manager is run: the install command
-is printed. Exported as `migrateFromStorybook()` from `uaight/vite` for CI.
+is printed. Exported as `migrateFromStorybook()` from `uight/vite` for CI.
 
 ### Added — MDX documentation pages (§14)
 
@@ -207,13 +207,13 @@ tab. Nothing renders in bulk without being asked, which is §12's rule unchanged
 
 ### Added — the documentation site
 
-`docs/` is uaight.dev: a VitePress site with the guide and reference pages, built by
+`docs/` is uight.dev: a VitePress site with the guide and reference pages, built by
 `bun run docs:build`. `docs/scripts/sync.ts` copies `SPEC.md`, `ARCHITECTURE.md`,
 `ROADMAP.md` and `CHANGELOG.md` in under Reference — one source of truth each, never a
 second copy to maintain — and copies the built registry into `public/r/`, which is what
-makes the `https://uaight.dev/r/…` URLs the registry items already point at real.
+makes the `https://uight.dev/r/…` URLs the registry items already point at real.
 
-VitePress rather than uaight's own MDX pages, deliberately: a project whose documentation
+VitePress rather than uight's own MDX pages, deliberately: a project whose documentation
 site is its own unshipped feature cannot publish a page about a bug in that feature.
 
 ### Removed — the first-run safety notice
@@ -229,7 +229,7 @@ still never on hover or in bulk, and that is the part that was doing the work.
 ### Known limitations
 
 - **No tests, as above.** The demo is the only way to observe that any of this works.
-- **Q8 needs a deployed `uaight.dev`.** Everything else is proven against a local
+- **Q8 needs a deployed `uight.dev`.** Everything else is proven against a local
   mirror; nothing emitted names a host, so the proof transfers unchanged.
 - **Q4 and Q9's browser halves are unmeasured**, and can no longer be measured here.
 - **Chrome bundle is 58.9 KB gzipped**, up from 41.2 KB at canary.0.
@@ -240,7 +240,7 @@ still never on hover or in bulk, and that is the part that was doing the work.
 
 The first published build. Protocol version `1`.
 
-The thesis is unchanged: install the package, add the plugin, open `/uaight`. No config
+The thesis is unchanged: install the package, add the plugin, open `/uight`. No config
 file, no second process, no HTML file in the repository. What this canary adds is what
 happens when you do that on a codebase with **no fixtures at all** — you get your own
 components, rendered with the props your own code already passes them.
@@ -270,8 +270,8 @@ props — and its props are already written down wherever the app uses it.
 - Sites are matched to a detected component by name, narrowed by the import specifier
   when it resolved. A usage in the file that defines the component has no import, so
   those are kept rather than dropped.
-- "Copy as fixture" emits a fixture module as text. uaight still writes no files (§1.4).
-- New endpoint `/@uaight/callsites.json`.
+- "Copy as fixture" emits a fixture module as text. uight still writes no files (§1.4).
+- New endpoint `/@uight/callsites.json`.
 - Verified live: 26 components, 45 usages across the demo, with `onClick`, `src` and
   `children` correctly excluded as dynamic.
 
@@ -290,18 +290,18 @@ styles in that file, so declining it rendered a corpus stripped of context.
   layer in the same order.
 - `initialGlobals` reaches `context.globals`.
 - Nothing is badged for a feature that now runs.
-- `uaight storybook` (and `storybookReport()` from `uaight/vite`) reports, syntax-only,
+- `uight storybook` (and `storybookReport()` from `uight/vite`) reports, syntax-only,
   which CSF features in a repository would not survive the move — the question a team
-  evaluating uaight actually asks.
+  evaluating uight actually asks.
 
-### Added — `uaight/mcp`, the explorer as an agent tool
+### Added — `uight/mcp`, the explorer as an agent tool
 
 A component explorer answers _what exists_, _what states does it have_ and _what does
 this look like_ — the questions an agent editing a component cannot answer from source.
 §19.6's read-only endpoints already answered them for "tools that cannot import the
 package".
 
-- Stdio JSON-RPC MCP server, no SDK dependency, shipped as `uaight-mcp` and `uaight mcp`.
+- Stdio JSON-RPC MCP server, no SDK dependency, shipped as `uight-mcp` and `uight mcp`.
 - Tools: `list_fixtures`, `list_components`, `list_call_sites`, `fixture_url`,
   `get_config`, `health`.
 - A **client of a running dev server**, not a second index: it cannot disagree with what
@@ -328,13 +328,13 @@ the right default when the overlay model was new and the wrong one now that it h
 - "Copy link" in the toolbar, with a fallback for the non-secure contexts a LAN dev
   server runs in.
 
-### Added — `uaight/test`, fixtures doing double duty
+### Added — `uight/test`, fixtures doing double duty
 
 The standing objection to any explorer is that fixtures are work that only powers a UI.
 
 - `fixtureIds()`, `loadFixture()`, `mountFixture()`, `inventory()`, `loadComponent()`.
 - The **same** normalization the explorer uses, so a fixture that renders there renders
-  here — CSF stories, meta and story decorators, `uaight.decorator`, and the preview
+  here — CSF stories, meta and story decorators, `uight.decorator`, and the preview
   entry's providers included.
 - Returns elements by default and mounts only on request, so it has no opinion about
   which testing library you use.
@@ -345,13 +345,13 @@ The standing objection to any explorer is that fixtures are work that only power
 how a design system gets adopted across an organisation. Without it §1.3's job 3 stopped
 at the edge of one machine.
 
-- `uaight build` → a deployable site (`dist-uaight/` by default), plus `buildStatic()`
-  from `uaight/vite`.
+- `uight build` → a deployable site (`dist-uight/` by default), plus `buildStatic()`
+  from `uight/vite`.
 - Runs the **user's own Vite config**, so the explorer is built by the same resolver,
   aliases and plugins as their app.
-- `UAIGHT_STATIC=1` is the one thing that can override `production` from outside the
+- `UIGHT_STATIC=1` is the one thing that can override `production` from outside the
   config, because an inline plugin cannot reach into another plugin's options and a
-  second `uaight()` would claim the same virtual modules twice.
+  second `uight()` would claim the same virtual modules twice.
 - Verified against the demo: 274 files, the explorer chunk, the emitted renderer and
   per-story code splitting, with the scaffold files cleaned up afterwards.
 
@@ -364,7 +364,7 @@ at the edge of one machine.
   reimplements the matcher.
 - Scoped to the mount, like every other shortcut here: an embedded explorer must not take
   ⌘K from its host.
-- Ejectable, as `@uaight/command-palette`.
+- Ejectable, as `@uight/command-palette`.
 
 ### Added — the golden corpus harness, and CI
 
@@ -387,11 +387,11 @@ its own — and the sweep that caught one of them lived in a scratchpad and was 
 ### Changed
 
 - **Release format is `0.0.1-canary.N`**, with `version:bump`, `version:sync` and
-  `version:check` scripts and a test holding `package.json` and `UAIGHT_VERSION` together.
-- `UaightComponents` gains `CommandPalette`; `FixtureIndex` and `RuntimeConfig` gain
-  `callSites`; `RuntimeConfig` gains `hasStorybookPreview`; `UaightProps` gains
+  `version:check` scripts and a test holding `package.json` and `UIGHT_VERSION` together.
+- `UightComponents` gains `CommandPalette`; `FixtureIndex` and `RuntimeConfig` gain
+  `callSites`; `RuntimeConfig` gains `hasStorybookPreview`; `UightProps` gains
   `shareState` and `stateParam`; `StorybookSupport` gains `preview`;
-  `UaightPluginOptions` gains `callSites`.
+  `UightPluginOptions` gains `callSites`.
 - `SELECT_FIXTURE` gains optional `props`, `children` and `origin` — an added field
   rather than a new message, because the renderer's reaction is the one it already has.
 - The ejectable set is §11.3's table plus the palette, admitted under the same rule the
@@ -402,12 +402,12 @@ its own — and the sweep that caught one of them lived in a scratchpad and was 
 - **`dist/client.d.ts` was a directory, not a file.** tsdown's `copy.to` names a
   destination directory, so `to: "dist/client.d.ts"` produced
   `dist/client.d.ts/client.d.ts` — the `./client` export pointed at a directory and
-  `"types": ["uaight/client"]` could not resolve at all. Caught by inspecting the tarball
+  `"types": ["@aussieljk/uight/client"]` could not resolve at all. Caught by inspecting the tarball
   rather than the source tree.
 - The package had **no README and no LICENSE of its own**, so the npm page would have
   been blank and the licence would not have travelled with the tarball.
 - **`bin` paths carried a `./` prefix**, which made `npm publish` report
-  `"bin[uaight]" script name … was invalid and removed` on every run. The message is
+  `"bin[uight]" script name … was invalid and removed` on every run. The message is
   npm's, and it is misleading — that branch normalizes the value rather than dropping it,
   and the packed manifest was always intact — but a warning saying "removed" on every
   publish is a warning nobody will read the second time.
@@ -426,7 +426,7 @@ its own — and the sweep that caught one of them lived in a scratchpad and was 
   that no amount of source-level checking can see — both of the packaging bugs above were
   found that way.
 - npm refuses to publish a prerelease without an explicit `--tag`, so the script always
-  passes one, defaulting to `latest` so `npm i uaight` resolves.
+  passes one, defaulting to `latest` so `npm i @aussieljk/uight` resolves.
 
 ---
 
@@ -434,12 +434,12 @@ its own — and the sweep that caught one of them lived in a scratchpad and was 
 
 Everything below was written before the first publish and ships in `0.0.1-canary.0`.
 
-### Added — discovery and the plugin (`uaight/vite`)
+### Added — discovery and the plugin (`uight/vite`)
 
-- `uaight()` Vite plugin. Serves `/uaight` from memory in `serve` mode; no HTML file is
+- `uight()` Vite plugin. Serves `/uight` from memory in `serve` mode; no HTML file is
   written to disk (§6.1, D16).
-- Zero-config defaults for every option (D4). `uaight.config.json` is optional and
-  discovered synchronously; `defineUaightConfig` types a `uaight.config.ts` you import into
+- Zero-config defaults for every option (D4). `uight.config.json` is optional and
+  discovered synchronously; `defineUightConfig` types a `uight.config.ts` you import into
   `vite.config.ts` yourself. Inline plugin options take precedence over the file.
 - One static index scan with `oxc-parser` (D3, §3.4). `FixtureFileIndex.names` is
   `Array<string | null> | null`: one entry per fixture, `null` meaning "the module's default
@@ -449,8 +449,8 @@ Everything below was written before the first publish and ships in `0.0.1-canary
   function / `memo` / `forwardRef` components, grouped by directory to merge with the fixture
   tree. On by default, development-only, excluded from production builds regardless of mode.
 - Virtual modules of §4.3 (`runtime`, `renderer-url`, `preview-entry`, `inventory`) plus the
-  dev endpoints `/@uaight/index.json`, `/@uaight/inventory.json`, `/@uaight/config.json`,
-  `/@uaight/renderer` and `/@uaight/dev-entry`. The two dev URLs are registered in
+  dev endpoints `/@uight/index.json`, `/@uight/inventory.json`, `/@uight/config.json`,
+  `/@uight/renderer` and `/@uight/dev-entry`. The two dev URLs are registered in
   `resolveId` as well as served by middleware, so Vite's warm-up does not log a failure on
   every page load.
 - Structural vs live option classification. Structural options rebuild the server;
@@ -519,9 +519,9 @@ Everything below was written before the first publish and ships in `0.0.1-canary
 - A once-only warning at 25 consecutive revision bumps, naming the input, for the fixture
   that rebuilds its default every render.
 
-### Added — the explorer (`uaight`)
+### Added — the explorer (`uight`)
 
-- `<Uaight />`, `<UaightProvider>`, `<Fixture>`, `<UaightErrorBoundary>`.
+- `<Uight />`, `<UightProvider>`, `<Fixture>`, `<UightErrorBoundary>`.
 - Hooks: `useFixtureInput`, `useFixtureSelect`, `useFixtureViewport`, `useFixtureId`,
   `useSelectFixture`, `useFixtureIsolation`, `defineCodec`.
 - Fixture tree grouped by directory, with self-titled files collapsed into their directory
@@ -534,17 +534,17 @@ Everything below was written before the first publish and ships in `0.0.1-canary
 - Control panel with per-input and global reset.
 - Themes: `light`, `dark`, `system`, resolved through `matchMedia` and written as `--u-*`
   custom properties, so the prop wins over the OS in both directions.
-- Explicit routing (D10, §5.4): `?fixture=` carrying `uaight:1|`-prefixed ids, ownership
+- Explicit routing (D10, §5.4): `?fixture=` carrying `uight:1|`-prefixed ids, ownership
   arbitrated by refcount in a layout effect so two mounts on one page cannot fight,
   malformed ids removed with `replaceState`, unknown-but-well-formed ids left alone.
 - Chrome replacement through the `components` prop (D6, §1.4).
 - Scoped Tailwind v4 stylesheet compiled at build time, confined with
-  `:is(.uaight-root, .uaight-root *)` so a utility works on the root element itself. The
+  `:is(.uight-root, .uight-root *)` so a utility works on the root element itself. The
   scoping transform is a structural pass over balanced blocks, not a regex.
-- `.uaight-root` is deliberately not an ancestor of the fixture, so our reset never reaches
+- `.uight-root` is deliberately not an ancestor of the fixture, so our reset never reaches
   the component under test.
-- Frozen chrome facade `useUaightChrome` / `UaightChromeApiV1` exported from
-  `uaight/chrome`, which pulls in the context module alone and not the explorer.
+- Frozen chrome facade `useUightChrome` / `UightChromeApiV1` exported from
+  `uight/chrome`, which pulls in the context module alone and not the explorer.
 
 ### Added — Storybook CSF subset (§13, D11 — ahead of the §21.2 plan)
 
@@ -576,8 +576,8 @@ Everything below was written before the first publish and ships in `0.0.1-canary
 
 ### Added — packaging, tests and the demo
 
-- One package with subpath exports (D5, §16.1): `uaight`, `uaight/vite`, `uaight/runtime`,
-  `uaight/chrome`, `uaight/client`, `uaight/styles.css`.
+- One package with subpath exports (D5, §16.1): `uight`, `uight/vite`, `uight/runtime`,
+  `uight/chrome`, `uight/client`, `uight/styles.css`.
 - Peers: React `^18 || ^19`, Vite `^8.1` (optional — the plugin is the only consumer),
   Node `>=20.19`.
 - 269 unit tests across 12 files, covering §20.1's list. All passing.
@@ -603,7 +603,7 @@ Each is recorded with its reasoning in `NOTES.md`.
   support as `true`.
 - **§11.2** registry items carry the `registry-item.json` schema; the index carries
   `registry.json`. An item carrying the index schema does not validate.
-- **§11.2** the sample's `@uaight/tree-item` dependency does not exist in §11.3's table and
+- **§11.2** the sample's `@uight/tree-item` dependency does not exist in §11.3's table and
   is not emitted.
 - **§7.7** no `bigint` codec: the wire format carries bigint natively and the `typeof` check
   precedes all object handling, so it could never be reached.
@@ -636,7 +636,7 @@ Each is recorded with its reasoning in `NOTES.md`.
 - Selecting a detected component is local state: it is not routed and does not appear in the
   URL, because the frozen facade's `selection.current` is `FixtureId | null`.
 - Passing `ControlPanelInputs` through `components` works at runtime but fails the type
-  check, because `UaightComponents` has no member for it.
+  check, because `UightComponents` has no member for it.
 - `.mdx` files are indexed as a single fixture, but MDX is otherwise untested and
   undocumented — it is a v1.1 item.
 - The scoped theme declares one font family and no `--font-mono`, per §10.1. A chrome
@@ -657,5 +657,5 @@ Kept here because the fixes are load-bearing and the reasoning is in `NOTES.md`.
 
 ---
 
-[unreleased]: https://github.com/aussieljk/uaight/compare/v0.0.1-canary.0...HEAD
-[0.0.1-canary.0]: https://github.com/aussieljk/uaight/releases/tag/v0.0.1-canary.0
+[unreleased]: https://github.com/aussieljk/uight/compare/v0.0.1-canary.0...HEAD
+[0.0.1-canary.0]: https://github.com/aussieljk/uight/releases/tag/v0.0.1-canary.0

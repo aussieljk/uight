@@ -1,28 +1,28 @@
 # Getting started
 
-uaight is a Vite plugin. There is no second server, no second port and no HTML file in
+uight is a Vite plugin. There is no second server, no second port and no HTML file in
 your repository.
 
 ```bash
-bun add -D uaight
+bun add -D @aussieljk/uight
 ```
 
 ```ts
 // vite.config.ts
 import react from "@vitejs/plugin-react";
-import { uaight } from "uaight/vite";
+import { uight } from "@aussieljk/uight/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-	plugins: [react(), uaight()],
+	plugins: [react(), uight()],
 });
 ```
 
-Start the dev server you already had and open **`/uaight`**.
+Start the dev server you already had and open **`/uight`**.
 
 ## What you see before you write anything
 
-Nothing needs to exist first. With no fixtures at all, uaight lists:
+Nothing needs to exist first. With no fixtures at all, uight lists:
 
 - **the components it found** — exported, PascalCase, function or `memo`/`forwardRef`
   shaped, by a syntax-only pass that imports nothing and runs nothing;
@@ -53,11 +53,11 @@ The preview realm is a separate document, so your application's global styleshee
 providers have to be named once:
 
 ```ts
-uaight({ previewEntry: "src/uaight.preview.tsx" });
+uight({ previewEntry: "src/uight.preview.tsx" });
 ```
 
 ```tsx
-// src/uaight.preview.tsx
+// src/uight.preview.tsx
 import "./index.css";
 
 export function Preview({ children }: { children: React.ReactNode }) {
@@ -68,10 +68,10 @@ export function Preview({ children }: { children: React.ReactNode }) {
 ## When something is missing
 
 ```bash
-bunx uaight doctor
+bunx uight doctor
 ```
 
-It prints the resolved config, the fixtures directory in both of the path forms uaight
+It prints the resolved config, the fixtures directory in both of the path forms uight
 uses, what the index found, and every problem it knows about — which is faster than
 guessing at a glob.
 

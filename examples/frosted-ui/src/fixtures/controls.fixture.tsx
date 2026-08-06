@@ -13,7 +13,7 @@
 
 import { Badge, Button, Card, Heading, Text } from "frosted-ui";
 import * as React from "react";
-import { useFixtureInput } from "uaight";
+import { useFixtureInput } from "@aussieljk/uight";
 
 const VARIANTS = ["classic", "solid", "soft", "surface", "ghost"] as const;
 const COLORS = ["blue", "green", "orange", "red", "gray"] as const;

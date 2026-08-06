@@ -60,11 +60,11 @@ A viewport you pick in the toolbar is sticky across selections and outranks the 
 
 ## Decorators
 
-A `uaight.decorator.tsx` (or `cosmos.decorator.tsx`) wraps every fixture in its directory
+A `uight.decorator.tsx` (or `cosmos.decorator.tsx`) wraps every fixture in its directory
 and below:
 
 ```tsx
-// src/components/uaight.decorator.tsx
+// src/components/uight.decorator.tsx
 export default ({ children }: { children: React.ReactNode }) => (
 	<div style={{ padding: 24 }}>{children}</div>
 );
@@ -76,7 +76,7 @@ a theme. The decorator is for a subtree.
 ## MDX
 
 `.mdx` is a fixture extension, and an MDX module is exactly **one** fixture. Compiling it
-is your bundler's job, not uaight's:
+is your bundler's job, not uight's:
 
 ```bash
 bun add -D @mdx-js/rollup
@@ -84,7 +84,7 @@ bun add -D @mdx-js/rollup
 
 ```ts
 import mdx from "@mdx-js/rollup";
-plugins: [mdx(), react(), uaight()];
+plugins: [mdx(), react(), uight()];
 ```
 
 If you have `.mdx` files and no MDX plugin, the dev server says so on startup and names the

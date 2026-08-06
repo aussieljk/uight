@@ -7,7 +7,7 @@
  * the code read them; this copies them in with a banner saying so.
  *
  * The registry copy is the other half of ROADMAP item 3: the emitted items
- * point at `https://uaight.dev/r/…`, which has never been hosted. Serving them
+ * point at `https://uight.dev/r/…`, which has never been hosted. Serving them
  * from the docs site's `public/` is what makes that URL real, and puts the
  * hosting on the same deploy as the page that documents it.
  */
@@ -76,23 +76,23 @@ async function main(): Promise<void> {
 		const banner =
 			`<!-- Copied from ${doc.from} by docs/scripts/sync.ts. Edit that file, not this one. -->\n\n` +
 			`::: tip ${doc.title}\n${doc.note} Maintained at [\`${doc.from}\`]` +
-			`(https://github.com/aussieljk/uaight/blob/master/${doc.from}) in the repository.\n:::\n\n`;
+			`(https://github.com/aussieljk/uight/blob/master/${doc.from}) in the repository.\n:::\n\n`;
 		const target = path.join(docsDir, doc.to);
 		await fsp.mkdir(path.dirname(target), { recursive: true });
 		await fsp.writeFile(target, banner + source, "utf8");
 		console.log(`  ${doc.from} → docs/${doc.to}`);
 	}
 
-	const registry = path.join(repoRoot, "packages/uaight/registry");
+	const registry = path.join(repoRoot, "packages/uight/registry");
 	const publicRegistry = path.join(docsDir, "public/r");
 	await fsp.rm(publicRegistry, { recursive: true, force: true });
 	try {
 		const files = await copyDir(registry, publicRegistry);
 		console.log(`  registry → docs/public/r (${files} files)`);
 	} catch {
-		// A checkout that has not run `bun run --cwd packages/uaight registry` yet.
+		// A checkout that has not run `bun run --cwd packages/uight registry` yet.
 		// The site still builds; only /r/ is missing, and the build says so.
-		console.log("  registry → skipped (packages/uaight/registry not built)");
+		console.log("  registry → skipped (packages/uight/registry not built)");
 	}
 }
 

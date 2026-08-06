@@ -1,20 +1,20 @@
 import mdx from "@mdx-js/rollup";
 import react from "@vitejs/plugin-react";
-import { uaight } from "uaight/vite";
+import { uight } from "@aussieljk/uight/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [
-		// SPEC §14: MDX is the host's bundler configuration, not a uaight
-		// feature — uaight contributes the glob pattern and the one-fixture rule
+		// SPEC §14: MDX is the host's bundler configuration, not a uight
+		// feature — uight contributes the glob pattern and the one-fixture rule
 		// and nothing else, and `src/fixtures/mdx-notes.fixture.mdx` proves the
 		// path end to end. Written first by convention; Vite sorts `pre` plugins
 		// ahead of it regardless, and `.mdx` compiles correctly either way, which
-		// is why uaight checks that an MDX plugin exists and never that it is
+		// is why uight checks that an MDX plugin exists and never that it is
 		// ordered. Remove this line and the dev server says what to install.
 		mdx(),
 		react(),
-		uaight({
+		uight({
 			// frosted-ui ships 77 CSF files and no fixture files. Reading them
 			// directly is the point of the demo (SPEC §13) — note that Storybook
 			// itself is not installed.
@@ -28,9 +28,9 @@ export default defineConfig({
 				},
 			},
 			// Global CSS and providers for the frame realm (§6.4).
-			previewEntry: "src/uaight.preview.tsx",
+			previewEntry: "src/uight.preview.tsx",
 			// Makes `Money` and `Sku` editable instead of opaque chips (§7.7).
-			codecs: "src/uaight.codecs.tsx",
+			codecs: "src/uight.codecs.tsx",
 			// On by default; named here because it is half of what this demo shows.
 			inventory: true,
 		}),

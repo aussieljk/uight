@@ -15,7 +15,7 @@
 
 import { Badge, Card, DataList, Heading, Separator, Text } from "frosted-ui";
 import type * as React from "react";
-import type { FixtureFileMeta, FixtureMeta } from "uaight";
+import type { FixtureFileMeta, FixtureMeta } from "@aussieljk/uight";
 import { Money, Sku } from "../domain/money";
 
 export const fileMeta: FixtureFileMeta = {

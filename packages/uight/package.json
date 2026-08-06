@@ -1,0 +1,108 @@
+{
+	"name": "@aussieljk/uight",
+	"version": "0.0.1-canary.2",
+	"description": "A component explorer that runs inside your application's own Vite dev server.",
+	"keywords": [
+		"vite",
+		"vite-plugin",
+		"react",
+		"component-explorer",
+		"storybook",
+		"fixtures",
+		"design-system"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/aussieljk/uight.git",
+		"directory": "packages/uight"
+	},
+	"bugs": "https://github.com/aussieljk/uight/issues",
+	"homepage": "https://github.com/aussieljk/uight#readme",
+	"type": "module",
+	"files": [
+		"dist",
+		"registry",
+		"bin"
+	],
+	"bin": {
+		"uight": "bin/uight.mjs",
+		"uight-mcp": "bin/uight-mcp.mjs"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./vite": {
+			"types": "./dist/vite.d.ts",
+			"import": "./dist/vite.js"
+		},
+		"./runtime": {
+			"types": "./dist/runtime.d.ts",
+			"import": "./dist/runtime.js"
+		},
+		"./chrome": {
+			"types": "./dist/chrome.d.ts",
+			"import": "./dist/chrome.js"
+		},
+		"./test": {
+			"types": "./dist/test.d.ts",
+			"import": "./dist/test.js"
+		},
+		"./mcp": {
+			"types": "./dist/mcp.d.ts",
+			"import": "./dist/mcp.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts"
+		},
+		"./styles.css": "./dist/styles.css"
+	},
+	"sideEffects": [
+		"*.css"
+	],
+	"scripts": {
+		"build": "bun run build:css && tsdown",
+		"build:css": "bun run scripts/build-css.ts",
+		"dev": "bun run build:css && tsdown --watch",
+		"registry": "bun run scripts/build-registry.ts",
+		"prepublishOnly": "bun run version:check && bun run build",
+		"version:bump": "bun run scripts/version.ts --bump",
+		"version:sync": "bun run scripts/version.ts --sync",
+		"version:check": "bun run scripts/version.ts --check"
+	},
+	"dependencies": {
+		"oxc-parser": "0.142.0",
+		"tinyglobby": "0.2.17"
+	},
+	"peerDependencies": {
+		"playwright": "^1.50 || ^2",
+		"react": "^18 || ^19",
+		"react-dom": "^18 || ^19",
+		"vite": "^8.1"
+	},
+	"peerDependenciesMeta": {
+		"vite": {
+			"optional": true
+		},
+		"playwright": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@tailwindcss/cli": "4.3.3",
+		"@types/node": "^26.1.2",
+		"@types/react": "19.2.18",
+		"@types/react-dom": "19.2.4",
+		"react": "19.2.8",
+		"react-docgen": "8.0.0",
+		"react-dom": "19.2.8",
+		"tailwindcss": "4.3.3",
+		"tsdown": "0.22.14",
+		"vite": "8.1.5"
+	},
+	"engines": {
+		"node": ">=20.19.0"
+	}
+}

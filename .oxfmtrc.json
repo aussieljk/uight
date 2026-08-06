@@ -4,8 +4,8 @@
 	"printWidth": 90,
 	"sortPackageJson": false,
 	"ignorePatterns": [
-		"packages/uaight/registry/**",
-		"packages/uaight/src/styles/generated.ts",
+		"packages/uight/registry/**",
+		"packages/uight/src/styles/generated.ts",
 		"examples/frosted-ui/src/stories/**"
 	]
 }

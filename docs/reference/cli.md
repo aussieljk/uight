@@ -1,16 +1,16 @@
 # CLI
 
 ```bash
-bunx uaight <command>
+bunx uight <command>
 ```
 
-Everything the CLI does is also callable from `uaight/vite` as a function, which is the
+Everything the CLI does is also callable from `uight/vite` as a function, which is the
 supported path for CI. The CLI exists so trying it costs one command.
 
-## `uaight init`
+## `uight init`
 
-Wire uaight into this project — one command from a Storybook or react-cosmos repository
-to a working `/uaight`. See [From Storybook](/guide/storybook) and
+Wire uight into this project — one command from a Storybook or react-cosmos repository
+to a working `/uight`. See [From Storybook](/guide/storybook) and
 [From react-cosmos](/guide/cosmos).
 
 | Flag                      | Default  | Notes                                        |
@@ -23,10 +23,10 @@ to a working `/uaight`. See [From Storybook](/guide/storybook) and
 It adds the dependency and edits the Vite config's plugins array. In a Storybook project
 it prints the CSF compatibility report; in a react-cosmos project it also translates
 `cosmos.config.json`, renames `__fixtures__/` files so the scan can see them, and points
-cosmos hook imports at `uaight`. It installs nothing and runs no package manager — the install
+cosmos hook imports at `uight`. It installs nothing and runs no package manager — the install
 command is printed, not executed. Re-running is safe.
 
-## `uaight cosmos`
+## `uight cosmos`
 
 What a react-cosmos move would rename and decline, without moving anything.
 
@@ -35,18 +35,18 @@ What a react-cosmos move would rename and decline, without moving anything.
 | `--root <dir>` | cwd     | Project root                    |
 | `--json`       | off     | The full report as JSON, for CI |
 
-## `uaight build`
+## `uight build`
 
 Build a deployable static explorer. See [Shipping a static explorer](/guide/static-build).
 
-| Flag              | Default       |
-| ----------------- | ------------- |
-| `--out <dir>`     | `dist-uaight` |
-| `--base <path>`   | `/`           |
-| `--root <dir>`    | cwd           |
-| `--config <file>` | discovered    |
+| Flag              | Default      |
+| ----------------- | ------------ |
+| `--out <dir>`     | `dist-uight` |
+| `--base <path>`   | `/`          |
+| `--root <dir>`    | cwd          |
+| `--config <file>` | discovered   |
 
-## `uaight doctor`
+## `uight doctor`
 
 Why is my component missing. Prints the resolved config, the fixtures directory in both
 path forms, what the index found, and every problem.
@@ -60,7 +60,7 @@ Exits non-zero when the index contains a **collision** — two files producing t
 fixture id — because that is the one problem that makes ids ambiguous, and so the one
 worth failing a CI step over.
 
-## `uaight storybook`
+## `uight storybook`
 
 Report which CSF features would not survive the move, per file and in total. Syntax only:
 nothing is imported and nothing is executed.
@@ -70,10 +70,10 @@ nothing is imported and nothing is executed.
 | `--root <dir>` | Project root            |
 | `--json`       | The full report as JSON |
 
-## `uaight mcp`
+## `uight mcp`
 
 Run the MCP server over stdio, against the dev server's read-only API. `--url` is
-optional — the dev server is found by probing `/@uaight/health`, so nobody has to know
+optional — the dev server is found by probing `/@uight/health`, so nobody has to know
 which port Vite took.
 
 It answers questions about the index and returns fixture URLs an agent with a browser can

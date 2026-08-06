@@ -1,17 +1,17 @@
 node_modules
 dist
 dist-probe
-dist-uaight
+dist-uight
 registry
 .DS_Store
 *.tsbuildinfo
 .vite
 
-# `uaight build`'s scaffold. It lives under node_modules/.uaight/ so a crashed
+# `uight build`'s scaffold. It lives under node_modules/.uight/ so a crashed
 # build cannot leave anything in the working tree; this entry is kept only to
 # clean up after a build from before that moved.
-uaight-explorer.html
-uaight-explorer.entry.js
+uight-explorer.html
+uight-explorer.entry.js
 
 # The docs site's generated half. `docs/scripts/sync.ts` copies the repository's
 # own documents in and the built registry with them, so committing either would

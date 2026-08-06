@@ -7,7 +7,7 @@ Two levels, and most needs stop at the first.
 Every chrome component is a prop:
 
 ```tsx
-<Uaight components={{ FixtureTree: MyTree, PreviewShell: MyShell }} />
+<Uight components={{ FixtureTree: MyTree, PreviewShell: MyShell }} />
 ```
 
 | Ejectable                                                                                                                                      | Not ejectable                                                                              |
@@ -19,22 +19,22 @@ defines fixture semantics or owns the realm is not.
 
 ## Take the source
 
-When replacing is not enough, the registry ships uaight's own implementations into your
+When replacing is not enough, the registry ships uight's own implementations into your
 components directory, as yours:
 
 ```bash
-npx shadcn add https://uaight.dev/r/fixture-tree.json
+npx shadcn add https://uight.dev/r/fixture-tree.json
 ```
 
 Or configure the namespace once:
 
 ```json
 // components.json
-{ "registries": { "@uaight": "https://uaight.dev/r/{name}.json" } }
+{ "registries": { "@uight": "https://uight.dev/r/{name}.json" } }
 ```
 
 ```bash
-npx shadcn add @uaight/fixture-tree
+npx shadcn add @uight/fixture-tree
 ```
 
 Items are published per minor at `/r/v{major}.{minor}/{name}.json`, with `/r/{name}.json`
@@ -46,9 +46,9 @@ from different versions may be combined only within one minor.
 An ejected component reads the explorer through one hook:
 
 ```ts
-import { useUaightChrome } from "uaight/chrome";
+import { useUightChrome } from "@aussieljk/uight/chrome";
 
-const chrome = useUaightChrome(); // UaightChromeApiV1
+const chrome = useUightChrome(); // UightChromeApiV1
 ```
 
 That facade — not the component props, not the internal modules — is what is committed to.

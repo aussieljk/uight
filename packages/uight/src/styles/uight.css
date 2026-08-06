@@ -1,0 +1,363 @@
+/**
+ * uight chrome stylesheet. SPEC.md §10.
+ *
+ * §10.2 — NEVER `@import "tailwindcss"` whole. That entry pulls in preflight,
+ * and a published library that resets the host's elements is hostile. We import
+ * only `theme.css` (so utilities have values to reference) and `utilities.css`
+ * (the utilities themselves), and hand-write a reset that applies solely inside
+ * `.uight-root`.
+ *
+ * §10.3 — after compilation, `scripts/build-css.ts` rewrites every selector in
+ * the output so it requires a `.uight-root` ancestor. That is what makes the
+ * packaged stylesheet immune to the host's `@theme` and unable to leak outward,
+ * and it is why we do not use Tailwind's `prefix()`: a prefix lives in the
+ * *source*, so ejected components would break in any host without it.
+ * Selectors written here that already name `.uight-root` are left as authored.
+ *
+ * §10.1 — the design direction, enforced by the theme rather than by discipline:
+ * monochrome plus ONE accent (selection and focus only), a single system UI
+ * family, three sizes, two weights, no shadows, a 4px grid, light and dark via
+ * CSS variables, motion under 150ms honouring `prefers-reduced-motion`.
+ */
+
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
+/* Class names are only ever written in our own source. */
+@source "../**/*.{ts,tsx}";
+/* generated.ts embeds the compiled CSS, whose own selectors would otherwise be
+   rescanned as candidates and keep every utility alive forever. */
+@source not "../styles/generated.ts";
+
+/* ------------------------------------------------------------------ *
+ * Scale — §10.1
+ *
+ * `--x-*: initial` clears Tailwind's default scale before ours is declared, so
+ * the constraints are unavailable rather than merely discouraged: there is no
+ * fourth font size, no third weight, and no shadow utility at all.
+ * ------------------------------------------------------------------ */
+
+@theme {
+	/* One family. */
+	--font-*: initial;
+	--font-sans:
+		system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif,
+		"Apple Color Emoji", "Segoe UI Emoji";
+
+	/* Three sizes. */
+	--text-*: initial;
+	--text-xs: 11px;
+	--text-xs--line-height: 16px;
+	--text-sm: 12px;
+	--text-sm--line-height: 16px;
+	--text-base: 13px;
+	--text-base--line-height: 20px;
+
+	/* Two weights. */
+	--font-weight-*: initial;
+	--font-weight-normal: 400;
+	--font-weight-medium: 500;
+
+	/* No shadows. */
+	--shadow-*: initial;
+	--inset-shadow-*: initial;
+	--drop-shadow-*: initial;
+	--text-shadow-*: initial;
+
+	/* 4px grid. `p-1` is 4px, `p-2` is 8px, and there is nothing between them. */
+	--spacing: 4px;
+
+	--radius-*: initial;
+	--radius-sm: 3px;
+	--radius-md: 5px;
+	--radius-full: 9999px;
+
+	/* Motion under 150ms. */
+	--default-transition-duration: 120ms;
+	--default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+	--ease-out: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/**
+ * Colour — monochrome plus one accent, resolved per element.
+ *
+ * `inline` matters here. Without it Tailwind would emit `--color-fg` into the
+ * scope element and freeze the `var()` chain at that point; with it, `text-fg`
+ * expands to the chain itself and is resolved wherever it is used. That is what
+ * lets `src/ui/theme.ts` override the palette by setting `--u-*` inline on the
+ * mount when the `theme` prop resolves (§5.1) — the utilities follow it, rather
+ * than the two palettes disagreeing.
+ */
+@theme inline {
+	--color-*: initial;
+	--color-transparent: transparent;
+	--color-current: currentColor;
+	--color-inherit: inherit;
+
+	--color-surface: var(--u-bg, var(--uight-surface));
+	--color-sunken: var(--u-bg-sunken, var(--uight-sunken));
+	--color-hover: var(--u-bg-hover, var(--uight-hover));
+	--color-canvas: var(--u-canvas, var(--uight-canvas));
+	--color-fg: var(--u-fg, var(--uight-fg));
+	--color-muted: var(--u-fg-muted, var(--uight-muted));
+	--color-subtle: var(--u-fg-subtle, var(--uight-subtle));
+	--color-line: var(--u-line, var(--uight-line));
+	--color-line-strong: var(--u-line-strong, var(--uight-line-strong));
+	--color-accent: var(--u-accent, var(--uight-accent));
+	--color-accent-fg: var(--u-accent-fg, var(--uight-accent-fg));
+	--color-accent-soft: var(--u-accent-soft, var(--uight-accent-soft));
+	--color-danger: var(--u-danger, var(--uight-danger));
+	--color-danger-soft: var(--u-danger-soft, var(--uight-danger-soft));
+}
+
+/**
+ * `dark:` follows the same rule as the palette below: the system preference,
+ * unless an explicit theme class overrides it in either direction. Without this
+ * the variant would only ever read `prefers-color-scheme` and would disagree
+ * with the tokens whenever the UI pins a theme.
+ */
+@custom-variant dark {
+	@media (prefers-color-scheme: dark) {
+		&:where(:not(.uight-theme-light, .uight-theme-light *)) {
+			@slot;
+		}
+	}
+	&:where(.uight-theme-dark, .uight-theme-dark *) {
+		@slot;
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Palette — light and dark via CSS variables (§10.1).
+ *
+ * Ordering matters: the media query comes first so the explicit
+ * `.uight-theme-light` / `.uight-theme-dark` classes win in both directions
+ * at equal specificity. Every selector spells `.uight-root` out, so §10.3's
+ * scoping pass leaves them exactly as authored.
+ * ------------------------------------------------------------------ */
+
+@layer base {
+	.uight-root,
+	.uight-root.uight-theme-light,
+	.uight-theme-light .uight-root {
+		--uight-surface: #ffffff;
+		--uight-sunken: #fafafa;
+		--uight-hover: #f5f5f5;
+		--uight-canvas: #f5f5f5;
+		--uight-fg: #171717;
+		--uight-muted: #737373;
+		--uight-subtle: #a3a3a3;
+		--uight-line: #e5e5e5;
+		--uight-line-strong: #d4d4d4;
+		--uight-accent: #2563eb;
+		--uight-accent-fg: #ffffff;
+		--uight-accent-soft: #eff6ff;
+		--uight-danger: #b91c1c;
+		--uight-danger-soft: #fef2f2;
+		color-scheme: light;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.uight-root {
+			--uight-surface: #0a0a0a;
+			--uight-sunken: #171717;
+			--uight-hover: #262626;
+			--uight-canvas: #000000;
+			--uight-fg: #f5f5f5;
+			--uight-muted: #a3a3a3;
+			--uight-subtle: #737373;
+			--uight-line: #262626;
+			--uight-line-strong: #404040;
+			--uight-accent: #60a5fa;
+			--uight-accent-fg: #0a0a0a;
+			--uight-accent-soft: #172554;
+			--uight-danger: #f87171;
+			--uight-danger-soft: #450a0a;
+			color-scheme: dark;
+		}
+	}
+
+	.uight-root.uight-theme-dark,
+	.uight-theme-dark .uight-root {
+		--uight-surface: #0a0a0a;
+		--uight-sunken: #171717;
+		--uight-hover: #262626;
+		--uight-canvas: #000000;
+		--uight-fg: #f5f5f5;
+		--uight-muted: #a3a3a3;
+		--uight-subtle: #737373;
+		--uight-line: #262626;
+		--uight-line-strong: #404040;
+		--uight-accent: #60a5fa;
+		--uight-accent-fg: #0a0a0a;
+		--uight-accent-soft: #172554;
+		--uight-danger: #f87171;
+		--uight-danger-soft: #450a0a;
+		color-scheme: dark;
+	}
+
+	/* ---------------------------------------------------------------- *
+	 * Scoped reset — §10.2. None of this can touch a host element.
+	 * `:where()` keeps specificity at zero so a utility always wins, even
+	 * before layer order is considered.
+	 * ---------------------------------------------------------------- */
+
+	.uight-root,
+	.uight-root *,
+	.uight-root *::before,
+	.uight-root *::after {
+		box-sizing: border-box;
+		border: 0 solid var(--u-line, var(--uight-line));
+	}
+
+	.uight-root {
+		font-family: var(--font-sans);
+		font-size: var(--text-sm);
+		line-height: var(--text-sm--line-height);
+		font-weight: var(--font-weight-normal);
+		color: var(--u-fg, var(--uight-fg));
+		background-color: var(--u-bg, var(--uight-surface));
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-size-adjust: 100%;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.uight-root :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd, pre) {
+		margin: 0;
+		font-size: inherit;
+		font-weight: inherit;
+	}
+
+	.uight-root :where(ul, ol, menu) {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.uight-root :where(a) {
+		color: inherit;
+		text-decoration: inherit;
+	}
+
+	.uight-root :where(button, input, select, textarea, optgroup) {
+		font: inherit;
+		letter-spacing: inherit;
+		color: inherit;
+		background-color: transparent;
+		border-radius: 0;
+		margin: 0;
+		padding: 0;
+		opacity: 1;
+	}
+
+	.uight-root :where(button, [type="button"], [type="reset"], [type="submit"]) {
+		appearance: button;
+		cursor: pointer;
+	}
+
+	.uight-root :where(:disabled) {
+		cursor: default;
+	}
+
+	.uight-root :where(textarea) {
+		resize: vertical;
+	}
+
+	.uight-root :where(::placeholder) {
+		opacity: 1;
+		color: var(--u-fg-subtle, var(--uight-subtle));
+	}
+
+	.uight-root :where(img, svg, video, canvas) {
+		display: block;
+		max-width: 100%;
+		height: auto;
+	}
+
+	.uight-root :where(table) {
+		border-collapse: collapse;
+		border-color: inherit;
+		text-indent: 0;
+	}
+
+	.uight-root :where(hr) {
+		height: 0;
+		color: inherit;
+		border-top-width: 1px;
+	}
+
+	.uight-root :where([hidden]):where(:not([hidden="until-found"])) {
+		display: none !important;
+	}
+
+	/* The accent, used only for selection and focus (§10.1). */
+	.uight-root :where(::selection) {
+		background-color: var(--u-accent-soft, var(--uight-accent-soft));
+	}
+
+	.uight-root :where(:focus-visible) {
+		outline: 2px solid var(--u-accent, var(--uight-accent));
+		outline-offset: 1px;
+		border-radius: var(--radius-sm);
+	}
+
+	/* Never a focus ring removed; only one that a pointer did not ask for. */
+	.uight-root :where(:focus:not(:focus-visible)) {
+		outline: none;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.uight-root,
+		.uight-root *,
+		.uight-root *::before,
+		.uight-root *::after {
+			animation-duration: 1ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 1ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Components — the few compound patterns that would otherwise be repeated
+ * verbatim at a dozen call sites. Deliberately small: the chrome is built
+ * from utilities.
+ * ------------------------------------------------------------------ */
+
+@layer components {
+	/* The mount point itself. */
+	.uight-root {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		min-height: 0;
+		isolation: isolate;
+	}
+
+	/* A scroll container that does not paint a scrollbar until it is used. */
+	.uight-root .uight-scroll,
+	.uight-root.uight-scroll {
+		overflow: auto;
+		overscroll-behavior: contain;
+		scrollbar-width: thin;
+		scrollbar-color: var(--u-line-strong, var(--uight-line-strong)) transparent;
+	}
+
+	/* Screen-reader-only. The chrome is keyboard-first (§10.1), so this is not
+	   an accessibility afterthought — labels use it constantly. */
+	.uight-root .uight-sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border-width: 0;
+	}
+}

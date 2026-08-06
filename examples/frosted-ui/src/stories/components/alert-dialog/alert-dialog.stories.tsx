@@ -7,7 +7,7 @@
  * published `frosted-ui` package, and `@storybook/react` types replaced with
  * the local shim in src/stories/csf-types.ts. Any further change to a story
  * body is marked with a comment in place.
- * uaight is not affiliated with Whop or frosted-ui.
+ * uight is not affiliated with Whop or frosted-ui.
  */
 import type { Meta, StoryObj } from '../../csf-types';
 import React from 'react';

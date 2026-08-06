@@ -25,7 +25,7 @@ mechanical sense. One page per file, exactly as with any other MDX module.
 
 ## What you need
 
-MDX is your bundler's configuration, not a uaight feature:
+MDX is your bundler's configuration, not a uight feature:
 
 ```bash
 bun add -D @mdx-js/rollup
@@ -33,7 +33,7 @@ bun add -D @mdx-js/rollup
 
 ```ts
 import mdx from "@mdx-js/rollup";
-plugins: [mdx(), react(), uaight()];
+plugins: [mdx(), react(), uight()];
 ```
 
 If you have `.docs.mdx` files and no MDX plugin, the dev server says so on startup and
@@ -43,7 +43,7 @@ plain `mdx()` whatever your array says, and it compiles correctly either way.
 ## Options
 
 ```ts
-uaight({
+uight({
 	docs: { fileSuffix: "docs" }, // the default
 });
 ```
@@ -53,7 +53,7 @@ somewhere else wants.
 
 ## What this is not
 
-uaight is not a documentation framework, and does not intend to become one. There is no
+uight is not a documentation framework, and does not intend to become one. There is no
 router, no navigation you can author and no page hierarchy separate from the fixture tree.
 A docs page is one more thing in that tree. For a documentation _site_ — like this one —
 use a documentation site generator.

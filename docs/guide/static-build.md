@@ -1,7 +1,7 @@
 # Shipping a static explorer
 
 ```bash
-bunx uaight build          # → dist-uaight/
+bunx uight build          # → dist-uight/
 ```
 
 A deployable explorer: one directory of static files, no dev server, no checkout. This is
@@ -9,15 +9,15 @@ how a design system actually gets adopted across an organisation — a URL every
 open, linked from wherever your team already reads things.
 
 ```bash
-bunx uaight build --out dist-uaight --base /design/ --root .
+bunx uight build --out dist-uight --base /design/ --root .
 ```
 
-| Flag       | Default       | Notes                                                     |
-| ---------- | ------------- | --------------------------------------------------------- |
-| `--out`    | `dist-uaight` | Output directory                                          |
-| `--base`   | `/`           | Public base path — set it when you deploy under a subpath |
-| `--root`   | cwd           | Project root                                              |
-| `--config` | discovered    | An explicit Vite config file                              |
+| Flag       | Default      | Notes                                                     |
+| ---------- | ------------ | --------------------------------------------------------- |
+| `--out`    | `dist-uight` | Output directory                                          |
+| `--base`   | `/`          | Public base path — set it when you deploy under a subpath |
+| `--root`   | cwd          | Project root                                              |
+| `--config` | discovered   | An explicit Vite config file                              |
 
 ## What it builds with
 
@@ -43,13 +43,13 @@ If you want the explorer inside an application you already ship — an internal 
 an admin area — mount it directly and keep the dev-server experience out of it:
 
 ```tsx
-import { Uaight } from "uaight";
+import { Uight } from "@aussieljk/uight";
 
-<Uaight height={720} />;
+<Uight height={720} />;
 ```
 
 ```ts
-uaight({ production: "include" });
+uight({ production: "include" });
 ```
 
 `production: "error"` is the third option: fail the build if the explorer would be

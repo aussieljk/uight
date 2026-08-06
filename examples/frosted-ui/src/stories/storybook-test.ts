@@ -2,7 +2,7 @@
  * A local stand-in for `@storybook/test`, which one copied story
  * (`components/avatar/avatar.stories.tsx`) uses for a spy in its `args`.
  *
- * uaight does not run `play` functions or interaction assertions (SPEC §13:
+ * uight does not run `play` functions or interaction assertions (SPEC §13:
  * `play: false`, `loaders: false`), so there is nothing to assert against and
  * no reason to install a test runner. What the story actually needs is a
  * callable prop that records calls and does not explode — that is all `fn()`

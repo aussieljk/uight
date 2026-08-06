@@ -9,8 +9,8 @@
  * Three things this exists to get right, all of which are easy to get wrong by
  * hand and were got wrong at least once while writing it:
  *
- *  1. **Order.** `bun run build` MUST precede the type check. `uaight/client`
- *     declares the `virtual:uaight/*` modules and resolves `RuntimeConfig`
+ *  1. **Order.** `bun run build` MUST precede the type check. `uight/client`
+ *     declares the `virtual:uight/*` modules and resolves `RuntimeConfig`
  *     through the package's own `dist`, so type-checking against a stale dist
  *     checks last release's contract and passes when it should not.
  *  2. **The tag is not optional.** npm refuses to publish a prerelease version
@@ -25,16 +25,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PKG = path.join(ROOT, "packages/uaight");
+const PKG = path.join(ROOT, "packages/uight");
 
 const argv = process.argv.slice(2);
 const dryRun = argv.includes("--dry-run");
 const bump = argv.includes("--bump");
 
 /**
- * Default `latest`, so `npm i uaight` resolves. A prerelease published under
+ * Default `latest`, so `npm i @aussieljk/uight` resolves. A prerelease published under
  * any other tag leaves the package with no `latest` at all, and a plain
- * `npm i uaight` then fails with "No matching version found" — which is the
+ * `npm i @aussieljk/uight` then fails with "No matching version found" — which is the
  * right shape once a stable release exists to protect, and the wrong one now.
  */
 const tagIndex = argv.indexOf("--tag");
@@ -99,7 +99,7 @@ if (bump) {
 const version = capture("node", ["-p", "require('./package.json').version"], PKG);
 
 process.stdout.write(
-	`\n\x1b[1muaight ${version ?? "?"}\x1b[0m` +
+	`\n\x1b[1muight ${version ?? "?"}\x1b[0m` +
 		`${dryRun ? "  (dry run)" : `  → npm, tag "${tag}"`}` +
 		`${who ? `  as ${who}` : ""}\n`,
 );
@@ -109,7 +109,7 @@ process.stdout.write(
  * ------------------------------------------------------------------ */
 
 const steps: Step[] = [
-	// Cheapest first: package.json and UAIGHT_VERSION are compared by the
+	// Cheapest first: package.json and UIGHT_VERSION are compared by the
 	// runtime at §16.2, so drift reaches users as a version-skew error.
 	{ title: "Version lockstep", command: "bun", args: ["run", "version:check"], cwd: PKG },
 	// Before the build, while `src/styles/generated.ts` still holds whatever was
@@ -162,8 +162,8 @@ if (dryRun) {
 	);
 } else {
 	process.stdout.write(
-		`\n\x1b[32m✓ published uaight@${version}\x1b[0m under "${tag}"\n\n` +
-			`  npm i -D uaight${tag === "latest" ? "" : `@${tag}`}\n` +
+		`\n\x1b[32m✓ published uight@${version}\x1b[0m under "${tag}"\n\n` +
+			`  npm i -D @aussieljk/uight${tag === "latest" ? "" : `@${tag}`}\n` +
 			`  Next canary: bun run release --bump\n`,
 	);
 }

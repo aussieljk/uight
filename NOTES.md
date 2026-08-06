@@ -23,7 +23,7 @@ problem was found, and marked **SUPERSEDED**.
 
 Three parts disagreed about how a single-fixture file is encoded, and the
 disagreement was invisible to the type checker. `shared/tree.ts` and
-`ui/UaightUI.tsx` read `[null]` (SPEC §3.4's table); `vite/parse.ts` wrote `[]`,
+`ui/UightUI.tsx` read `[null]` (SPEC §3.4's table); `vite/parse.ts` wrote `[]`,
 because `names` was typed `string[] | null` and could not hold `[null]`.
 
 The consequence was not cosmetic: `buildTree` read `[]` as a multi-fixture file
@@ -56,7 +56,7 @@ the only local import in the corpus; a scan for other relative imports and for
 image assets found none.
 
 **The verification that should have caught it, and did not.** The first sweep
-read `#uaight-app` in the _host_ document. Fixtures render inside an iframe, so
+read `#uight-app` in the _host_ document. Fixtures render inside an iframe, so
 that check was reading a page which structurally could not contain a fixture
 error — it would have passed a completely blank explorer. Rebuilding it against
 a deliberately broken fixture (a negative control) exposed two further defects in
@@ -100,7 +100,7 @@ individual fixtures move out of the sidebar and into a second toolbar row, and
 the sidebar shows them again while a search is active so a fixture can still be
 found by name. Because the sentinel is an ordinary `FixtureId.name`, it
 serializes, round-trips and deep-links through §3.2 with no special case —
-`resolve()` in `UaightUI` is the only place that has to admit it before the
+`resolve()` in `UightUI` is the only place that has to admit it before the
 membership check.
 
 Two consequences worth noting:
@@ -130,9 +130,9 @@ between the two: `false | 'viewport-only' | 'viewport-and-layout' | true`.
 declared level is still badged. Divergence from §13's sample config, which shows
 `parameters: 'viewport-only'` — that remains the default.
 
-### `UaightComponents` gains `ControlPanelInputs`
+### `UightComponents` gains `ControlPanelInputs`
 
-§11.3 lists it as ejectable in its own right, but `UaightComponents` had no
+§11.3 lists it as ejectable in its own right, but `UightComponents` had no
 member for it, so it could not be replaced through `props.components` — the one
 documented mechanism for replacement (§1.4, D6). Added, with
 `ControlPanelInputsProps`.
@@ -142,13 +142,13 @@ documented mechanism for replacement (§1.4, D6). Added, with
 Verified against a real production build of the demo, not by inspection. With
 `production: 'exclude'` (the default), `vite build` emits a single JS chunk with
 no lazy explorer chunk and no fixture or story code (`badgePropDefs`,
-`"Semantic color"` — absent). The only surviving occurrences of "uaight" are the
+`"Semantic color"` — absent). The only surviving occurrences of "uight" are the
 literal string in the landing page's own copy.
 
 This required writing the gate so Rollup can actually drop it:
 
 ```tsx
-const UaightUI = __UAIGHT_ENABLED__ ? React.lazy(() => import("./UaightUI.tsx")) : null;
+const UightUI = __UIGHT_ENABLED__ ? React.lazy(() => import("./UightUI.tsx")) : null;
 ```
 
 SPEC §9.2's sample puts the `React.lazy` call at module scope unconditionally,
@@ -178,7 +178,7 @@ Why that is strictly better than inlining the bootstrap:
 1. **Evaluation order is correct.** ES module imports are hoisted and evaluated
    before any body statement. Inlining `RefreshRuntime.injectIntoGlobalHook(window)`
    into the renderer entry's body would run it _after_ every static import has
-   already evaluated — including `virtual:uaight/preview-entry`, which pulls in
+   already evaluated — including `virtual:uight/preview-entry`, which pulls in
    consumer code that plugin-react has transformed. That module would throw
    "can't detect preamble" before our bootstrap line ever ran. A real module
    evaluates first, in import order.
@@ -216,7 +216,7 @@ if (!window.$RefreshReg$) {
 So `window.$RefreshReg$ = () => {}` is the line that matters. The inline
 fallback sets both, since the old flag is harmless.
 
-Verified live: `GET /@uaight/renderer` against a real dev server returns
+Verified live: `GET /@uight/renderer` against a real dev server returns
 `import "/@id/__x00__@vitejs/plugin-react/preamble";` as its first line.
 
 ### Q7 — `import.meta.ROLLDOWN_FILE_URL_<ref>`: **DOES NOT EXIST** (divergence from SPEC §4.5)
@@ -225,31 +225,31 @@ Confirmed independently: `ROLLDOWN_FILE_URL`, `ROLLUP_FILE_URL` and
 `resolveFileUrl` are absent from rolldown@1 and vite@8.1.5. `emitFile` and
 `getFileName` are present.
 
-SPEC §4.5's `load()` body for `virtual:uaight/renderer-url` therefore cannot
+SPEC §4.5's `load()` body for `virtual:uight/renderer-url` therefore cannot
 work as written. Implemented instead as:
 
-- `load()` emits `export const rendererEntryUrl = "__UAIGHT_RENDERER_URL__";`
+- `load()` emits `export const rendererEntryUrl = "__UIGHT_RENDERER_URL__";`
 - `generateBundle` calls `this.getFileName(rendererRef)` and string-replaces
   the placeholder across emitted chunks, prefixed with the resolved `base`
   (read in `configResolved`, read-only).
-- The dev branch is unchanged: `/@uaight/renderer`.
+- The dev branch is unchanged: `/@uight/renderer`.
 
 Verified: a `production: "include"` build resolves the token to
-`/assets/uaight-renderer-<hash>.js` and leaves no placeholder behind.
+`/assets/uight-renderer-<hash>.js` and leaves no placeholder behind.
 
 ### SPEC §4.5's `build.rollupOptions.input` sample drops the project's entry (divergence)
 
 `previewHtmlPath` handling as written —
-`input: { uaightPreview: cfg.previewHtmlPath }` — **silently deletes the
+`input: { uightPreview: cfg.previewHtmlPath }` — **silently deletes the
 consumer's own build entry.** Vite only falls back to `<root>/index.html` when
 `input` is unset, so naming one input removes the default. A build with
-`previewHtmlPath` set produced `dist/uaight/preview.html` and the fixture
+`previewHtmlPath` set produced `dist/uight/preview.html` and the fixture
 chunks, but no `index.html` and no app bundle.
 
 `previewHtmlInput()` in `src/vite/index.ts` merges instead: it normalizes any
 existing `input` (string / array / record) to a record, adds the project's
 `index.html` when nothing was declared and the file exists, then adds
-`uaightPreview`.
+`uightPreview`.
 
 ### §3.4's `names: [null]` is not representable — single fixtures encode as `[]`
 
@@ -326,7 +326,7 @@ the directory and suggesting `resolve.alias` / a different root — never
 matcher, per §3.6) but not the emitted glob, which carries only the suffix
 patterns and `!`-negated `exclude` entries. The module map may therefore be a
 superset of the index. Harmless — the runtime keys off the index — but worth
-knowing when reading `/@uaight/config.json`.
+knowing when reading `/@uight/config.json`.
 
 ### `IndexProblem.kind` has no `confinement` member
 
@@ -344,12 +344,12 @@ structural, for §4.1's own stated reason: they decide which paths the watcher
 and the emitted globs cover, and cannot be rebuilt in place. `index`,
 `production`, `storybook` and `docgen` reload live, as specified.
 
-### `uaight.config.json` is JSON; `defineUaightConfig` types a `.ts` file you import yourself
+### `uight.config.json` is JSON; `defineUightConfig` types a `.ts` file you import yourself
 
-`resolveUaightConfig` is synchronous per ARCHITECTURE §1, so the file it
+`resolveUightConfig` is synchronous per ARCHITECTURE §1, so the file it
 discovers on its own must be readable synchronously — JSON. §19.4's
-`defineUaightConfig` is an identity helper for a `uaight.config.ts` that the
-user imports into `vite.config.ts` and passes to `uaight()`. Inline plugin
+`defineUightConfig` is an identity helper for a `uight.config.ts` that the
+user imports into `vite.config.ts` and passes to `uight()`. Inline plugin
 options take precedence over the config file.
 
 ### §4.4's collision rule is enforced as a build error
@@ -360,9 +360,9 @@ server carries on, because the user is usually mid-rename.
 
 ### Dev URLs are also resolvable ids
 
-`/@uaight/renderer` and `/@uaight/dev-entry` are registered in `resolveId`
+`/@uight/renderer` and `/@uight/dev-entry` are registered in `resolveId`
 (serve only) in addition to being served by middleware. Without that, Vite's
-pre-transform warm-up of the dev document's `<script src="/@uaight/dev-entry">`
+pre-transform warm-up of the dev document's `<script src="/@uight/dev-entry">`
 logs `Failed to load url … Does the file exist?` on every page load. The
 middleware is still what serves the bytes; the resolver only stops the noise.
 
@@ -490,19 +490,19 @@ entry. Without an explicit `optimizeDeps.include`, the first story you open
 triggers a mid-session re-optimize and a full frame reload. The demo lists all
 eleven transitive story dependencies.
 
-### The preview entry has no way to read uaight's theme
+### The preview entry has no way to read uight's theme
 
 §6.4 hands the preview entry `{ children }` and nothing else, and the frozen
 chrome API (§19.3) is a host-realm hook, so a frame-realm module cannot ask the
 explorer what `theme` prop it was given. frosted-ui's Storybook drove
 `<Theme appearance>` from a toolbar global, so the demo approximates it by
 reading the frame's own environment: an explicit `data-theme` /
-`data-uaight-theme` / `.dark` on the frame `documentElement` if the host stamps
+`data-uight-theme` / `.dark` on the frame `documentElement` if the host stamps
 one, otherwise `prefers-color-scheme`. Both are observed via
 `useSyncExternalStore`, so it follows a change without a reload.
 
 If a future version wants preview entries to honour the `theme` prop, the
-cleanest contract would be for the frame host to stamp `data-uaight-theme` on
+cleanest contract would be for the frame host to stamp `data-uight-theme` on
 the frame's `documentElement` — the demo already reads it, and it needs no
 addition to the frozen surface.
 
@@ -515,8 +515,8 @@ fixture source through Bun's transpiler for analysis.
 
 ### Demo files not yet verifiable end-to-end
 
-`uaight` is not built, so `src/App.tsx`, the fixtures, the codecs module and
-`vite.config.ts` cannot resolve `uaight` / `uaight/vite` and `bun run dev`
+`uight` is not built, so `src/App.tsx`, the fixtures, the codecs module and
+`vite.config.ts` cannot resolve `uight` / `uight/vite` and `bun run dev`
 cannot start. They were type-checked against a scratch `.d.ts` reproducing
 ARCHITECTURE §1–§3's signatures exactly, and are clean against it. Once the
 package builds, `bun run --cwd examples/frosted-ui typecheck` should be clean
@@ -539,16 +539,16 @@ parent.
 Before / after, verbatim from the build:
 
 ```css
-:root, :host { … }                       →  .uaight-root { … }
-.h-6 { … }                               →  :is(.uaight-root, .uaight-root *).h-6 { … }
-*, ::before, ::after, ::backdrop { … }   →  :is(.uaight-root, .uaight-root *), :is(…)::before, … { … }
-.hover\:bg-\[var\(--u-bg-hover\)\]:hover →  :is(.uaight-root, .uaight-root *).hover\:bg-\[var\(--u-bg-hover\)\]:hover
+:root, :host { … }                       →  .uight-root { … }
+.h-6 { … }                               →  :is(.uight-root, .uight-root *).h-6 { … }
+*, ::before, ::after, ::backdrop { … }   →  :is(.uight-root, .uight-root *), :is(…)::before, … { … }
+.hover\:bg-\[var\(--u-bg-hover\)\]:hover →  :is(.uight-root, .uight-root *).hover\:bg-\[var\(--u-bg-hover\)\]:hover
 ```
 
-**`:is(.uaight-root, .uaight-root *)` rather than a plain `.uaight-root `
+**`:is(.uight-root, .uight-root *)` rather than a plain `.uight-root `
 descendant.** ARCHITECTURE §3 promises every chrome element sits _under_ the
 root, so a descendant combinator would satisfy the letter of §10.3. But the
-natural thing to write is `<div className="uaight-root flex flex-col">`, and
+natural thing to write is `<div className="uight-root flex flex-col">`, and
 under a strict descendant rewrite those utilities silently do nothing. The
 `:is()` form matches the root or anything beneath it, costs ~1 KB gzipped across
 the whole sheet, and gives every utility the same specificity.
@@ -591,19 +591,19 @@ non-negotiable.
 
 The UI resolves the `theme` prop and sets `--u-*` custom properties inline on
 the mount. Our Tailwind colour tokens are declared in an `@theme inline` block
-as `var(--u-bg, var(--uaight-surface))` and so on, so:
+as `var(--u-bg, var(--uight-surface))` and so on, so:
 
 - `bg-surface` expands to the chain itself and resolves per element, which means
   the UI's inline palette wins wherever it is set;
-- `.uaight-root` carries our own light/dark defaults (identical values to
+- `.uight-root` carries our own light/dark defaults (identical values to
   `theme.ts`'s), so the sheet is complete on its own;
 - the two palettes cannot drift into disagreeing about what "muted" is.
 
 `inline` is load-bearing here. Without it Tailwind would emit `--color-fg` onto
 the scope element and freeze the `var()` chain at that point.
 
-Light and dark: media query first, then `.uaight-root.uaight-theme-light` /
-`.uaight-theme-dark .uaight-root`, so an explicit class wins in **both**
+Light and dark: media query first, then `.uight-root.uight-theme-light` /
+`.uight-theme-dark .uight-root`, so an explicit class wins in **both**
 directions at equal specificity. A matching `@custom-variant dark` makes `dark:`
 follow the same rule rather than reading `prefers-color-scheme` alone.
 
@@ -627,22 +627,22 @@ have caught this on the first `shadcn add`.
 
 ### §11.3 registryDependencies, and the tokens file ejection actually needs
 
-§11.2's example names `@uaight/tree-item`, which is not in §11.3's table. Rather
+§11.2's example names `@uight/tree-item`, which is not in §11.3's table. Rather
 than publish a phantom dependency the registry could not resolve, the only
-dependency emitted is the real one: `control-panel → @uaight/control-panel-inputs`.
+dependency emitted is the real one: `control-panel → @uight/control-panel-inputs`.
 Every dependency is asserted to be namespaced _and_ to name a published item.
 
 The versioned copies under `registry/v1.0/` rewrite dependencies to absolute
-URLs (`https://uaight.dev/r/v1.0/control-panel-inputs.json`). §11.1 says items
+URLs (`https://uight.dev/r/v1.0/control-panel-inputs.json`). §11.1 says items
 may only be combined within one minor; a namespace alone cannot express that,
-because `@uaight` resolves to whatever the consumer's `components.json` points
+because `@uight` resolves to whatever the consumer's `components.json` points
 at.
 
 **Ejected components need a token file.** §10.3 says ejected sources are plain
 Tailwind compiled by the host, inheriting its theme — but they reference
 `bg-sunken`, `text-muted`, `border-line`, which no stock host theme defines.
 Every item therefore also ships `src/styles/chrome-tokens.css` as a
-`registry:file` targeting `~/styles/uaight-chrome.css`. It defines each token as
+`registry:file` targeting `~/styles/uight-chrome.css`. It defines each token as
 `var(--color-neutral-200, #e8e8ea)` and so on, so a host that has retuned its
 neutrals gets its own greys: the spirit of "eject it and it looks like yours",
 made compilable.
@@ -652,7 +652,7 @@ made compilable.
 > **SUPERSEDED** — fixed during integration; the `it.fails` guard below is now a
 > passing regression test.
 
-`src/shared/tree.ts` (frozen) and `src/ui/UaightUI.tsx` both read `[null]` as
+`src/shared/tree.ts` (frozen) and `src/ui/UightUI.tsx` both read `[null]` as
 "the default export is the fixture", per §3.4's table.
 `src/vite/parse.ts` writes `[]` (`SINGLE_FIXTURE`), because
 `FixtureFileIndex.names` is typed `string[] | null` and cannot hold `[null]` —
@@ -665,7 +665,7 @@ zero-config single-fixture file is invisible.
 
 `tests/parse.test.ts` records this with `it.fails("a single-fixture file is
 selectable in the tree")`. When the plugin emits `[null]` (cast, as `tree.ts`
-and `UaightUI.tsx` already do) that line will report an unexpected pass, which
+and `UightUI.tsx` already do) that line will report an unexpected pass, which
 is the signal to delete it. The fix belongs in `src/vite/parse.ts`, not in
 `tree.ts`, which is frozen and already implements the spec.
 
@@ -685,13 +685,13 @@ across 12 files, all passing.
 ### Verified live against the running plugin
 
 Once the package built, the demo was checked against a real dev server. All of
-it holds: `/` and `/uaight` both 200; `/@uaight/index.json` reports 82 fixture
+it holds: `/` and `/uight` both 200; `/@uight/index.json` reports 82 fixture
 files (77 CSF + 5 hand-written) and 589 names — 581 story exports plus 8
 fixture names; zero `problems`; the decorator is found at
-`/src/fixtures/uaight.decorator.tsx` with `depth: 1`; `fixtures/swatches` is
+`/src/fixtures/uight.decorator.tsx` with `depth: 1`; `fixtures/swatches` is
 correctly `names: null` while `fixtures/swatches-declared` is indexed from
 `fixtureNames`; and `fixtures/pricing` carries `''` as a real name alongside
-`Plans` and `Receipt`. `/@uaight/inventory.json` finds four components and
+`Plans` and `Receipt`. `/@uight/inventory.json` finds four components and
 classifies `UserChip` as `kind: "memo"`, so §12's syntax filter handles
 `memo(forwardRef(…))`.
 
@@ -703,7 +703,7 @@ classifies `UserChip` as `kind: "memo"`, so §12's syntax filter handles
 Both single-fixture files log on load:
 
 ```
-[uaight] fixtures/controls: fixture names changed since the index was built.
+[uight] fixtures/controls: fixture names changed since the index was built.
   indexed: []
   actual:  [null]
 ```
@@ -936,7 +936,7 @@ transport was constructed with, so a reload replays current state.
 ### §16.2 version skew is checked in the renderer
 
 `RendererApp` compares `config.protocolVersion` with `PROTOCOL_VERSION` and
-`config.version` with `UAIGHT_VERSION`, and renders the mismatch panel plus a
+`config.version` with `UIGHT_VERSION`, and renders the mismatch panel plus a
 `RENDERER_ERROR` instead of the fixture. That catches a stale build artefact or
 a cached virtual module, which §16.2 says is the realistic skew.
 
@@ -945,9 +945,9 @@ a cached virtual module, which §16.2 says is the realistic skew.
 - **§3.5 warm pass and progressive disclosure.** No protocol message carries
   fixture _names_ (only `INPUTS_SETTLED`, which is inputs), so the renderer
   cannot report discovered names to the chrome. Both realms import
-  `virtual:uaight/runtime`, so the host can do this itself: call
+  `virtual:uight/runtime`, so the host can do this itself: call
   `fixtureModules[globPath]()` and `normalizeModule(...)` — both exported from
-  `uaight/runtime` for exactly this — after first paint, in dev only. Doing it
+  `uight/runtime` for exactly this — after first paint, in dev only. Doing it
   renderer-side would require a protocol addition.
 - **§6.5 `height="auto"`.** The renderer reports `RESIZE` from a
   `ResizeObserver` on its own `documentElement` (frame mode only), which is
@@ -961,7 +961,7 @@ a cached virtual module, which §16.2 says is the realistic skew.
   documented inline cost, surfaced rather than papered over.
 - **HMR of a fixture module relies on React Fast Refresh**, which preserves the
   component tree and re-renders in place. The runtime does not re-import the
-  module on `uaight:index`; a _topology_ change (add/delete/rename) reaches the
+  module on `uight:index`; a _topology_ change (add/delete/rename) reaches the
   runtime as a new `SELECT_FIXTURE` from the host, which re-imports.
 - **Q3 (scheduler)** is injectable everywhere and defaults to
   `microtaskScheduler`. Delivery is always scheduled, so a `send()` can never
@@ -990,14 +990,14 @@ does all three of the following, which between them cover every ordering:
    animation frames within a 60-frame budget before reporting a bootstrap
    error. Covers (a).
 2. **Keep a `load` listener attached for the frame's whole life.** On every
-   load, check whether our `#uaight-root` marker survived; if it did not, write
+   load, check whether our `#uight-root` marker survived; if it did not, write
    again. Covers (b) — and also covers a later navigation blanking the frame.
 3. **Guard with a written-flag** so a load event that did _not_ blank us is a
    no-op rather than a second document and a second renderer.
 
 The recovery path is not a special case: a rewrite re-runs the renderer entry,
 which sends a second `READY`, and §8.2 already defines that as a frame reload
-(same `mountId`, overlays replayed). `UaightUI` re-sends `SELECT_FIXTURE`
+(same `mountId`, overlays replayed). `UightUI` re-sends `SELECT_FIXTURE`
 whenever the transport reports `ready`, so a reload lands on the right fixture.
 
 Ordering that matters and is easy to get wrong:
@@ -1009,7 +1009,7 @@ Ordering that matters and is easy to get wrong:
   afterwards with `script.async = false`, because a dynamically inserted script
   otherwise defaults to `async` and can beat the parser-inserted one.
 
-Verified live against the demo at `/uaight`: two `[vite] connected` lines
+Verified live against the demo at `/uight`: two `[vite] connected` lines
 (host + frame realm), no bootstrap retries, no duplicate renderer.
 
 ### §6.7 CSP: `securitypolicyviolation`, not a timeout
@@ -1023,7 +1023,7 @@ the transport remains the backstop for everything else.
 
 ### §12: detected components cannot travel through `onSelect`
 
-`FixtureTreeProps.onSelect` and the frozen `UaightChromeApiV1.selection.select`
+`FixtureTreeProps.onSelect` and the frozen `UightChromeApiV1.selection.select`
 are both `(id: FixtureId | null) => void`, and an `InventoryItem` is not a
 `FixtureId`. `InventoryListProps.onSelect` is the only typed channel that can
 express selecting one.
@@ -1049,16 +1049,16 @@ If a v2 wants shareable component links, the smallest change is a
 
 ### §7.5: `ControlPanelInputs` is reached through a context, not through props
 
-§11.3 lists `ControlPanelInputs` as ejectable, but `UaightComponents` in
+§11.3 lists `ControlPanelInputs` as ejectable, but `UightComponents` in
 `shared/types.ts` (frozen, not ours) has no member for it, and
 `ControlPanelProps` has no slot to pass one down. Widening either type would
 change a published surface.
 
 `ControlPanel.tsx` therefore exports `ControlPanelSlots`, a context carrying
-`{ codecs, Inputs }`, which `UaightUI` provides and `ControlPanel` consumes.
+`{ codecs, Inputs }`, which `UightUI` provides and `ControlPanel` consumes.
 `props.components.ControlPanelInputs` is honoured at runtime (see
-`chrome/defaults.ts`'s `UaightChromeSet`), but a TypeScript consumer passing it
-through `components` will see an excess-property error until `UaightComponents`
+`chrome/defaults.ts`'s `UightChromeSet`), but a TypeScript consumer passing it
+through `components` will see an excess-property error until `UightComponents`
 gains the member. Worth adding when the shared types are next revised.
 
 ### §5.4 ownership: refcount, claimed in a layout effect
@@ -1078,8 +1078,8 @@ never visible. A denied mount falls back to local state **identically in
 development and production**, with a development error naming the key and
 suggesting `routerId`.
 
-Verified in the demo: canonical ids round-trip (`?fixture=uaight%3A1%7C…`),
-a malformed id (`uaight:9|foo`, unknown version prefix) is removed with
+Verified in the demo: canonical ids round-trip (`?fixture=uight%3A1%7C…`),
+a malformed id (`uight:9|foo`, unknown version prefix) is removed with
 `replaceState`, and a well-formed unknown id keeps its parameter and shows the
 empty state.
 
@@ -1100,7 +1100,7 @@ and both lists.
 
 Selecting an undecidable file keeps the file node selected, renders the first
 fixture and shows a note naming it — verified: deep-linking
-`uaight:1|fixtures%2Fswatches` leaves the URL untouched and renders with
+`uight:1|fixtures%2Fswatches` leaves the URL untouched and renders with
 _Showing "Overview" — the first fixture in this file._
 
 ### `names: []` — now fixed upstream; defence retained
@@ -1108,7 +1108,7 @@ _Showing "Overview" — the first fixture in this file._
 Recorded in the plugin section above as a contradiction between §3.4's `[null]`
 and `FixtureFileIndex.names: string[] | null`. Resolved during integration:
 `names` is now `Array<string | null> | null`, `[null]` is canonical everywhere
-and `[]` is not a legal value. `UaightUI` still normalizes an empty list to
+and `[]` is not a legal value. `UightUI` still normalizes an empty list to
 `[null]` — one line, and it turns a silent "unselectable tree node" into a
 renderer-reported empty module if any producer ever regresses.
 
@@ -1117,16 +1117,16 @@ renderer-reported empty module if any producer ever regresses.
 `useResolvedTheme` resolves `light | dark | system` via `matchMedia` through
 `useSyncExternalStore`, and `themeVars()` writes the palette as `--u-*` custom
 properties in the root's `style`. The stylesheet declares its tokens as
-`var(--u-bg, var(--uaight-surface))`, so the two cannot disagree; the root also
-carries `uaight-theme-light` / `uaight-theme-dark` so the sheet's own light/dark
+`var(--u-bg, var(--uight-surface))`, so the two cannot disagree; the root also
+carries `uight-theme-light` / `uight-theme-dark` so the sheet's own light/dark
 rules follow the resolved value rather than the media query alone. `theme` is
 the only thing that decides — a mount with `theme="light"` inside a dark OS
 renders light.
 
-### `.uaight-root` is deliberately NOT an ancestor of the fixture
+### `.uight-root` is deliberately NOT an ancestor of the fixture
 
 §6.2 step 3 says to write our scoped stylesheet into the frame document, and the
-sheet's reset applies to `.uaight-root *`. Putting that class on `<body>` or
+sheet's reset applies to `.uight-root *`. Putting that class on `<body>` or
 `<html>` would apply our reset — box-sizing, margins, font — to the fixture
 itself, which is the one thing a component explorer must not do.
 
@@ -1134,9 +1134,9 @@ So the frame document is written as:
 
 ```html
 <body>
-	<div id="uaight-root"></div>
+	<div id="uight-root"></div>
 	<!-- the fixture, unstyled by us -->
-	<div id="uaight-frame-chrome" class="uaight-root"></div>
+	<div id="uight-frame-chrome" class="uight-root"></div>
 	<!-- for frame-realm chrome -->
 </body>
 ```
@@ -1149,12 +1149,12 @@ mount point if frame-realm chrome ever wants our utilities.
 
 ```
 dist/index.js            3.42 kB  │ gzip  1.51 kB   eager entry
-dist/UaightUI-*.js     127.78 kB  │ gzip 32.71 kB   lazy explorer  (budget: 90 kB gz)
+dist/UightUI-*.js     127.78 kB  │ gzip 32.71 kB   lazy explorer  (budget: 90 kB gz)
 dist/InlineHost-*.js     2.20 kB  │ gzip  1.09 kB   lazy, frame mode never loads it
 dist/chrome.js           0.10 kB  │ gzip  0.09 kB   + chrome-context 1.00 kB
 ```
 
-`uaight/chrome` importing only `chrome-context` is the property that matters:
+`uight/chrome` importing only `chrome-context` is the property that matters:
 the frozen facade does not drag the explorer in behind it. `InlineHost` is
 lazy for two reasons — it pulls `RendererApp`, and it evaluates the consumer's
 preview entry, whose CSS imports would otherwise land in the **host** document
@@ -1199,7 +1199,7 @@ you want. All shortcuts are suppressed while focus is in a text field.
 
 ### Verified end-to-end in the demo
 
-`/uaight` against `examples/frosted-ui` (596 fixtures, 82 files): frame
+`/uight` against `examples/frosted-ui` (596 fixtures, 82 files): frame
 bootstrap with no console errors, tree navigation, `/`-search filtering,
 `j`/`k` selection driving `history.pushState`, deep links, malformed vs unknown
 id handling, progressive disclosure, the full control panel (text, select,
@@ -1215,7 +1215,7 @@ Everything below changes a published type or the host↔renderer protocol, so it
 had to land before §11.4's facade freezes. Recorded here because each one was a
 judgement call with a live alternative.
 
-### Q11 — what goes on `UaightChromeApiV1`
+### Q11 — what goes on `UightChromeApiV1`
 
 **Answered.** Two groups were added and nothing else. The test applied was the
 one the freeze implies: _would a chrome component be unable to do its job
@@ -1283,7 +1283,7 @@ would be invisible.
 
 ### The theme stamp
 
-`THEME_ATTRIBUTE = "data-uaight-theme"` on the renderer document's
+`THEME_ATTRIBUTE = "data-uight-theme"` on the renderer document's
 `documentElement`, values `"light"` and `"dark"`, absent meaning light. An
 attribute rather than a message, a context or a prop, because the reader is the
 _preview entry_ — the host application's own provider tree, which is not a
@@ -1291,8 +1291,8 @@ fixture, does not use our hooks, and in frame isolation does not share our
 realm. A DOM attribute is the one channel every provider can already read, it is
 observable, and it adds nothing to the frozen facade. `system` is resolved by
 the host before it is stamped; the frame never re-resolves it, so the two realms
-cannot disagree. `uaight/runtime` exports `readUaightTheme`,
-`subscribeUaightTheme` and `useUaightTheme` so a preview entry does not
+cannot disagree. `uight/runtime` exports `readUightTheme`,
+`subscribeUightTheme` and `useUightTheme` so a preview entry does not
 hand-roll a `MutationObserver`.
 
 ### Q12 — the docgen interface, without the spike
@@ -1486,7 +1486,7 @@ Tailwind could not stop. Hierarchy is weight, tracking and colour instead
 ## Plugin, CLI and CI pass
 
 Node-side work: path aliases at call sites, the static build's scaffold, portless
-MCP, `uaight doctor`, terminal problem reporting, measured budgets, MDX, and the
+MCP, `uight doctor`, terminal problem reporting, measured budgets, MDX, and the
 §3.4 identifier row.
 
 ### §3.4 — the identifier row changed, and the decision table with it
@@ -1571,16 +1571,16 @@ the index is right rather than nearly right.
 
 ### The static build no longer writes into the project root
 
-`uaight build` wrote `uaight-explorer.html` and `uaight-explorer.entry.js` next
+`uight build` wrote `uight-explorer.html` and `uight-explorer.entry.js` next
 to the user's own `index.html` and removed them in a `finally`. A crash in
 between left both in their working tree — `.gitignore` covered it, which is a
 plaster, not a fix.
 
-They live under `node_modules/.uaight/` now, which is the established place for
+They live under `node_modules/.uight/` now, which is the established place for
 this (`.vite`, `.cache`, `.bin`), is git-ignored everywhere already, and makes a
 leftover invisible and harmless. Rollup names an HTML output by its path
 relative to the root, so the emitted document lands at
-`node_modules/.uaight/uaight-explorer.html` inside the output directory and is
+`node_modules/.uight/uight-explorer.html` inside the output directory and is
 moved to `index.html` — one directory deeper than the rename the old placement
 already needed. The now-empty `node_modules` tree is removed from the output, so
 the site carries no trace of how it was made.
@@ -1592,7 +1592,7 @@ its own source of defects.
 
 A side benefit worth naming: the build no longer has to _reserve_ two filenames
 in the user's root, so it no longer refuses to run because they happen to own a
-file called `uaight-explorer.html`.
+file called `uight-explorer.html`.
 
 ### MCP is portless, and discovery is lazy
 
@@ -1600,7 +1600,7 @@ file called `uaight-explorer.html`.
 two projects — Vite takes 5174 for the second — and the failure it produced was
 a connection error naming a port the human never used.
 
-The probe is `/@uaight/health`, not `GET /`. A port answering HTTP is not
+The probe is `/@uight/health`, not `GET /`. A port answering HTTP is not
 evidence of anything, and attaching to the wrong project's dev server and
 reporting its fixtures is worse than finding nothing; the response has to parse
 as JSON and carry a numeric `protocolVersion`. Every candidate is probed
@@ -1614,7 +1614,7 @@ _failure_ is not, so the next tool call after the dev server comes up succeeds
 without restarting anything.
 
 Failure is a message naming every port probed, what was asked of each, and the
-three ways to fix it (`--url`, `UAIGHT_URL`, start the server). ROADMAP's
+three ways to fix it (`--url`, `UIGHT_URL`, start the server). ROADMAP's
 observation that MCP has no screenshot tool is untouched by any of this.
 
 **Vite writes no discoverable state naming its port** — no lock file, no
@@ -1622,31 +1622,31 @@ observation that MCP has no screenshot tool is untouched by any of this.
 therefore the whole of what is possible from a separate process. That is a
 finding, not a shortcut.
 
-### `uaight doctor`
+### `uight doctor`
 
-`/@uaight/config.json` already answered "why is my fixture not found", to a
+`/@uight/config.json` already answered "why is my fixture not found", to a
 client that can reach a running dev server. That is the wrong shape for the
 moment the question is asked: the tree is empty, so the explorer is exactly what
 the user does not trust, and "open the explorer to find out why the explorer is
 empty" is a loop.
 
-`uaight doctor` runs the same scan from a shell against a project that need not
+`uight doctor` runs the same scan from a shell against a project that need not
 be serving, and prints the resolved config, both of §4.2's path representations,
 the patterns actually emitted, the counts, the feature flags and every problem
 grouped by kind. It exits non-zero on a collision only — that is the one problem
 kind that makes fixture ids ambiguous, so it is the one worth failing a CI step.
 
-**Its documented blind spot:** options passed inline to `uaight()` in
+**Its documented blind spot:** options passed inline to `uight()` in
 `vite.config.ts` are arguments to a function call in a module the CLI does not
-execute, so only `uaight.config.json` is visible. Run it against the demo and it
+execute, so only `uight.config.json` is visible. Run it against the demo and it
 reports `storybook off` and 6 files, where the dev server reports 83 — which is
 correct and would be baffling unsaid, so the report says it.
 
 ### One line in the terminal for index problems
 
-A user who never opens `/uaight` never learned their `fixturesDir` was
+A user who never opens `/uight` never learned their `fixturesDir` was
 unreadable. Startup now logs one line: a count per kind, the first offender's
-message in full, and a pointer to `uaight doctor` for the rest. Counting without
+message in full, and a pointer to `uight doctor` for the rest. Counting without
 an example tells nobody which file to look at; printing eleven of them is
 scrollback nobody reads.
 
@@ -1671,8 +1671,8 @@ Three decisions inside the harness are worth keeping:
 - **A generated corpus, not the demo.** Otherwise the startup numbers drift with
   whatever the demo happens to contain, and a budget that moves for reasons
   unrelated to the code is not a budget.
-- **"Chrome bundle" is the `UaightUI-*` chunk specifically.** That is the code a
-  host downloads _because_ uaight is there and exactly what §9.2's production
+- **"Chrome bundle" is the `UightUI-*` chunk specifically.** That is the code a
+  host downloads _because_ uight is there and exactly what §9.2's production
   gate removes; summing every non-Node chunk would fold in the renderer and the
   serializer and stop tracking the thing that grows when a panel is added. It
   moved from 41.2 KB to 54.3 KB during this pass, entirely from concurrent UI
@@ -1697,9 +1697,9 @@ produce an `Unexpected token`.
 correctly configured project. Vite sorts by `enforce` before array order, and
 `@vitejs/plugin-react`'s `vite:react-babel` is a `pre` plugin, so a plain
 `mdx()` **always** resolves after it whatever the user wrote. Verified against
-the demo: with `plugins: [mdx(), react(), uaight()]` the resolved order is
+the demo: with `plugins: [mdx(), react(), uight()]` the resolved order is
 
-    vite:react-babel … vite:react-refresh … @mdx-js/rollup … uaight
+    vite:react-babel … vite:react-refresh … @mdx-js/rollup … uight
 
 and `transformRequest("/src/…/Notes.fixture.mdx")` returns compiled JSX regardless
 — the output goes through Vite's own JSX pipeline downstream, not through the
@@ -1717,7 +1717,7 @@ and reading the resolved list to say what is missing is the opposite of that.
 `$schema` is settled. shadcn publishes two schemas — `registry.json` for the
 index, `registry-item.json` for an item — and an item carrying the index schema
 does not validate. The build already emitted the right one; SPEC §11.2's example
-did not, and has been corrected, along with its `@uaight/tree-item` dependency,
+did not, and has been corrected, along with its `@uight/tree-item` dependency,
 which names an item §11.3 never listed.
 
 `tests/registry-resolve.test.ts` is a client rather than another shape
@@ -1727,12 +1727,12 @@ the way `shadcn add` does: resolve a `{name}` URL template as a
 `registryDependencies` transitively (dependencies before dependents), and write
 every `files[]` entry to the path its `target` or its type dictates. It asserts
 the resulting tree — that `ControlPanel.tsx` lands under the components
-directory, that `uaight-chrome.css` lands where its `target` says, that no
+directory, that `uight-chrome.css` lands where its `target` says, that no
 item's files could escape the project, and that the versioned copies pin
 absolute one-minor URLs.
 
 **Q8 stays open, and the two remaining unknowns are specific.** Nothing here
-proves the items are reachable at `https://uaight.dev/r/…`, which is what the
+proves the items are reachable at `https://uight.dev/r/…`, which is what the
 versioned copies point at and what has never been hosted; and nothing here runs
 shadcn's own resolver, so its schema validation, its `components.json` path
 aliasing and its dependency installer are still untested against these files.
@@ -1741,7 +1741,7 @@ What is now proved is everything that is a property of the files themselves.
 ### Q9 — glob invalidation, and the half that Node can answer
 
 Q9 has two halves and only one of them is a Node question: whether **the index**
-tracks the topology, which is what the `uaight:index` event carries and what the
+tracks the topology, which is what the `uight:index` event carries and what the
 tree renders from. `tests/scan.test.ts` exercises add (appears in sorted
 position, not arrival order), delete (disappears and takes its problems),
 rename (both events, including the moment between them when both files exist), a
@@ -1801,7 +1801,7 @@ production build has none either, because the inventory pass is development-only
 ### Repository scripts
 
 - **`typecheck` was misleading.** A bare `tsc --noEmit` only means anything
-  after a build, because `uaight/client` resolves `RuntimeConfig` through the
+  after a build, because `uight/client` resolves `RuntimeConfig` through the
   package's own `dist`. The exposed script is now `build && tsc`, and the
   build-less form is `typecheck:only`, which `verify` and `check` call because
   they have already built.
@@ -1872,8 +1872,8 @@ test if removed:
    navigates the frame to `about:blank` from the outside and requires the
    fixture to come back. That is the same event ordering (b) produces, delivered
    deterministically instead of hoped for;
-3. the written-flag guard — exact counts: one `script[data-uaight-renderer]`,
-   one `#uaight-root`, one `READY` per document; exactly **two** `READY`s after
+3. the written-flag guard — exact counts: one `script[data-uight-renderer]`,
+   one `#uight-root`, one `READY` per document; exactly **two** `READY`s after
    a deliberate blanking, never three.
 
 All pass on Chromium, Firefox and WebKit, with StrictMode on and off. §8.2's
@@ -1889,7 +1889,7 @@ Each is a `fixme` naming the defect, never a weakened assertion.
    Plain `useFixtureInput("label", "Click me")`, deep-linked, frame isolation,
    React 19, Chromium — and in a production build too. Everything downstream
    (Reset, drop-on-fixture-change, both `?state=` link tests) is blocked on it.
-2. **Inline isolation never receives a selection.** `data-uaight-inline` is
+2. **Inline isolation never receives a selection.** `data-uight-inline` is
    present, the preview entry runs, the toolbar says `inline` — and the renderer
    shows "No fixture selected." for the initial deep link, a tree click and a
    later `pushState` alike. Reproduced with and without a `previewEntry`, so it
@@ -1918,7 +1918,7 @@ Each is a `fixme` naming the defect, never a weakened assertion.
    "rather than rendering an empty frame" half is met — an alert appears. The
    naming half is not: under a real nonce policy with the nonce withheld,
    Chromium produces "The renderer entry could not be loaded from
-   /@uaight/renderer." or the 10 s handshake timeout, never `script-src`. Both
+   /@uight/renderer." or the 10 s handshake timeout, never `script-src`. Both
    are the generic paths, so the `securitypolicyviolation` listener is not
    firing or is losing the race — and naming the directive is the only reason
    that listener exists.
@@ -1937,7 +1937,7 @@ work at all — they were in files untouched since the initial upload.
    made it look like a text-specific transport fault. They are live now, and the
    `draft` still owns the keystroke, which is what "typing must never fight the
    renderer" actually required. Second, the `?state=` parameter of the fixture
-   being _left_ was seeded onto the fixture being _arrived at_: `UaightUI`'s seed
+   being _left_ was seeded onto the fixture being _arrived at_: `UightUI`'s seed
    effect ran on the commit where `targetKey` changed but the URL had not yet
    been rewritten, so §7.3's "overlays are dropped on fixture change" was
    observably false. A token equal to our own last write is no longer seeded, and
@@ -1972,7 +1972,7 @@ work at all — they were in files untouched since the initial upload.
    half now has an answer for add, delete and rename.**
 5. **The fixture edit reloading the host.** The model in this file was wrong
    rather than unimplemented. A fixture module is reached through the
-   `import.meta.glob` in `virtual:uaight/runtime`, which _both_ realms import and
+   `import.meta.glob` in `virtual:uight/runtime`, which _both_ realms import and
    which accepted nothing, and §3.1 allows a fixture file whose exports are
    elements — a module `plugin-react` has no component to build a Fast Refresh
    boundary out of. So the update propagated to the host entry and Vite took the
@@ -2025,7 +2025,7 @@ and selecting a fixture with the keyboard alone; focus staying inside the
 explorer across a fixture change; screen-reader labels on every landmark and
 control; a call site's props driving the panel; a malformed `?state=` landing on
 the fixture rather than an error; the production preview booting with no Vite
-client and no `/@uaight/renderer` in the frame; the renderer entry resolving
+client and no `/@uight/renderer` in the frame; the renderer entry resolving
 under `/explorer/` **and** under a relative-base build served from a prefix
 chosen after the build; routing never touching the pathname under a non-root
 base; CSP nonces reaching the frame's meta, script and style; the production
@@ -2038,9 +2038,9 @@ Browsers blank the content attribute after parsing as a CSP exfiltration
 defence. A test asserting on the attribute fails against a correct
 implementation, which is worse than not testing it.
 
-**A linked `uaight` needs `resolve.dedupe: ["react", "react-dom"]`.** Vite
+**A linked `uight` needs `resolve.dedupe: ["react", "react-dom"]`.** Vite
 realpaths a linked package, so the explorer chunk resolved React from
-`packages/uaight/node_modules` and the app resolved its own. The dev optimizer
+`packages/uight/node_modules` and the app resolved its own. The dev optimizer
 hid it; the _build_ shipped two Reacts and the explorer died on
 `Cannot read properties of null (reading 'useContext')`. Any consumer linking
 the package locally hits this.
@@ -2071,7 +2071,7 @@ document-and-script counts asserted in `bootstrap.spec.ts`.
 
 ### Two ways to the same data — kept, and why (§11.3, §11.4)
 
-`UaightChromeApiV1` carries the palette catalogue and the inventory list, and
+`UightChromeApiV1` carries the palette catalogue and the inventory list, and
 `CommandPaletteProps` / `InventoryListProps` carry the same data as props. At
 the v1.2 freeze that duplication becomes permanent, so it is recorded as a
 decision rather than left to look like an oversight.
@@ -2079,7 +2079,7 @@ decision rather than left to look like an oversight.
 **Kept.** Removing the props would break the thing ejection is for. §11.3's
 promise is that you copy the file out, hand it what the explorer handed it, and
 it works — including in a test, a docs page, or any tree with no explorer above
-it, where the context is `null` and `useUaightChrome()` throws by design. A
+it, where the context is `null` and `useUightChrome()` throws by design. A
 props-less chrome component is not ejectable; it is a component that only runs
 inside us.
 
@@ -2108,8 +2108,8 @@ sidebar in every new tab. So the record is split by lifetime:
   the MRU that follows from it.
 - `localStorage` — `sidebarWidth`, `panelWidth`, `inventoryOpen`. Preferences.
 
-Same `<route>:<mountId>` namespacing on both halves, under a `uaight:prefs:`
-prefix instead of `uaight:session:`, so the two records can never be confused
+Same `<route>:<mountId>` namespacing on both halves, under a `uight:prefs:`
+prefix instead of `uight:session:`, so the two records can never be confused
 and two mounts stay independent in both stores. Q14 is untouched: overlay values
 are still not persisted anywhere. `writeSession` writes only the half a patch
 touches, so a pane drag no longer rewrites the navigation record. Both halves

@@ -11,7 +11,7 @@
  *
  *   1. The stylesheet check comes **before** the build, or it compares the
  *      build against itself and can never fail.
- *   2. The build comes **before** the type check, because `uaight/client`
+ *   2. The build comes **before** the type check, because `uight/client`
  *      resolves `RuntimeConfig` through the package's own `dist`; checking
  *      against a stale one passes when it should not.
  *   3. Lint and format are cheap and independent, so they run after the two
@@ -27,7 +27,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PKG = path.join(ROOT, "packages/uaight");
+const PKG = path.join(ROOT, "packages/uight");
 
 interface Step {
 	title: string;
