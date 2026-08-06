@@ -11,4 +11,4 @@
  * and the release workflow refuses one, because `latest` has to mean the
  * newest usable release.
  */
-export const UIGHT_VERSION = "0.0.0";
+export const UIGHT_VERSION = "0.0.1";
