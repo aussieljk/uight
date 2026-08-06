@@ -3,8 +3,9 @@
  *
  *   bun run verify                  # every gate CI runs, and nothing else
  *   bun run release                 # verify, then publish
- *   bun run release --bump          # move the canary counter first
- *   bun run release --tag canary    # publish under a different dist-tag
+ *   bun run release --bump          # 0.0.1 → 0.0.2 first
+ *   bun run release --bump minor    # 0.1.4 → 0.2.0 first
+ *   bun run release --tag next      # publish under a different dist-tag
  *
  * Three things this exists to get right, all of which are easy to get wrong by
  * hand and were got wrong at least once while writing it:
@@ -13,9 +14,10 @@
  *     declares the `virtual:uight/*` modules and resolves `RuntimeConfig`
  *     through the package's own `dist`, so type-checking against a stale dist
  *     checks last release's contract and passes when it should not.
- *  2. **The tag is not optional.** npm refuses to publish a prerelease version
- *     without an explicit `--tag`, so `0.0.1-canary.N` cannot be published by
- *     accident — but it also means a plain `npm publish` fails outright.
+ *  2. **`latest` is the default, and it means it.** Every release goes out as a
+ *     real `X.Y.Z` under `latest`, so `npm i @aussieljk/uight` resolves to the
+ *     newest one. `--tag` exists for the day something needs to ship beside it,
+ *     not as a way to park a prerelease where nobody installs it.
  *  3. **Auth fails last, otherwise.** `npm whoami` costs one request; running
  *     it first turns a four-minute verify-then-fail into an immediate answer.
  *     Except under OIDC, where there is nobody to be: see `oidc` below.
@@ -31,13 +33,10 @@ const PKG = path.join(ROOT, "packages/uight");
 const argv = process.argv.slice(2);
 const dryRun = argv.includes("--dry-run");
 const bump = argv.includes("--bump");
+/** `patch` unless the next argument names a level. `version.ts` validates it. */
+const bumpLevel = bump ? (argv[argv.indexOf("--bump") + 1] ?? "") : "";
 
-/**
- * Default `latest`, so `npm i @aussieljk/uight` resolves. A prerelease published under
- * any other tag leaves the package with no `latest` at all, and a plain
- * `npm i @aussieljk/uight` then fails with "No matching version found" — which is the
- * right shape once a stable release exists to protect, and the wrong one now.
- */
+/** Default `latest`: the newest release is what a plain install should get. */
 const tagIndex = argv.indexOf("--tag");
 const tag = tagIndex === -1 ? "latest" : (argv[tagIndex + 1] ?? "latest");
 
@@ -100,9 +99,13 @@ if (!who && !dryRun && !oidc) {
 
 if (bump) {
 	run({
-		title: "Bump the canary counter",
+		title: `Bump the version${bumpLevel && !bumpLevel.startsWith("--") ? ` (${bumpLevel})` : ""}`,
 		command: "bun",
-		args: ["run", "version:bump"],
+		args: [
+			"run",
+			"version:bump",
+			...(bumpLevel.startsWith("--") ? [] : [bumpLevel]),
+		].filter(Boolean),
 		cwd: PKG,
 	});
 }
@@ -175,6 +178,6 @@ if (dryRun) {
 	process.stdout.write(
 		`\n\x1b[32m✓ published uight@${version}\x1b[0m under "${tag}"\n\n` +
 			`  npm i -D @aussieljk/uight${tag === "latest" ? "" : `@${tag}`}\n` +
-			`  Next canary: bun run release --bump\n`,
+			`  Next release: bun run release --bump\n`,
 	);
 }

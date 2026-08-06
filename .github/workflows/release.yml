@@ -1,4 +1,4 @@
-# Publish the next canary to npm.
+# Publish a release to npm, under `latest`.
 #
 # Authentication is OIDC trusted publishing, not a token. npm mints a
 # short-lived credential for this exact repository and workflow filename, so
@@ -22,6 +22,11 @@ name: Release
 on:
  workflow_dispatch:
   inputs:
+   bump:
+    description: "Which part of the version to move"
+    type: choice
+    options: [patch, minor, major]
+    default: patch
    dry_run:
     description: "Run every gate and pack the tarball, but publish nothing"
     type: boolean
@@ -74,43 +79,38 @@ jobs:
    - name: Install
      run: bun install --frozen-lockfile
 
-   # `--bump` moves 0.0.1-canary.N to N+1 and refuses outright to do anything
-   # else: `packages/uight/scripts/version.ts` throws on a version that is not
-   # in the canary series, so leaving it takes a deliberate `--set` by hand.
-   # It writes both files that carry the version, which §16.2 compares at
-   # runtime and the first release gate re-checks.
-   - name: Bump the canary counter
-     run: bun run version:bump
+   # Writes both files that carry the version, which §16.2 compares at runtime
+   # and the first release gate re-checks.
+   - name: Bump the version
+     run: bun run version:bump ${{ inputs.bump }}
      working-directory: packages/uight
 
    - name: Read the version
      id: version
      run: echo "version=$(node -p "require('./packages/uight/package.json').version")" >> "$GITHUB_OUTPUT"
 
-   # Belt and braces. The bump script cannot produce a non-canary version, so
-   # this can only fire if someone has hand-edited package.json — which is
-   # exactly the case worth catching before it reaches npm as a `latest`.
-   - name: Refuse anything that is not 0.0.1-canary.N
+   # `latest` has to mean the newest usable release. A prerelease published
+   # under it is what left `npm i @aussieljk/uight` resolving to a canary long
+   # after the canaries stopped being the newest thing, so a suffixed version
+   # does not get out of here.
+   - name: Refuse a prerelease
      run: |
       version="${{ steps.version.outputs.version }}"
-      if [[ ! "$version" =~ ^0\.0\.1-canary\.[0-9]+$ ]]; then
-        echo "::error::$version is not in the 0.0.1-canary.N series. Releases from this workflow are canaries only."
+      if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "::error::$version is not a plain X.Y.Z. Releases go to the latest tag and must not carry a prerelease suffix."
         exit 1
       fi
       echo "Releasing $version"
 
    # Every gate CI runs, in the same order, and then the publish itself —
    # `scripts/release.ts` is the single description of what a release is, so
-   # this workflow and a release from a laptop cannot drift apart.
+   # this workflow and a release from a laptop cannot drift apart. It defaults
+   # to the `latest` tag, which is the whole point.
    #
-   # `--tag canary` is not optional: npm refuses a prerelease without an
-   # explicit tag, and publishing one as `latest` would point every plain
-   # `npm i @aussieljk/uight` at a canary.
-   #
-   # Provenance is automatic here — a public repository publishing a public
-   # package over OIDC gets an attestation without asking for one.
+   # Provenance is automatic: a public repository publishing a public package
+   # over OIDC gets a signed attestation without asking for one.
    - name: Release
-     run: bun run release --tag canary ${{ inputs.dry_run && '--dry-run' || '' }}
+     run: bun run release ${{ inputs.dry_run && '--dry-run' || '' }}
 
    # After the publish, deliberately. A failed release must not leave master
    # claiming a version that was never released; the opposite order would.
@@ -138,10 +138,10 @@ jobs:
         if [[ "${{ inputs.dry_run }}" == "true" ]]; then
           echo "Dry run — every gate passed and nothing was published."
         else
-          echo 'Published to npm under the `canary` tag.'
+          echo 'Published to npm under the `latest` tag.'
           echo
           echo '```'
-          echo 'bun add -D @aussieljk/uight@canary'
+          echo 'bun add -D @aussieljk/uight'
           echo '```'
         fi
       } >> "$GITHUB_STEP_SUMMARY"

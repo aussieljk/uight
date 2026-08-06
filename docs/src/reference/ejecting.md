@@ -57,5 +57,5 @@ const chrome = useUightChrome(); // UightChromeApiV1
 ```
 
 That facade — not the component props, not the internal modules — is what is committed to.
-It is still settling during the canary; see the roadmap's v1.2 milestone for what has to
+It is still settling while the surface does; see the roadmap's v1.2 milestone for what has to
 land before it freezes.

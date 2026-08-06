@@ -44,7 +44,7 @@ const DOCUMENTS: Copied[] = [
 		from: "ROADMAP.md",
 		to: "src/reference/roadmap.md",
 		title: "Roadmap",
-		note: "What is left, and what each milestone after this canary holds.",
+		note: "What is left, and what each milestone after this release holds.",
 	},
 	{
 		from: "CHANGELOG.md",

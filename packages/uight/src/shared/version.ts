@@ -6,7 +6,9 @@
  * a version-skew error at §16.2, so a drifted constant reaches users as
  * "one of them is a stale build artefact".
  *
- * Release format: `0.0.1-canary.N`. Everything published while the surface is
- * still moving is a canary, and the counter is the only part that changes.
+ * Release format: plain `X.Y.Z`, published under the `latest` tag. There is no
+ * prerelease series — `scripts/version.ts` will not produce a suffixed version
+ * and the release workflow refuses one, because `latest` has to mean the
+ * newest usable release.
  */
-export const UIGHT_VERSION = "0.0.1-canary.2";
+export const UIGHT_VERSION = "0.0.0";

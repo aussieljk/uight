@@ -20,7 +20,8 @@ fixtures when you want to name states; you never have to.
 That is the whole onboarding. No second process, no second port, no `uight.config.json`,
 no HTML file in your repository, and no third step.
 
-Published as `0.0.1-canary.N` while the surface settles.
+Published as `0.0.x` while the surface settles. Every release goes to the `latest`
+tag, so a plain install gets the newest one.
 
 ---
 
@@ -32,7 +33,7 @@ Published as `0.0.1-canary.N` while the surface settles.
 | `ARCHITECTURE.md`     | The integration contract: which module owns which symbol             |
 | `NOTES.md`            | Findings from implementation, including answers to SPEC.md's Q1–Q14  |
 | `CHANGELOG.md`        | What shipped in each release, with divergences and known limitations |
-| `ROADMAP.md`          | What is left, and what each milestone after this canary holds        |
+| `ROADMAP.md`          | What is left, and what each milestone after this release holds       |
 | `packages/uight`      | The published package                                                |
 | `examples/frosted-ui` | Demo: the explorer showing Whop's frosted-ui design system           |
 | `docs`                | uight.dev — a uight instance, and the registry it hosts              |
@@ -81,11 +82,12 @@ bun run bench      # SPEC §20.3's budgets; fails on a breach
 ```bash
 bun run verify              # every gate, ending in a publish dry run. What CI runs
 bun run release             # verify, then publish
-bun run release --bump      # move the canary counter first
+bun run release --bump      # 0.0.1 → 0.0.2 first (also: --bump minor, --bump major)
 bun run release --tag next  # publish under a different dist-tag
 ```
 
-Releases are `0.0.1-canary.N`. `verify` and `release` run the same gates in the same
+Releases are plain `X.Y.Z` under the `latest` tag — there is no prerelease series, and
+the release path refuses a suffixed version. `verify` and `release` run the same gates in the same
 order, so CI and the release path cannot check different things. `bun run check` is the
 same gates minus the release-only ones (version lockstep, the registry, the publish dry
 run), for answering "is my change alright" without asking npm about a publish nobody
