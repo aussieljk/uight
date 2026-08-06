@@ -1,10 +1,27 @@
 # Publish a release to npm, under `latest`.
 #
-# Authentication is OIDC trusted publishing, not a token. npm mints a
-# short-lived credential for this exact repository and workflow filename, so
-# there is no `NPM_TOKEN` secret to leak or rotate — which matters now that
-# npm's classic tokens are revoked, granular write tokens expire after 90 days,
-# and bypass-2FA tokens lose the ability to publish at all in January 2027.
+# ── Publishing cannot happen by accident, and that is the point ──────────
+#
+# A release to npm is irreversible after 72 hours and burns its version number
+# forever. So this workflow will NOT publish unless BOTH of these are true:
+#
+#   1. `confirm` is typed as exactly PUBLISH. Anything else — including the
+#      default, which is empty — runs the gates and a `npm publish --dry-run`
+#      and stops there. Running this workflow with no thought publishes nothing.
+#   2. A human approves the `release` environment in the GitHub UI. That gate
+#      is a repository setting, not a line in this file, so editing this file
+#      cannot remove it.
+#
+# It was once possible to publish by running this with one boolean flipped.
+# 0.0.1 went out that way, unasked. Two independent gates is the answer.
+#
+# ── Authentication ───────────────────────────────────────────────────────
+#
+# OIDC trusted publishing, not a token. npm mints a short-lived credential for
+# this exact repository and workflow filename, so there is no `NPM_TOKEN`
+# secret to leak or rotate — which matters now that npm's classic tokens are
+# revoked, granular write tokens expire after 90 days, and bypass-2FA tokens
+# lose the ability to publish at all in January 2027.
 #
 # One-time setup on npmjs.com, under the package's Settings → Trusted
 # publisher:
@@ -27,10 +44,10 @@ on:
     type: choice
     options: [patch, minor, major]
     default: patch
-   dry_run:
-    description: "Run every gate and pack the tarball, but publish nothing"
-    type: boolean
-    default: false
+   confirm:
+    description: "Type PUBLISH to actually publish. Empty = gates and a dry run only."
+    type: string
+    default: ""
 
 # Never two releases at once, and never cancel one: a cancelled job can be one
 # that has published to npm but not yet pushed the version commit.
@@ -39,14 +56,53 @@ concurrency:
  cancel-in-progress: false
 
 permissions:
- # Mint the OIDC token npm trades for a publish credential.
- id-token: write
- # Push the bumped version and its tag back to master.
- contents: write
+ contents: read
 
 jobs:
- release:
+ # Everything a release does except the publish itself. Always runs, needs no
+ # approval and no credentials, and ends in `npm publish --dry-run`.
+ verify:
   runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+   - uses: actions/setup-node@v4
+     with:
+      node-version: "22"
+   - name: Install
+     run: bun install --frozen-lockfile
+   - name: Every gate, then pack
+     run: bun run release --dry-run
+
+   - name: Say what would happen
+     run: |
+      {
+        if [[ "${{ inputs.confirm }}" == "PUBLISH" ]]; then
+          echo "### Gates passed — waiting for approval"
+          echo
+          echo 'The `publish` job is held until someone approves the `release` environment.'
+        else
+          echo "### Dry run only — nothing will be published"
+          echo
+          echo 'Every gate passed. To publish, run this workflow again with `confirm` set to `PUBLISH`.'
+        fi
+      } >> "$GITHUB_STEP_SUMMARY"
+
+ publish:
+  needs: verify
+  # Gate one: the word, typed deliberately.
+  if: ${{ inputs.confirm == 'PUBLISH' }}
+  runs-on: ubuntu-latest
+  # Gate two: a human, in the GitHub UI. Configured on the repository as a
+  # required reviewer, so it cannot be removed by editing this workflow.
+  environment: release
+  permissions:
+   # Mint the OIDC token npm trades for a publish credential.
+   id-token: write
+   # Push the bumped version and its tag back to master.
+   contents: write
 
   steps:
    - uses: actions/checkout@v4
@@ -102,6 +158,17 @@ jobs:
       fi
       echo "Releasing $version"
 
+   # A version that npm already knows is a version this run must not touch.
+   # `npm publish` would fail on it anyway; failing here says why, before the
+   # four minutes of gates rather than after them.
+   - name: Refuse a version that already exists
+     run: |
+      version="${{ steps.version.outputs.version }}"
+      if npm view "@aussieljk/uight@$version" version >/dev/null 2>&1; then
+        echo "::error::@aussieljk/uight@$version is already published. Pick a different bump."
+        exit 1
+      fi
+
    # Every gate CI runs, in the same order, and then the publish itself —
    # `scripts/release.ts` is the single description of what a release is, so
    # this workflow and a release from a laptop cannot drift apart. It defaults
@@ -110,12 +177,11 @@ jobs:
    # Provenance is automatic: a public repository publishing a public package
    # over OIDC gets a signed attestation without asking for one.
    - name: Release
-     run: bun run release ${{ inputs.dry_run && '--dry-run' || '' }}
+     run: bun run release
 
    # After the publish, deliberately. A failed release must not leave master
    # claiming a version that was never released; the opposite order would.
    - name: Push the version commit
-     if: ${{ !inputs.dry_run }}
      env:
       VERSION: ${{ steps.version.outputs.version }}
      run: |
@@ -135,13 +201,9 @@ jobs:
       {
         echo "### uight ${{ steps.version.outputs.version }}"
         echo
-        if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-          echo "Dry run — every gate passed and nothing was published."
-        else
-          echo 'Published to npm under the `latest` tag.'
-          echo
-          echo '```'
-          echo 'bun add -D @aussieljk/uight'
-          echo '```'
-        fi
+        echo 'Published to npm under the `latest` tag.'
+        echo
+        echo '```'
+        echo 'bun add -D @aussieljk/uight'
+        echo '```'
       } >> "$GITHUB_STEP_SUMMARY"
