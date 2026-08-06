@@ -9,4 +9,4 @@
  * Release format: `0.0.1-canary.N`. Everything published while the surface is
  * still moving is a canary, and the counter is the only part that changes.
  */
-export const UIGHT_VERSION = "0.0.1-canary.1";
+export const UIGHT_VERSION = "0.0.1-canary.2";
