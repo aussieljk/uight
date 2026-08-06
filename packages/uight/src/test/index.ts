@@ -1,5 +1,5 @@
 /**
- * `uight/test` — fixtures as test fixtures.
+ * `@aussieljk/uight/test` — fixtures as test fixtures.
  *
  * The standing objection to any component explorer is that writing fixtures is
  * work that only ever powers a UI. It does not have to be: a fixture is already

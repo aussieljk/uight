@@ -39,15 +39,15 @@ Published as `0.0.1-canary.N` while the surface settles.
 
 ## Package entries (§16.1)
 
-| Entry           | Contents                                            | Environment |
-| --------------- | --------------------------------------------------- | ----------- |
-| `uight`         | `<Uight />`, fixture hooks, `defineCodec`, types    | Browser     |
-| `uight/vite`    | The plugin, config resolution, index builder        | Node        |
-| `uight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
-| `uight/chrome`  | `useUightChrome`, chrome component types            | Browser     |
-| `uight/test`    | Fixtures as test fixtures, for Vitest browser mode  | Browser     |
-| `uight/mcp`     | MCP server over the dev server's read-only API      | Node        |
-| `uight/client`  | Virtual module declarations                         | Types only  |
+| Entry                      | Contents                                            | Environment |
+| -------------------------- | --------------------------------------------------- | ----------- |
+| `uight`                    | `<Uight />`, fixture hooks, `defineCodec`, types    | Browser     |
+| `@aussieljk/uight/vite`    | The plugin, config resolution, index builder        | Node        |
+| `@aussieljk/uight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
+| `@aussieljk/uight/chrome`  | `useUightChrome`, chrome component types            | Browser     |
+| `@aussieljk/uight/test`    | Fixtures as test fixtures, for Vitest browser mode  | Browser     |
+| `@aussieljk/uight/mcp`     | MCP server over the dev server's read-only API      | Node        |
+| `@aussieljk/uight/client`  | Virtual module declarations                         | Types only  |
 
 ## Command line
 
@@ -71,7 +71,7 @@ bun run build      # compile scoped CSS, then bundle with tsdown
 bun run demo       # the frosted-ui example on http://localhost:5173/uight
 bun run docs       # the documentation site
 bun run docs:build # …built, with SPEC/ARCHITECTURE/ROADMAP/CHANGELOG and /r synced in
-bun run typecheck  # builds first: uight/client resolves types through dist
+bun run typecheck  # builds first: @aussieljk/uight/client resolves types through dist
 bun run check      # the whole local gate, in the order that makes it mean something
 bun run bench      # SPEC §20.3's budgets; fails on a breach
 ```
@@ -92,7 +92,7 @@ run), for answering "is my change alright" without asking npm about a publish no
 intends. Three ordering rules are
 enforced there rather than remembered:
 
-- the build precedes the type check, because `uight/client` resolves `RuntimeConfig`
+- the build precedes the type check, because `@aussieljk/uight/client` resolves `RuntimeConfig`
   through the package's own `dist` — checking against a stale one passes when it should not;
 - the stylesheet check precedes the build, or it compares the build against itself;
 - npm refuses to publish a prerelease without an explicit `--tag`, so the script always

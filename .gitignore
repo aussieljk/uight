@@ -24,3 +24,4 @@ docs/reference/changelog.md
 docs/public/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+.vercel

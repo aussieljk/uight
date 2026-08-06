@@ -11,7 +11,7 @@
  *
  *   1. The stylesheet check comes **before** the build, or it compares the
  *      build against itself and can never fail.
- *   2. The build comes **before** the type check, because `uight/client`
+ *   2. The build comes **before** the type check, because `@aussieljk/uight/client`
  *      resolves `RuntimeConfig` through the package's own `dist`; checking
  *      against a stale one passes when it should not.
  *   3. Lint and format are cheap and independent, so they run after the two

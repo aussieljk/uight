@@ -7,9 +7,9 @@
  * the code read them; this copies them in with a banner saying so.
  *
  * The registry copy is the other half of ROADMAP item 3: the emitted items
- * point at `https://uight.dev/r/…`, which has never been hosted. Serving them
- * from the docs site's `public/` is what makes that URL real, and puts the
- * hosting on the same deploy as the page that documents it.
+ * point at `https://uight.dev/r/…`. Serving them from the docs site's `public/`
+ * is what makes that URL real, and puts the hosting on the same deploy as the
+ * page that documents it.
  */
 
 import fsp from "node:fs/promises";

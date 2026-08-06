@@ -170,7 +170,7 @@ function inspect(
 /**
  * Read every CSF module the config would pick up and report what §13 declines.
  *
- * Exported from `uight/vite` so it can run in CI: a corpus whose unsupported
+ * Exported from `@aussieljk/uight/vite` so it can run in CI: a corpus whose unsupported
  * count grows is a corpus drifting away from being portable.
  */
 export async function storybookReport(

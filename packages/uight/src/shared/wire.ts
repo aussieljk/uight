@@ -1,7 +1,7 @@
 /**
  * Wire helpers shared by both realms. SPEC.md §7.3, §7.4.
  *
- * The serializer itself lives in the renderer realm (uight/runtime); what is
+ * The serializer itself lives in the renderer realm (@aussieljk/uight/runtime); what is
  * here is the part the UI realm also needs: path safety, patch application and
  * a plain-JS view of a Wire value for the control editors.
  */

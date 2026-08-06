@@ -15,7 +15,7 @@ tag is imminent. A canary can contain any of them.
 Everything in §21.2's v1.0 row is implemented and verified against a real corpus, plus
 three rows that were scheduled later: the CSF subset (v1.1), the ejection registry (v1.2),
 and a Storybook drop-in path §13 had ruled out entirely. On top of that,
-`0.0.1-canary.0` adds call-site harvesting, `uight/test`, `uight/mcp`, the static
+`0.0.1-canary.0` adds call-site harvesting, `@aussieljk/uight/test`, `@aussieljk/uight/mcp`, the static
 build, shareable state and the command palette.
 
 **There are no automated tests.** The unit suite, the golden-corpus snapshot and the

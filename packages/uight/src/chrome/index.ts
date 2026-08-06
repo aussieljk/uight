@@ -1,5 +1,5 @@
 /**
- * `uight/chrome` — the frozen surface. SPEC.md §11.4, §19.3.
+ * `@aussieljk/uight/chrome` — the frozen surface. SPEC.md §11.4, §19.3.
  *
  * Component props stay free to change; THIS is the commitment. Designed in
  * v1, frozen at v1.2, which is why nothing here describes how the explorer
@@ -33,9 +33,9 @@ export type { ApplyResult } from "../shared/wire.ts";
 /**
  * The built-in codec editors. §7.7
  *
- * Deliberately absent from `uight/runtime` (Q6): codec editors render in the
+ * Deliberately absent from `@aussieljk/uight/runtime` (Q6): codec editors render in the
  * UI realm, and re-exporting them from the renderer entry would pull every
- * editor component into the renderer chunk. `uight/chrome` IS the UI realm, so
+ * editor component into the renderer chunk. `@aussieljk/uight/chrome` IS the UI realm, so
  * this is where an ejected control panel reaches for them.
  */
 export { builtinCodecEditors, withBuiltinEditors } from "../runtime/codec-editors.tsx";

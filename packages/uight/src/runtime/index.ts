@@ -1,5 +1,5 @@
 /**
- * `uight/runtime` — the renderer. ARCHITECTURE.md §2.
+ * `@aussieljk/uight/runtime` — the renderer. ARCHITECTURE.md §2.
  *
  * Browser entry. Everything the frame realm needs and nothing the chrome owns.
  *

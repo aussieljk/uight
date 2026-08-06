@@ -16,7 +16,7 @@ export default defineConfig({
 	// The CSS build writes dist/styles.css before tsdown runs, so scope the
 	// clean to what tsdown itself owns rather than emptying the directory.
 	clean: ["dist/*.js", "dist/*.js.map", "dist/*.d.ts"],
-	// `uight/client` is hand-written ambient declarations, not compiler output.
+	// `@aussieljk/uight/client` is hand-written ambient declarations, not compiler output.
 	// `to` names the destination DIRECTORY: spelling the filename here produced
 	// `dist/client.d.ts/client.d.ts`, so the `./client` export pointed at a
 	// directory and `"types": ["@aussieljk/uight/client"]` could not resolve at all.

@@ -1,5 +1,5 @@
 /**
- * Virtual module declarations. `uight/client`.
+ * Virtual module declarations. `@aussieljk/uight/client`.
  *
  * Add to your tsconfig:  "types": ["@aussieljk/uight/client"]
  */

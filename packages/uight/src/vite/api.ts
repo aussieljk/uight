@@ -143,7 +143,7 @@ function healthPayload(cfg: ResolvedUightConfig, index: FixtureIndex): unknown {
 		ok: index.problems.every((p) => p.kind !== "collision"),
 		version: UIGHT_VERSION,
 		// `ResolvedConfig` does not carry the Vite version, so it comes from the
-		// package itself. `uight/vite` is only ever loaded by a Vite config,
+		// package itself. `@aussieljk/uight/vite` is only ever loaded by a Vite config,
 		// so importing Vite here costs nothing a consumer has not already paid.
 		viteVersion,
 		protocolVersion: PROTOCOL_VERSION,

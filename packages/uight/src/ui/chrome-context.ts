@@ -2,7 +2,7 @@
  * The frozen chrome facade. SPEC.md §19.3, §11.4.
  *
  * This module is deliberately tiny and imports nothing but React and the
- * shared types: `uight/chrome` re-exports it, and a consumer importing the
+ * shared types: `@aussieljk/uight/chrome` re-exports it, and a consumer importing the
  * facade must not pull the explorer in behind it.
  *
  * The surface freezes at v1.2 — implementation detail must not leak into it.

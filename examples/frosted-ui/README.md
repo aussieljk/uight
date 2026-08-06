@@ -50,7 +50,7 @@ Both come from the same Vite server on the same port. There is no second
 process and no second config file.
 
 > **Note.** This example consumes uight through the workspace symlink exactly
-> as a published consumer would, so it resolves `uight` and `uight/vite` from
+> as a published consumer would, so it resolves `uight` and `@aussieljk/uight/vite` from
 > `dist/`. Run `bun run build` at the repository root first on a fresh clone.
 
 ## What it demonstrates

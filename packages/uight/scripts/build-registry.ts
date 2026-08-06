@@ -41,6 +41,8 @@ import { UIGHT_VERSION } from "../src/shared/version.ts";
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const PROJECT = "uight";
+/** The npm name, which is scoped — `uight` alone is not publishable. */
+const PACKAGE = "@aussieljk/uight";
 const LICENCE = "MIT";
 const HOMEPAGE = "https://uight.dev";
 const NAMESPACE = "@uight";
@@ -190,12 +192,12 @@ export const EJECTABLE: readonly Ejectable[] = [
  *
  *   1. External packages (`react`). Left alone — the consumer already has them.
  *   2. Symbols that uight publishes. Rewritten to the published entry point.
- *      `uight/chrome` is the one used throughout: §11.4 makes it the frozen
+ *      `@aussieljk/uight/chrome` is the one used throughout: §11.4 makes it the frozen
  *      surface, so an ejected component that reaches for nothing else is an
  *      ejected component that cannot be broken by a minor. Where a symbol was
  *      not yet exported from there it was ADDED to `src/chrome/index.ts` — a
  *      published-surface addition, which is the honest fix, rather than
- *      reaching into `uight/runtime` for something the renderer does not own.
+ *      reaching into `@aussieljk/uight/runtime` for something the renderer does not own.
  *   3. Repository-internal helpers with no published home (`cx.ts`, the
  *      `wire-view` formatters, …). These are emitted as COMPANION FILES in the
  *      same item, so the relative import still resolves after install. They are
@@ -212,15 +214,15 @@ const PUBLISHED_ENTRY: Readonly<Record<string, string>> = {
 	// frozen surface. See `src/chrome/index.ts`.
 	"../../shared/types.ts": "@aussieljk/uight/chrome",
 	// `applyPatches` / `pathKey` — overlay arithmetic the control panel does in
-	// the UI realm. Added to `uight/chrome` for this.
+	// the UI realm. Added to `@aussieljk/uight/chrome` for this.
 	"../../shared/wire.ts": "@aussieljk/uight/chrome",
 	// `fixtureIdsEqual` / `serializeFixtureId` — the tree compares ids. `uight`
 	// exports the serializer but not the comparison; both added to the frozen
 	// surface so an ejected tree needs exactly one import source.
 	"../../shared/fixture-id.ts": "@aussieljk/uight/chrome",
-	// `builtinCodecEditors`. Deliberately NOT on `uight/runtime` (Q6: editors
+	// `builtinCodecEditors`. Deliberately NOT on `@aussieljk/uight/runtime` (Q6: editors
 	// render in the UI realm, §7.7, and re-exporting them there would pull every
-	// editor into the renderer chunk). `uight/chrome` IS the UI realm, so that
+	// editor into the renderer chunk). `@aussieljk/uight/chrome` IS the UI realm, so that
 	// is where it belongs.
 	"../../runtime/codec-editors.tsx": "@aussieljk/uight/chrome",
 	// The facade itself. §11.4.
@@ -418,7 +420,7 @@ export function fileHeader(opts: {
 		"inherits your theme (§10.3); the tokens it names come from",
 		`${TOKENS_PATH}, installed beside it.`,
 		"",
-		"The only uight surface it depends on is `uight/chrome`, which is the",
+		"The only uight surface it depends on is `@aussieljk/uight/chrome`, which is the",
 		"frozen one (§11.4) — the facade hook, the prop and wire types, and the few",
 		"pure helpers it names. Anything it needed that has no published home was",
 		"installed beside it as a plain file. Component props are not frozen and",
@@ -587,7 +589,7 @@ export function buildRegistry(options: BuildRegistryOptions): BuildRegistryResul
 			author: `${PROJECT} (${HOMEPAGE})`,
 			// One published package with subpath exports (§16.1), so this is the
 			// only npm dependency an ejected component can need.
-			dependencies: [PROJECT],
+			dependencies: [PACKAGE],
 			registryDependencies: entry.registryDependencies.map(namespaced),
 			files: [
 				{

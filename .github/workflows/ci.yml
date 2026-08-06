@@ -28,7 +28,7 @@ jobs:
    # cannot drift into checking different things. It runs the gates in the
    # order that makes them meaningful — the stylesheet check before the build
    # rather than after it, and the build before the type check, because
-   # `uight/client` resolves its types through the package's own `dist`.
+   # `@aussieljk/uight/client` resolves its types through the package's own `dist`.
    #
    # It ends in `npm publish --dry-run`, which needs no auth and catches
    # packaging defects (a bad `bin` path, a missing README) that no amount of

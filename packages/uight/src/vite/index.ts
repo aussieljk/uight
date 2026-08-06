@@ -1,5 +1,5 @@
 /**
- * The plugin. `uight/vite`. SPEC.md §4.5, §19.4.
+ * The plugin. `@aussieljk/uight/vite`. SPEC.md §4.5, §19.4.
  *
  * Three v0.6 defects are fixed here, and each one is load-bearing:
  *

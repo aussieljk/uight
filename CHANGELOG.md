@@ -130,9 +130,9 @@ reported 6).
 
 A real `shadcn` CLI run over HTTP resolved and installed the items, and the installed
 files did not typecheck: emitted bodies kept in-repo specifiers (`../../shared/types.ts`,
-`../cx.ts`). Specifiers are now rewritten at emit — published ones to `uight/chrome`,
+`../cx.ts`). Specifiers are now rewritten at emit — published ones to `@aussieljk/uight/chrome`,
 internal helpers shipped as companion files — and an unmapped relative import **fails
-the build** rather than passing through silently. `uight/chrome` gained the surface
+the build** rather than passing through silently. `@aussieljk/uight/chrome` gained the surface
 that required: `fixtureIdsEqual`, `serializeFixtureId`, `applyPatches`, `pathKey`,
 `builtinCodecEditors`, `withBuiltinEditors`, and seven types. **No emitted artifact
 names a host any more** — pinned items use an `@uight-v0-0/` namespace instead of
@@ -180,7 +180,7 @@ plugin is prepended to the `plugins` array the parser found — and a config wit
 `plugins` array, or one that does not parse, is **declined with the line to paste** rather
 than half-edited. `--dry-run` computes every change and writes none; re-running skips what
 is already done. Nothing is installed and no package manager is run: the install command
-is printed. Exported as `migrateFromStorybook()` from `uight/vite` for CI.
+is printed. Exported as `migrateFromStorybook()` from `@aussieljk/uight/vite` for CI.
 
 ### Added — MDX documentation pages (§14)
 
@@ -290,11 +290,11 @@ styles in that file, so declining it rendered a corpus stripped of context.
   layer in the same order.
 - `initialGlobals` reaches `context.globals`.
 - Nothing is badged for a feature that now runs.
-- `uight storybook` (and `storybookReport()` from `uight/vite`) reports, syntax-only,
+- `uight storybook` (and `storybookReport()` from `@aussieljk/uight/vite`) reports, syntax-only,
   which CSF features in a repository would not survive the move — the question a team
   evaluating uight actually asks.
 
-### Added — `uight/mcp`, the explorer as an agent tool
+### Added — `@aussieljk/uight/mcp`, the explorer as an agent tool
 
 A component explorer answers _what exists_, _what states does it have_ and _what does
 this look like_ — the questions an agent editing a component cannot answer from source.
@@ -328,7 +328,7 @@ the right default when the overlay model was new and the wrong one now that it h
 - "Copy link" in the toolbar, with a fallback for the non-secure contexts a LAN dev
   server runs in.
 
-### Added — `uight/test`, fixtures doing double duty
+### Added — `@aussieljk/uight/test`, fixtures doing double duty
 
 The standing objection to any explorer is that fixtures are work that only powers a UI.
 
@@ -346,7 +346,7 @@ how a design system gets adopted across an organisation. Without it §1.3's job 
 at the edge of one machine.
 
 - `uight build` → a deployable site (`dist-uight/` by default), plus `buildStatic()`
-  from `uight/vite`.
+  from `@aussieljk/uight/vite`.
 - Runs the **user's own Vite config**, so the explorer is built by the same resolver,
   aliases and plugins as their app.
 - `UIGHT_STATIC=1` is the one thing that can override `production` from outside the
@@ -434,7 +434,7 @@ its own — and the sweep that caught one of them lived in a scratchpad and was 
 
 Everything below was written before the first publish and ships in `0.0.1-canary.0`.
 
-### Added — discovery and the plugin (`uight/vite`)
+### Added — discovery and the plugin (`@aussieljk/uight/vite`)
 
 - `uight()` Vite plugin. Serves `/uight` from memory in `serve` mode; no HTML file is
   written to disk (§6.1, D16).
@@ -544,7 +544,7 @@ Everything below was written before the first publish and ships in `0.0.1-canary
 - `.uight-root` is deliberately not an ancestor of the fixture, so our reset never reaches
   the component under test.
 - Frozen chrome facade `useUightChrome` / `UightChromeApiV1` exported from
-  `uight/chrome`, which pulls in the context module alone and not the explorer.
+  `@aussieljk/uight/chrome`, which pulls in the context module alone and not the explorer.
 
 ### Added — Storybook CSF subset (§13, D11 — ahead of the §21.2 plan)
 
@@ -576,8 +576,8 @@ Everything below was written before the first publish and ships in `0.0.1-canary
 
 ### Added — packaging, tests and the demo
 
-- One package with subpath exports (D5, §16.1): `uight`, `uight/vite`, `uight/runtime`,
-  `uight/chrome`, `uight/client`, `uight/styles.css`.
+- One package with subpath exports (D5, §16.1): `uight`, `@aussieljk/uight/vite`, `@aussieljk/uight/runtime`,
+  `@aussieljk/uight/chrome`, `@aussieljk/uight/client`, `uight/styles.css`.
 - Peers: React `^18 || ^19`, Vite `^8.1` (optional — the plugin is the only consumer),
   Node `>=20.19`.
 - 269 unit tests across 12 files, covering §20.1's list. All passing.

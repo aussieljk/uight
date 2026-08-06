@@ -431,7 +431,7 @@ export interface ViewportPreset {
  * fixture, does not use our hooks and in frame isolation does not share our
  * realm. A DOM attribute is the one channel every provider can already read,
  * it is observable with `MutationObserver`, and it adds nothing to the frozen
- * facade. `uight/runtime` exports `readUightTheme` / `useUightTheme` so a
+ * facade. `@aussieljk/uight/runtime` exports `readUightTheme` / `useUightTheme` so a
  * preview entry does not have to hand-roll either half.
  *
  * Absent means light: a host that never stamps still renders, and `system` is

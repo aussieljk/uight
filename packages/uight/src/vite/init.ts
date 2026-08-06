@@ -326,7 +326,7 @@ function addDevDependency(
  * when both are present, because a repository mid-migration between the two is
  * a real repository and picking one for it would leave the other unwired.
  *
- * Exported from `uight/vite` so a repository can run it from a script — the
+ * Exported from `@aussieljk/uight/vite` so a repository can run it from a script — the
  * CLI is one caller, not the only one.
  */
 export async function migrateProject(options: MigrateOptions): Promise<MigrationResult> {

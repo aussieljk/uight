@@ -516,7 +516,7 @@ fixture source through Bun's transpiler for analysis.
 ### Demo files not yet verifiable end-to-end
 
 `uight` is not built, so `src/App.tsx`, the fixtures, the codecs module and
-`vite.config.ts` cannot resolve `uight` / `uight/vite` and `bun run dev`
+`vite.config.ts` cannot resolve `uight` / `@aussieljk/uight/vite` and `bun run dev`
 cannot start. They were type-checked against a scratch `.d.ts` reproducing
 ARCHITECTURE §1–§3's signatures exactly, and are clean against it. Once the
 package builds, `bun run --cwd examples/frosted-ui typecheck` should be clean
@@ -947,7 +947,7 @@ a cached virtual module, which §16.2 says is the realistic skew.
   cannot report discovered names to the chrome. Both realms import
   `virtual:uight/runtime`, so the host can do this itself: call
   `fixtureModules[globPath]()` and `normalizeModule(...)` — both exported from
-  `uight/runtime` for exactly this — after first paint, in dev only. Doing it
+  `@aussieljk/uight/runtime` for exactly this — after first paint, in dev only. Doing it
   renderer-side would require a protocol addition.
 - **§6.5 `height="auto"`.** The renderer reports `RESIZE` from a
   `ResizeObserver` on its own `documentElement` (frame mode only), which is
@@ -1154,7 +1154,7 @@ dist/InlineHost-*.js     2.20 kB  │ gzip  1.09 kB   lazy, frame mode never loa
 dist/chrome.js           0.10 kB  │ gzip  0.09 kB   + chrome-context 1.00 kB
 ```
 
-`uight/chrome` importing only `chrome-context` is the property that matters:
+`@aussieljk/uight/chrome` importing only `chrome-context` is the property that matters:
 the frozen facade does not drag the explorer in behind it. `InlineHost` is
 lazy for two reasons — it pulls `RendererApp`, and it evaluates the consumer's
 preview entry, whose CSS imports would otherwise land in the **host** document
@@ -1291,7 +1291,7 @@ fixture, does not use our hooks, and in frame isolation does not share our
 realm. A DOM attribute is the one channel every provider can already read, it is
 observable, and it adds nothing to the frozen facade. `system` is resolved by
 the host before it is stamped; the frame never re-resolves it, so the two realms
-cannot disagree. `uight/runtime` exports `readUightTheme`,
+cannot disagree. `@aussieljk/uight/runtime` exports `readUightTheme`,
 `subscribeUightTheme` and `useUightTheme` so a preview entry does not
 hand-roll a `MutationObserver`.
 
@@ -1801,7 +1801,7 @@ production build has none either, because the inventory pass is development-only
 ### Repository scripts
 
 - **`typecheck` was misleading.** A bare `tsc --noEmit` only means anything
-  after a build, because `uight/client` resolves `RuntimeConfig` through the
+  after a build, because `@aussieljk/uight/client` resolves `RuntimeConfig` through the
   package's own `dist`. The exposed script is now `build && tsc`, and the
   build-less form is `typecheck:only`, which `verify` and `check` call because
   they have already built.

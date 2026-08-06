@@ -9,7 +9,7 @@
  * Three things this exists to get right, all of which are easy to get wrong by
  * hand and were got wrong at least once while writing it:
  *
- *  1. **Order.** `bun run build` MUST precede the type check. `uight/client`
+ *  1. **Order.** `bun run build` MUST precede the type check. `@aussieljk/uight/client`
  *     declares the `virtual:uight/*` modules and resolves `RuntimeConfig`
  *     through the package's own `dist`, so type-checking against a stale dist
  *     checks last release's contract and passes when it should not.

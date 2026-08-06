@@ -1,5 +1,5 @@
 /**
- * `uight/mcp` — the explorer, addressable by a coding agent.
+ * `@aussieljk/uight/mcp` — the explorer, addressable by a coding agent.
  *
  * A component explorer is a perception tool: it answers *what components exist*,
  * *what states do they have*, and *what does this one look like with these

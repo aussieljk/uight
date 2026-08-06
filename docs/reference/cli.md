@@ -4,7 +4,7 @@
 bunx uight <command>
 ```
 
-Everything the CLI does is also callable from `uight/vite` as a function, which is the
+Everything the CLI does is also callable from `@aussieljk/uight/vite` as a function, which is the
 supported path for CI. The CLI exists so trying it costs one command.
 
 ## `uight init`

@@ -426,7 +426,7 @@ export interface CosmosReportOptions {
 /**
  * Read every fixture the project has under either convention and report what
  * the move would rename and what it would decline — before anyone commits to
- * it. Exported from `uight/vite` so it can run in CI.
+ * it. Exported from `@aussieljk/uight/vite` so it can run in CI.
  */
 export async function cosmosReport(options: CosmosReportOptions): Promise<CosmosReport> {
 	const root = path.resolve(options.root);

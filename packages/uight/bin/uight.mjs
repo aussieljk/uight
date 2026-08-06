@@ -9,7 +9,7 @@
  *   uight cosmos [--root .]
  *   uight mcp [--url <url>]
  *
- * A thin argument parser over the Node API in `uight/vite` and `uight/mcp`.
+ * A thin argument parser over the Node API in `@aussieljk/uight/vite` and `@aussieljk/uight/mcp`.
  * Everything it can do is also callable from a script, which is the supported
  * path for CI — this exists so trying it costs one command.
  */

@@ -338,7 +338,7 @@ v0.6 had `virtual:uight/fixtures` export the renderer's own URL while the render
 
 The renderer imports only `runtime`; the host imports `runtime` and `renderer-url`. No cycle.
 
-Declarations ship as `uight/client`.
+Declarations ship as `@aussieljk/uight/client`.
 
 ### 4.4 The index scan
 
@@ -1127,15 +1127,15 @@ Until all three hold, v1.3 ships the Babel resolver behind the same interface, w
 
 v0.6 referenced five package names and defined three, using an undefined one as an ejected component's dependency. Worse, a multi-package install cannot be two steps. **One published package, `uight`, with subpath exports:**
 
-| Entry           | Contents                                            | Environment |
-| --------------- | --------------------------------------------------- | ----------- |
-| `uight`         | `<Uight />`, fixture hooks, `defineCodec`, types    | Browser     |
-| `uight/vite`    | The plugin, config resolution, index builder        | Node        |
-| `uight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
-| `uight/chrome`  | `useUightChrome`, chrome component types            | Browser     |
-| `uight/client`  | Virtual module declarations                         | Types only  |
+| Entry                      | Contents                                            | Environment |
+| -------------------------- | --------------------------------------------------- | ----------- |
+| `uight`                    | `<Uight />`, fixture hooks, `defineCodec`, types    | Browser     |
+| `@aussieljk/uight/vite`    | The plugin, config resolution, index builder        | Node        |
+| `@aussieljk/uight/runtime` | Renderer mount, protocol, serializer, overlay store | Browser     |
+| `@aussieljk/uight/chrome`  | `useUightChrome`, chrome component types            | Browser     |
+| `@aussieljk/uight/client`  | Virtual module declarations                         | Types only  |
 
-`useFixtureInput` is exported from `uight`; the runtime implementation lives in `uight/runtime` and is not imported directly by consumers.
+`useFixtureInput` is exported from `uight`; the runtime implementation lives in `@aussieljk/uight/runtime` and is not imported directly by consumers.
 
 ```json
 {
@@ -1241,7 +1241,7 @@ Tiers: **Stable** (semver-protected) · **Experimental** (may change in a minor)
 | `useSelectFixture`    | Stable       | `() => (id: FixtureId \| string) => void`                                |
 | `useFixtureIsolation` | Experimental | `() => 'frame' \| 'inline'`                                              |
 
-### 19.3 Chrome facade — `uight/chrome`
+### 19.3 Chrome facade — `@aussieljk/uight/chrome`
 
 ```ts
 export function useUightChrome(): UightChromeApiV1;
@@ -1281,7 +1281,7 @@ export interface UightChromeApiV1 {
 }
 ```
 
-### 19.4 Build API — `uight/vite`
+### 19.4 Build API — `@aussieljk/uight/vite`
 
 | Export                      | Tier         | Purpose                                            |
 | --------------------------- | ------------ | -------------------------------------------------- |

@@ -41,7 +41,7 @@ against the signature below and assume it exists.
 
 ---
 
-## 1. `src/vite/index.ts` — the plugin (`uight/vite`)
+## 1. `src/vite/index.ts` — the plugin (`@aussieljk/uight/vite`)
 
 ```ts
 export function uight(options?: UightPluginOptions): Plugin;
@@ -173,7 +173,7 @@ Resolve in `config()`, never mutate `ResolvedConfig` (§4.5). `define: { __UIGHT
 
 ---
 
-## 2. `src/runtime/index.ts` — the renderer (`uight/runtime`)
+## 2. `src/runtime/index.ts` — the renderer (`@aussieljk/uight/runtime`)
 
 ```ts
 export interface MountRendererOptions {
