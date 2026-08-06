@@ -62,6 +62,7 @@ import type { HostTransport } from "../runtime/index.ts";
 import { fixtureHotRegistry, loadFixtureModule } from "../runtime/hot.ts";
 
 import { ChipStrip } from "./ChipStrip.tsx";
+import { useCompactLayout } from "./compact.ts";
 import type { Chip } from "./ChipStrip.tsx";
 import { UightChromeContext } from "./chrome-context.ts";
 import type { UightChromeApiV1 } from "./chrome-context.ts";
@@ -294,6 +295,18 @@ export default function UightUI(props: UightProps): ReactElement {
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const mountId = `uight${useId().replace(/[^\w]/g, "")}`;
 
+	/**
+	 * Narrow enough that the three panes have to become one (`ui/compact.ts`).
+	 * The tree turns into a drawer over the preview, the control panel drops
+	 * below it, and the resizers go away — there is nothing to trade width with.
+	 */
+	const compact = useCompactLayout(rootRef);
+	const [drawerOpen, setDrawerOpen] = useState(false);
+	// Wide again — a drawer left open would be a pane nobody asked to reopen.
+	useEffect(() => {
+		if (!compact) setDrawerOpen(false);
+	}, [compact]);
+
 	const isolation = props.isolation ?? "frame";
 	const chrome = resolveChrome(props.chrome);
 
@@ -501,6 +514,9 @@ export default function UightUI(props: UightProps): ReactElement {
 		(id: FixtureId | null) => {
 			setSelectedComponent(null);
 			setSelectedSite(null);
+			// Compact: the drawer is over the preview, so picking something means
+			// getting out of the way of it.
+			setDrawerOpen(false);
 			// Legal without `selected` (§5.3), so it always fires.
 			onSelectProp?.(id);
 			if (mode === "controlled" || mode === "pinned") return;
@@ -523,6 +539,7 @@ export default function UightUI(props: UightProps): ReactElement {
 		(item: InventoryItem, site: CallSite | null = null) => {
 			setSelectedComponent(item);
 			setSelectedSite(site);
+			setDrawerOpen(false);
 			if (mode === "controlled" || mode === "pinned") return;
 			if (mode === "router" && routerOwned) routerWrite(null, { replace: true });
 			else setLocalSelection(null);
@@ -1448,6 +1465,11 @@ export default function UightUI(props: UightProps): ReactElement {
 			setHelpOpen(false);
 			return;
 		}
+		if (event.key === "Escape" && drawerOpen) {
+			event.preventDefault();
+			setDrawerOpen(false);
+			return;
+		}
 		if (typing) return;
 		// The tree owns arrows while focus is inside it — there they rove and
 		// expand — and it has already called preventDefault on the ones it took.
@@ -1474,7 +1496,12 @@ export default function UightUI(props: UightProps): ReactElement {
 				return;
 			case "/":
 				event.preventDefault();
-				rootRef.current?.querySelector<HTMLInputElement>(`[${SEARCH_ATTR}]`)?.focus();
+				// Compact: the search box lives in the drawer, so open it first. The
+				// input is not in the DOM until that has painted.
+				if (compact) setDrawerOpen(true);
+				requestAnimationFrame(() =>
+					rootRef.current?.querySelector<HTMLInputElement>(`[${SEARCH_ATTR}]`)?.focus(),
+				);
 				return;
 			case "?":
 				event.preventDefault();
@@ -1654,12 +1681,33 @@ export default function UightUI(props: UightProps): ReactElement {
 						...props.style,
 					}}
 				>
-					<div className="flex min-h-0 w-full flex-1">
-						{showTree ? (
+					<div
+						className={cx(
+							"relative flex min-h-0 w-full flex-1",
+							// Compact: the panes stack instead of standing side by side.
+							compact ? "flex-col" : "",
+						)}
+					>
+						{/* The drawer's backdrop. A button rather than a div, so the
+						    tap that dismisses it is also a key press. */}
+						{compact && drawerOpen ? (
+							<button
+								type="button"
+								aria-label="Close the fixture list"
+								onClick={() => setDrawerOpen(false)}
+								className="absolute inset-0 z-30 cursor-default bg-[color-mix(in_srgb,var(--u-bg)_70%,transparent)]"
+							/>
+						) : null}
+						{showTree && (!compact || drawerOpen) ? (
 							<>
 								<aside
-									style={{ width: sidebarWidth }}
-									className="flex min-w-0 shrink-0 flex-col bg-[var(--u-bg-sunken)]"
+									style={compact ? undefined : { width: sidebarWidth }}
+									className={cx(
+										"flex min-w-0 shrink-0 flex-col bg-[var(--u-bg-sunken)]",
+										compact
+											? "absolute inset-y-0 left-0 z-40 w-[min(17rem,85%)] border-r border-[var(--u-line)]"
+											: "",
+									)}
 								>
 									<div className="flex h-9 shrink-0 items-center gap-2 px-3">
 										<span className="text-sm font-medium text-[var(--u-fg)]">uight</span>
@@ -1731,15 +1779,18 @@ export default function UightUI(props: UightProps): ReactElement {
 										) : null}
 									</div>
 								</aside>
-								<PaneResizer
-									pane="left"
-									width={sidebarWidth}
-									min={PANE_MIN_WIDTH}
-									max={PANE_MAX_WIDTH}
-									initial={SIDEBAR_WIDTH}
-									label="Sidebar width"
-									onWidth={resizeSidebar}
-								/>
+								{/* Nothing to trade width with when the drawer floats. */}
+								{compact ? null : (
+									<PaneResizer
+										pane="left"
+										width={sidebarWidth}
+										min={PANE_MIN_WIDTH}
+										max={PANE_MAX_WIDTH}
+										initial={SIDEBAR_WIDTH}
+										label="Sidebar width"
+										onWidth={resizeSidebar}
+									/>
+								)}
 							</>
 						) : null}
 
@@ -1749,6 +1800,21 @@ export default function UightUI(props: UightProps): ReactElement {
 							toolbar={
 								chrome.toolbar ? (
 									<Toolbar>
+										{/* Compact: the only way back to the tree, so it leads the bar. */}
+										{compact && showTree ? (
+											<button
+												type="button"
+												aria-expanded={drawerOpen}
+												onClick={() => setDrawerOpen((open) => !open)}
+												title="Fixtures"
+												className={cx(QUIET_BUTTON, "shrink-0")}
+											>
+												<svg viewBox="0 0 12 12" aria-hidden="true" className="size-3 fill-current">
+													<path d="M1 2.5h10v1H1zM1 5.5h10v1H1zM1 8.5h10v1H1z" />
+												</svg>
+												<span className="sr-only">Fixtures</span>
+											</button>
+										) : null}
 										<span
 											className="min-w-0 truncate text-sm font-medium text-[var(--u-fg)]"
 											title={selection ? selection.path : (selectedComponent?.path ?? undefined)}
@@ -1785,7 +1851,10 @@ export default function UightUI(props: UightProps): ReactElement {
 													{copied === "link" ? "Copied" : "Copy link"}
 												</button>
 											) : null}
-											{chrome.viewport ? (
+											{/* Six device presets and an isolation badge do not fit beside
+											    a fixture name on a phone, and neither is what someone is
+											    there for. They come back with the width. */}
+											{chrome.viewport && !compact ? (
 												<ViewportToolbar
 													current={effectiveViewport}
 													presets={[...VIEWPORT_PRESETS]}
@@ -1797,27 +1866,31 @@ export default function UightUI(props: UightProps): ReactElement {
 											    while carrying the reason the viewport buttons beside it
 											    are disabled. As a labelled badge it says what it is,
 											    and points at that explanation. */}
-											<span
-												className={cx(
-													"inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs",
-													isolation === "frame"
-														? "border-[var(--u-line)] text-[var(--u-fg-muted)]"
-														: "border-[var(--u-line-strong)] text-[var(--u-fg)]",
-												)}
-												aria-describedby={
-													isolation === "inline" && chrome.viewport ? "uight-viewport-hint" : undefined
-												}
-												title={
-													isolation === "frame"
-														? "Rendering in a separate realm. Same origin — this is isolation, not a sandbox."
-														: VIEWPORT_INLINE_REASON
-												}
-											>
-												<span className={SECTION_LABEL}>Isolation</span>
-												<span className="font-medium">
-													{isolation === "frame" ? "Frame" : "Inline"}
+											{compact ? null : (
+												<span
+													className={cx(
+														"inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs",
+														isolation === "frame"
+															? "border-[var(--u-line)] text-[var(--u-fg-muted)]"
+															: "border-[var(--u-line-strong)] text-[var(--u-fg)]",
+													)}
+													aria-describedby={
+														isolation === "inline" && chrome.viewport
+															? "uight-viewport-hint"
+															: undefined
+													}
+													title={
+														isolation === "frame"
+															? "Rendering in a separate realm. Same origin — this is isolation, not a sandbox."
+															: VIEWPORT_INLINE_REASON
+													}
+												>
+													<span className={SECTION_LABEL}>Isolation</span>
+													<span className="font-medium">
+														{isolation === "frame" ? "Frame" : "Inline"}
+													</span>
 												</span>
-											</span>
+											)}
 										</div>
 									</Toolbar>
 								) : undefined
@@ -1932,18 +2005,25 @@ export default function UightUI(props: UightProps): ReactElement {
 
 						{showControls || propDoc ? (
 							<>
-								<PaneResizer
-									pane="right"
-									width={panelWidth}
-									min={PANE_MIN_WIDTH}
-									max={PANE_MAX_WIDTH}
-									initial={CONTROL_PANEL_WIDTH}
-									label="Control panel width"
-									onWidth={resizePanel}
-								/>
+								{compact ? null : (
+									<PaneResizer
+										pane="right"
+										width={panelWidth}
+										min={PANE_MIN_WIDTH}
+										max={PANE_MAX_WIDTH}
+										initial={CONTROL_PANEL_WIDTH}
+										label="Control panel width"
+										onWidth={resizePanel}
+									/>
+								)}
+								{/* Compact: below the preview rather than beside it, and capped,
+								    so the fixture keeps most of the screen. */}
 								<aside
-									style={{ width: panelWidth }}
-									className="min-w-0 shrink-0 overflow-y-auto bg-[var(--u-bg-sunken)]"
+									style={compact ? undefined : { width: panelWidth }}
+									className={cx(
+										"min-w-0 shrink-0 overflow-y-auto bg-[var(--u-bg-sunken)]",
+										compact ? "max-h-[45%] w-full border-t border-[var(--u-line)]" : "",
+									)}
 								>
 									{showControls ? (
 										<ControlPanel

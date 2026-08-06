@@ -29,13 +29,19 @@ export function PreviewShell({
 				</div>
 			) : null}
 			<div className="relative flex min-h-0 flex-1 flex-col">
-				{/* Recessive progress: one accent hairline, never a spinner over the fixture. */}
+				{/*
+				 * Recessive progress: one hairline, never a spinner over the fixture.
+				 *
+				 * It used to pulse, and a blinking accent-coloured line across the top
+				 * of the preview is the loudest thing on the screen — the opposite of
+				 * what §10.2 asks of the chrome, and it reads as an error rather than
+				 * as progress. It fades in and holds still.
+				 */}
 				<div
 					aria-hidden={!loading}
 					className={
-						"pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-[var(--u-accent)] " +
+						"pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-[var(--u-line-strong)] " +
 						"motion-safe:transition-opacity motion-safe:duration-100 " +
-						"motion-safe:animate-pulse motion-reduce:animate-none " +
 						(loading ? "opacity-100" : "opacity-0")
 					}
 				/>

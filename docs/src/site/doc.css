@@ -12,15 +12,23 @@
  * demo's preview entry reads in JavaScript.
  */
 
+/*
+ * The palette is the explorer's own, value for value: `ui/theme.ts` and
+ * `styles/chrome-tokens.css` say exactly this, and this site is a uight
+ * instance, so a page that invented its own greys had the chrome around it
+ * disagreeing with it a pixel away. Every grey is a step of Tailwind's
+ * `neutral` ramp; the accent is Tailwind `blue`, and it is the only colour.
+ * Keep these three files in step.
+ */
 :root {
 	--doc-bg: #ffffff;
-	--doc-fg: #1a1a1a;
-	--doc-muted: #6b6b6b;
-	--doc-faint: #8e8e8e;
-	--doc-rule: #e6e6e6;
-	--doc-accent: #1a56db;
-	--doc-code-bg: #f6f6f7;
-	--doc-quote-bg: #f8f8f9;
+	--doc-fg: #171717;
+	--doc-muted: #737373;
+	--doc-faint: #a3a3a3;
+	--doc-rule: #e5e5e5;
+	--doc-accent: #2563eb;
+	--doc-code-bg: #f5f5f5;
+	--doc-quote-bg: #fafafa;
 
 	--doc-measure: 46rem;
 	--doc-radius: 6px;
@@ -28,45 +36,33 @@
 	color-scheme: light;
 }
 
+/* Dark, said once. The OS preference applies unless the host has explicitly
+   asked for light — a reader who set the explorer to light must not get a dark
+   page on a dark machine — and an explicit dark applies on any machine. */
 @media (prefers-color-scheme: dark) {
-	:root {
-		--doc-bg: #161618;
-		--doc-fg: #ededed;
-		--doc-muted: #9b9b9b;
-		--doc-faint: #7a7a7a;
-		--doc-rule: #2a2a2d;
-		--doc-accent: #7aa2f7;
-		--doc-code-bg: #1d1d20;
-		--doc-quote-bg: #1b1b1e;
+	:root:not([data-uight-theme="light"]) {
+		--doc-bg: #0a0a0a;
+		--doc-fg: #f5f5f5;
+		--doc-muted: #a3a3a3;
+		--doc-faint: #737373;
+		--doc-rule: #262626;
+		--doc-accent: #60a5fa;
+		--doc-code-bg: #262626;
+		--doc-quote-bg: #171717;
 
 		color-scheme: dark;
 	}
 }
 
-/* The host's explicit choice wins over the OS in both directions, so a reader
-   who set the explorer to light does not get a dark page on a dark machine. */
-:root[data-uight-theme="light"] {
-	--doc-bg: #ffffff;
-	--doc-fg: #1a1a1a;
-	--doc-muted: #6b6b6b;
-	--doc-faint: #8e8e8e;
-	--doc-rule: #e6e6e6;
-	--doc-accent: #1a56db;
-	--doc-code-bg: #f6f6f7;
-	--doc-quote-bg: #f8f8f9;
-
-	color-scheme: light;
-}
-
 :root[data-uight-theme="dark"] {
-	--doc-bg: #161618;
-	--doc-fg: #ededed;
-	--doc-muted: #9b9b9b;
-	--doc-faint: #7a7a7a;
-	--doc-rule: #2a2a2d;
-	--doc-accent: #7aa2f7;
-	--doc-code-bg: #1d1d20;
-	--doc-quote-bg: #1b1b1e;
+	--doc-bg: #0a0a0a;
+	--doc-fg: #f5f5f5;
+	--doc-muted: #a3a3a3;
+	--doc-faint: #737373;
+	--doc-rule: #262626;
+	--doc-accent: #60a5fa;
+	--doc-code-bg: #262626;
+	--doc-quote-bg: #171717;
 
 	color-scheme: dark;
 }
@@ -102,7 +98,8 @@ body {
 	gap: 3rem;
 	max-width: calc(var(--doc-measure) + 14rem);
 	margin: 0 auto;
-	padding: 3rem 2rem 8rem;
+	/* Generous on a desktop, and a phone cannot spare 2rem a side. */
+	padding: clamp(1.5rem, 5vw, 3rem) clamp(1.1rem, 5vw, 2rem) 6rem;
 }
 
 @media (min-width: 68rem) {
@@ -114,6 +111,9 @@ body {
 .doc {
 	max-width: var(--doc-measure);
 	min-width: 0;
+	/* A long unbroken identifier in prose is the one thing that can push a
+	   narrow page sideways; nothing else here can overflow its column. */
+	overflow-wrap: break-word;
 }
 
 .doc-loading {
@@ -191,7 +191,7 @@ body {
 
 .doc h1 {
 	margin-top: 0;
-	font-size: 2.25rem;
+	font-size: clamp(1.75rem, 6vw, 2.25rem);
 	letter-spacing: -0.03em;
 }
 
@@ -323,10 +323,11 @@ body {
  *
  * The `<pre>` still needs its background stated here rather than taken from
  * shiki's, so that the padding this stylesheet adds is the same colour as the
- * code inside it.
+ * code inside it. It is `neutral-900` — a step of the same ramp as everything
+ * else, rather than the blue-grey shiki ships with.
  */
 .doc .shiki {
-	background: #24292e;
+	background: #171717;
 }
 
 /* ------------------------------------------------------------------ *
@@ -372,12 +373,12 @@ body {
 .home {
 	max-width: 58rem;
 	margin: 0 auto;
-	padding: 5rem 2rem 8rem;
+	padding: clamp(2.5rem, 9vw, 5rem) clamp(1.1rem, 5vw, 2rem) 6rem;
 }
 
 .home-name {
 	margin: 0;
-	font-size: 4rem;
+	font-size: clamp(2.75rem, 12vw, 4rem);
 	font-weight: 600;
 	letter-spacing: -0.045em;
 	line-height: 1;
@@ -386,7 +387,7 @@ body {
 .home-text {
 	margin: 1rem 0 0;
 	max-width: 30rem;
-	font-size: 1.75rem;
+	font-size: clamp(1.35rem, 5.5vw, 1.75rem);
 	font-weight: 500;
 	letter-spacing: -0.02em;
 	line-height: 1.25;
@@ -447,9 +448,11 @@ body {
 
 .home-features {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+	/* `min()` rather than a bare 16rem: on a 320px screen a 16rem track is wider
+	   than the column it is in, and the grid overflows instead of wrapping. */
+	grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
 	gap: 2.5rem 3rem;
-	margin-top: 6rem;
+	margin-top: clamp(3.5rem, 10vw, 6rem);
 	padding-top: 3rem;
 	border-top: 1px solid var(--doc-rule);
 }

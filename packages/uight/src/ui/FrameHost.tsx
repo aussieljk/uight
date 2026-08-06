@@ -112,6 +112,10 @@ function buildDocument(opts: {
 	return [
 		"<!doctype html>",
 		'<html><head><meta charset="utf-8">',
+		// Without this the frame lays itself out at a mobile browser's 980px
+		// fallback viewport and every fixture is rendered for a desktop and then
+		// scaled down. The frame is a viewport of its own; say how wide it is.
+		'<meta name="viewport" content="width=device-width, initial-scale=1">',
 		`<base href="${escapeAttribute(baseHref)}">`,
 		// §6.7 step 2 — a runtime-constructed document inherits the parent's nonce,
 		// and republishes it so anything the renderer injects can find it.
