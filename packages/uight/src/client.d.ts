@@ -14,6 +14,8 @@ declare module "virtual:uight/runtime" {
 
 declare module "virtual:uight/renderer-url" {
 	export const rendererEntryUrl: string;
+	/** Extracted stylesheets the renderer needs. Empty in development. */
+	export const rendererStyleUrls: string[];
 }
 
 declare module "virtual:uight/preview-entry" {

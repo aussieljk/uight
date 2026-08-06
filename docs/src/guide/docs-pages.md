@@ -51,9 +51,30 @@ uight({
 `docs: false` turns the pattern off, which is what a project that writes its documentation
 somewhere else wants.
 
+## Ordering and titles
+
+A page is a file, so the tree draws it where the filesystem puts it and calls it what the
+file is called. `fileMeta` overrides both:
+
+```mdx
+export const fileMeta = { title: "Getting started", order: 10 };
+
+# Getting started
+```
+
+`order` is a sort weight within the directory — lower first, unweighted pages after — and
+a directory takes the weight of its earliest child, so a `guide/` of ordered pages sorts
+ahead of a `reference/` of ordered pages without anyone saying so twice.
+
 ## What this is not
 
 uight is not a documentation framework, and does not intend to become one. There is no
-router, no navigation you can author and no page hierarchy separate from the fixture tree.
-A docs page is one more thing in that tree. For a documentation _site_ — like this one —
-use a documentation site generator.
+router, no navigation you can author beyond the two fields above, and no page hierarchy
+separate from the fixture tree. A docs page is one more thing in that tree.
+
+That is a narrower thing than a documentation site generator, and it is on purpose. It is
+also, as it happens, enough: **this site is a uight instance**. Every page here is a
+`.docs.mdx` in `docs/src/`, the sidebar you are reading is the fixture tree, and the whole
+thing is `bunx uight build`. What it does not have is what the list above says it does not
+have — no full-text search, no per-page URLs, no generated sitemap. If you need those,
+you need a documentation site generator, and that is still the honest answer.

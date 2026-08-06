@@ -39,12 +39,13 @@ What a react-cosmos move would rename and decline, without moving anything.
 
 Build a deployable static explorer. See [Shipping a static explorer](/guide/static-build).
 
-| Flag              | Default      |
-| ----------------- | ------------ |
-| `--out <dir>`     | `dist-uight` |
-| `--base <path>`   | `/`          |
-| `--root <dir>`    | cwd          |
-| `--config <file>` | discovered   |
+| Flag              | Default            |
+| ----------------- | ------------------ |
+| `--out <dir>`     | `dist-uight`       |
+| `--base <path>`   | `/`                |
+| `--root <dir>`    | cwd                |
+| `--config <file>` | discovered         |
+| `--title <text>`  | the directory name |
 
 ## `uight doctor`
 

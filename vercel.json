@@ -2,6 +2,11 @@
 	"$schema": "https://openapi.vercel.sh/vercel.json",
 	"installCommand": "bun install",
 	"buildCommand": "bun run docs:build",
-	"outputDirectory": "docs/.vitepress/dist",
-	"cleanUrls": true
+	"outputDirectory": "docs/dist",
+	"rewrites": [
+		{
+			"source": "/((?!assets/|r/|preview\\.html).*)",
+			"destination": "/index.html"
+		}
+	]
 }

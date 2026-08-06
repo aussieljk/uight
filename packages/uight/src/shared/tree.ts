@@ -71,7 +71,11 @@ function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 		const meta = fixtureMetaFor(file, null);
 		return {
 			key: serializeFixtureId(fixture),
-			label,
+			// §3.1's `title` is the name the author gave this fixture, and the
+			// renderer already puts it at the top of the page. A sidebar that
+			// disagrees with the heading it navigates to is the filename leaking
+			// through a name that was stated.
+			label: meta?.title ?? file.fileMeta?.title ?? label,
 			kind: "fixture",
 			fixture,
 			meta,
@@ -114,13 +118,39 @@ function fileNodes(file: FixtureFileIndex, dirName: string): TreeNode {
 	};
 }
 
-function toNodes(dir: DirNode, prefix: string): TreeNode[] {
-	const nodes: TreeNode[] = [];
+/**
+ * A node plus the two things its position depends on: `fileMeta.order` (§3.1,
+ * "sort weight within its directory, lower sorts first") and the path, which
+ * breaks ties and is what an un-weighted corpus sorts by entirely.
+ */
+interface Placed {
+	node: TreeNode;
+	order: number;
+	tiebreak: string;
+}
 
-	for (const [name, child] of [...dir.dirs].sort((a, b) => collator.compare(a[0], b[0]))) {
+const UNWEIGHTED = Number.POSITIVE_INFINITY;
+
+function byOrderThenName(a: Placed, b: Placed): number {
+	return a.order === b.order
+		? collator.compare(a.tiebreak, b.tiebreak)
+		: a.order - b.order;
+}
+
+function place(dir: DirNode, prefix: string): Placed[] {
+	const placed: Placed[] = [];
+
+	for (const [name, child] of dir.dirs) {
 		const path = prefix ? `${prefix}/${name}` : name;
-		const children = toNodes(child, path);
+		const children = place(child, path);
 		if (!children.length) continue;
+
+		// A directory has no metadata of its own to weight it — nothing declares
+		// one, because a directory is not a file. It takes the weight of its
+		// earliest child instead, which is the only reading that lets a `guide/`
+		// of ordered pages sort ahead of a `reference/` of ordered pages without
+		// asking anyone to state the same intent twice.
+		const order = Math.min(...children.map((c) => c.order));
 
 		// `components/accordion/accordion.stories.tsx` is the near-universal
 		// convention, and it produced a directory and a file with the same label
@@ -129,31 +159,57 @@ function toNodes(dir: DirNode, prefix: string): TreeNode[] {
 		// as far as a reader is concerned, whether it is a file of stories or a
 		// lone fixture. Either way, one row.
 		const only = children.length === 1 ? children[0]! : undefined;
-		if (only && only.kind !== "dir" && only.label === name) {
-			nodes.push(only);
+		if (only && only.node.kind !== "dir" && only.node.label === name) {
+			placed.push({ ...only, order, tiebreak: name });
 			continue;
 		}
 
-		nodes.push({ key: `dir:${path}`, label: name, kind: "dir", children });
-	}
-
-	const dirName = prefix.split("/").pop() ?? "";
-	for (const file of [...dir.files].sort((a, b) => collator.compare(a.path, b.path))) {
-		nodes.push(fileNodes(file, dirName));
-	}
-
-	for (const item of [...dir.components].sort((a, b) =>
-		collator.compare(a.name, b.name),
-	)) {
-		nodes.push({
-			key: `component:${item.globPath}#${item.exportName}`,
-			label: item.name,
-			kind: "component",
-			component: item,
+		placed.push({
+			node: {
+				key: `dir:${path}`,
+				label: name,
+				kind: "dir",
+				children: children.map((c) => c.node),
+			},
+			order,
+			tiebreak: name,
 		});
 	}
 
-	return nodes;
+	const dirName = prefix.split("/").pop() ?? "";
+	for (const file of dir.files) {
+		placed.push({
+			node: fileNodes(file, dirName),
+			order: file.fileMeta?.order ?? UNWEIGHTED,
+			tiebreak: file.path,
+		});
+	}
+
+	placed.sort(byOrderThenName);
+
+	// Detected components are not authored, so there is no weight anyone could
+	// have put on them and nothing for them to sort among. They stay after
+	// everything that was written on purpose.
+	for (const item of [...dir.components].sort((a, b) =>
+		collator.compare(a.name, b.name),
+	)) {
+		placed.push({
+			node: {
+				key: `component:${item.globPath}#${item.exportName}`,
+				label: item.name,
+				kind: "component",
+				component: item,
+			},
+			order: UNWEIGHTED,
+			tiebreak: item.name,
+		});
+	}
+
+	return placed;
+}
+
+function toNodes(dir: DirNode, prefix: string): TreeNode[] {
+	return place(dir, prefix).map((p) => p.node);
 }
 
 export interface BuildTreeOptions {

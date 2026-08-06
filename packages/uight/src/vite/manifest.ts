@@ -13,7 +13,7 @@ import type { Rollup } from "vite";
 import type { FixtureIndex } from "../shared/types.ts";
 import type { ResolvedUightConfig } from "./config.ts";
 import { indexStats } from "./scan.ts";
-import { RENDERER_URL_PLACEHOLDER } from "./virtual.ts";
+import { RENDERER_CSS_PLACEHOLDER, RENDERER_URL_PLACEHOLDER } from "./virtual.ts";
 
 export interface BundleStats {
 	entryBytes: number;
@@ -40,12 +40,55 @@ export function replaceRendererUrl(
 	fileName: string,
 	base: string,
 ): void {
-	const url = `${base.endsWith("/") ? base : `${base}/`}${fileName}`;
+	const prefix = base.endsWith("/") ? base : `${base}/`;
+	const url = `${prefix}${fileName}`;
+	const css = rendererStyles(bundle, fileName)
+		.map((name) => `${prefix}${name}`)
+		.join("|");
+
 	for (const output of Object.values(bundle)) {
 		if (output.type !== "chunk") continue;
-		if (!output.code.includes(RENDERER_URL_PLACEHOLDER)) continue;
-		output.code = output.code.split(RENDERER_URL_PLACEHOLDER).join(url);
+		if (output.code.includes(RENDERER_URL_PLACEHOLDER)) {
+			output.code = output.code.split(RENDERER_URL_PLACEHOLDER).join(url);
+		}
+		if (output.code.includes(RENDERER_CSS_PLACEHOLDER)) {
+			output.code = output.code.split(RENDERER_CSS_PLACEHOLDER).join(css);
+		}
 	}
+}
+
+/**
+ * Every stylesheet the renderer chunk needs, in load order.
+ *
+ * Vite records the CSS a chunk owns on `viteMetadata.importedCss`, and only for
+ * that chunk — a shared chunk the renderer imports carries its own. So this
+ * walks the static import graph from the renderer entry and collects the lot.
+ * Dynamic imports are deliberately not followed: Vite's own preload helper
+ * links those when the import runs, and duplicating them here would load a
+ * fixture's stylesheet before the fixture.
+ */
+function rendererStyles(bundle: Rollup.OutputBundle, entry: string): string[] {
+	const styles: string[] = [];
+	const seen = new Set<string>();
+	const queue = [entry];
+
+	while (queue.length) {
+		const name = queue.shift();
+		if (!name || seen.has(name)) continue;
+		seen.add(name);
+
+		const chunk = bundle[name];
+		if (!chunk || chunk.type !== "chunk") continue;
+
+		const metadata = (chunk as { viteMetadata?: { importedCss?: Set<string> } })
+			.viteMetadata;
+		for (const file of metadata?.importedCss ?? []) {
+			if (!styles.includes(file)) styles.push(file);
+		}
+		queue.push(...chunk.imports);
+	}
+
+	return styles;
 }
 
 /* ------------------------------------------------------------------ *

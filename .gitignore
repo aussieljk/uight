@@ -17,11 +17,9 @@ uight-explorer.entry.js
 # own documents in and the built registry with them, so committing either would
 # be committing a second copy that can go stale — which is the failure the sync
 # script exists to prevent.
-docs/reference/spec.md
-docs/reference/architecture.md
-docs/reference/roadmap.md
-docs/reference/changelog.md
+docs/src/reference/spec.md
+docs/src/reference/architecture.md
+docs/src/reference/roadmap.md
+docs/src/reference/changelog.md
 docs/public/
-docs/.vitepress/dist/
-docs/.vitepress/cache/
 .vercel

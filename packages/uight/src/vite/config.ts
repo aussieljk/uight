@@ -129,6 +129,9 @@ export interface ResolvedUightConfig {
 	index: "static" | "warm" | "lazy";
 	production: "exclude" | "include" | "error";
 
+	/** §7's `eager` — build only; a dev server serves modules unbundled anyway. */
+	eager: boolean;
+
 	storybook:
 		| false
 		| (Required<NonNullable<StorybookSupport["support"]>> & {
@@ -291,6 +294,7 @@ export function resolveUightConfig(opts: ResolveUightConfigOptions): ResolvedUig
 		codecs: o.codecs ? toGlobPath(root, path.resolve(root, o.codecs)) : undefined,
 
 		index: o.index ?? "warm",
+		eager: (o.eager ?? false) && opts.command === "build",
 		production: process.env[STATIC_ENV] === "1" ? "include" : (o.production ?? "exclude"),
 
 		storybook: resolveStorybook(o.storybook, Boolean(storybookPreview)),

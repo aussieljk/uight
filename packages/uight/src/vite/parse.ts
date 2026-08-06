@@ -110,8 +110,18 @@ export function parseFixtureFile(
 	const csf = options.csf ?? false;
 
 	// MDX normalizes into exactly one fixture (§14) and is not JavaScript.
+	// Its ESM exports are, though, and `fileMeta` is the only way an MDX page
+	// can say where it belongs in the tree: the module is never warmed, because
+	// `default-single` is already a decided answer, so nothing else would ever
+	// read it.
 	if (filename.endsWith(".mdx")) {
-		return { names: [null], source: "default-single", csf, errors: [] };
+		return {
+			names: [null],
+			source: "default-single",
+			csf,
+			errors: [],
+			...readMdxMetaExports(source, filename),
+		};
 	}
 
 	let program: Program;
@@ -302,6 +312,70 @@ function readMetaExports(program: Program): {
 	}
 
 	return out;
+}
+
+/**
+ * The same two exports, out of an MDX document.
+ *
+ * MDX is not JavaScript and `parseSync` will not read it, but the ESM exports
+ * inside one are ordinary JavaScript written at column zero — that is what MDX
+ * guarantees about them. So the statement is cut out of the prose and parsed on
+ * its own, rather than teaching this module a second language.
+ *
+ * Anything the cut cannot recover stays absent, exactly as elsewhere here: this
+ * is display metadata, and a page whose `fileMeta` cannot be read sorts where
+ * an unweighted page sorts instead of failing to appear.
+ */
+function readMdxMetaExports(
+	source: string,
+	filename: string,
+): { fileMeta?: FixtureFileMeta; fixtureMeta?: Record<string, FixtureMeta> } {
+	const statements: string[] = [];
+	const pattern = /^export\s+const\s+(?:fileMeta|fixtureMeta)\s*=\s*\{/gm;
+
+	for (const match of source.matchAll(pattern)) {
+		const end = endOfObjectLiteral(source, match.index + match[0].length - 1);
+		if (end === -1) continue;
+		statements.push(`${source.slice(match.index, end + 1)};`);
+	}
+
+	if (!statements.length) return {};
+
+	try {
+		const { program, errors } = parseSync(`${filename}.ts`, statements.join("\n"), {
+			showSemanticErrors: false,
+		});
+		if (errors.some((e) => e.severity === "Error")) return {};
+		return readMetaExports(program);
+	} catch {
+		return {};
+	}
+}
+
+/**
+ * Index of the `}` closing the `{` at `open`, or -1. Counts braces, and skips
+ * the ones inside strings and template literals so a title containing one does
+ * not end the object early.
+ */
+function endOfObjectLiteral(source: string, open: number): number {
+	let depth = 0;
+	let quote = "";
+
+	for (let i = open; i < source.length; i++) {
+		const char = source[i]!;
+
+		if (quote) {
+			if (char === "\\") i++;
+			else if (char === quote) quote = "";
+			continue;
+		}
+
+		if (char === '"' || char === "'" || char === "`") quote = char;
+		else if (char === "{") depth++;
+		else if (char === "}" && --depth === 0) return i;
+	}
+
+	return -1;
 }
 
 /**

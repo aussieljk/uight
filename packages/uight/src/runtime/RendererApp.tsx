@@ -90,6 +90,16 @@ interface Selection {
 
 interface Loaded {
 	status: "empty" | "loading" | "ready" | "error";
+	/**
+	 * The selection `fixture` belongs to, which during a load is the PREVIOUS
+	 * one — see the render below, where it is React's key.
+	 *
+	 * Kept in state rather than derived from `selection`, because those two
+	 * disagree for exactly as long as a load takes and the whole point is to
+	 * keep rendering the tree that is still mounted. Deriving it would give the
+	 * outgoing fixture the incoming fixture's key, which is an unmount.
+	 */
+	key: string;
 	fixture: NormalizedFixture | null;
 	/** Non-empty when ALL_FIXTURES is selected: every fixture in the file. */
 	all?: NormalizedFixture[];
@@ -100,6 +110,7 @@ interface Loaded {
 
 const EMPTY: Loaded = {
 	status: "empty",
+	key: "empty",
 	fixture: null,
 	decorators: [],
 	error: null,
@@ -237,12 +248,25 @@ function useLoadedFixture(
 		? `${selection.component.globPath}#${selection.component.exportName}#${selection.component.origin ?? ""}`
 		: "";
 
+	/**
+	 * React's key for the tree this selection will produce. Hoisted above the
+	 * loader because `Loaded` records it: the key that is rendered is the loaded
+	 * fixture's, not the selected one's, and they differ while a load is in
+	 * flight. (The render below used to recompute this from `selection`.)
+	 */
+	const selectionKey = selection.component
+		? `component:${componentKey}`
+		: selection.fixture
+			? serializeFixtureId(selection.fixture)
+			: "empty";
+
 	React.useEffect(() => {
 		let cancelled = false;
 		const fail = (error: unknown, file?: string): void => {
 			if (cancelled) return;
 			setState({
 				status: "error",
+				key: selectionKey,
 				fixture: null,
 				decorators: [],
 				error: toRendererError(error, "module", file ? { file } : {}),
@@ -260,6 +284,7 @@ function useLoadedFixture(
 					if (cancelled) return;
 					setState({
 						status: "ready",
+						key: selectionKey,
 						fixture: componentFixture(module, ref),
 						decorators: [],
 						error: null,
@@ -306,6 +331,7 @@ function useLoadedFixture(
 					const all = orderByIndex(normalized.fixtures, file.names);
 					setState({
 						status: "ready",
+						key: selectionKey,
 						fixture: all[0] ?? null,
 						all,
 						decorators,
@@ -317,6 +343,7 @@ function useLoadedFixture(
 				const picked = selectFixture(normalized.fixtures, id.name);
 				const next: Loaded = {
 					status: "ready",
+					key: selectionKey,
 					fixture: picked.fixture,
 					decorators,
 					error: null,
@@ -335,6 +362,7 @@ function useLoadedFixture(
 	}, [
 		selection.fixture?.path,
 		selection.fixture?.name,
+		selectionKey,
 		componentKey,
 		hotVersion,
 		config,
@@ -445,7 +473,7 @@ function layoutStyle(
  * ------------------------------------------------------------------ */
 
 export function RendererApp(props: RendererAppProps): React.ReactElement {
-	const { config, transport } = props;
+	const { config, transport, fixtureModules } = props;
 	const isolation = props.isolation ?? "frame";
 	const dev = config.command === "serve";
 
@@ -509,6 +537,15 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 					// §4.5 — the host's index outranks the one this realm booted with.
 					setHostIndex({ files: message.files, decorators: message.decorators });
 					break;
+				case "PREFETCH": {
+					// Warm the chunk and throw the module away: the browser keeps it,
+					// and the selection that follows resolves from cache. Failures are
+					// the selection's to report — a prefetch that 404s must not put an
+					// error on screen for a fixture nobody has opened.
+					const file = findFile(liveRuntimeConfig(config), message.path);
+					if (file) void loadFixtureModule(fixtureModules, file.globPath)?.catch(() => {});
+					break;
+				}
 				case "SET_OVERLAYS":
 					store.setOverlays(message.overlays);
 					break;
@@ -522,7 +559,7 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 					break;
 			}
 		});
-	}, [transport, store]);
+	}, [transport, store, config, fixtureModules]);
 
 	/* ---------------- viewport and size reporting ---------------- */
 
@@ -627,19 +664,25 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 
 	/* ---------------- the tree ---------------- */
 
-	const key = selection.component
-		? `component:${selection.component.globPath}#${selection.component.exportName}` +
-			`#${selection.component.origin ?? ""}`
-		: selection.fixture
-			? serializeFixtureId(selection.fixture)
-			: "empty";
+	/**
+	 * The key of what is on screen — the LOADED selection, not the selected one.
+	 *
+	 * While the next fixture's module is in flight the previous one keeps
+	 * rendering (see the `loading` branch), and it has to keep rendering under
+	 * the key it mounted with or React unmounts it and we are back to the blank
+	 * frame this exists to remove.
+	 */
+	const key = loaded.key;
 
 	let content: React.ReactNode;
 	if (mismatch) {
 		content = <ErrorPanel error={mismatch} />;
 	} else if (loaded.status === "error" && loaded.error) {
 		content = <ErrorPanel error={loaded.error} />;
-	} else if (loaded.status === "loading") {
+	} else if (loaded.status === "loading" && !loaded.fixture) {
+		// Nothing to hold over — this is the first load of the realm, and a blank
+		// frame is the honest picture. Every later load falls through and keeps
+		// the outgoing fixture up until the incoming one is ready.
 		content = null;
 	} else if (!loaded.fixture) {
 		content = (

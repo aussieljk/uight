@@ -30,25 +30,25 @@ interface Copied {
 const DOCUMENTS: Copied[] = [
 	{
 		from: "SPEC.md",
-		to: "reference/spec.md",
+		to: "src/reference/spec.md",
 		title: "Spec",
 		note: "The requirements document, and the source of truth for behaviour.",
 	},
 	{
 		from: "ARCHITECTURE.md",
-		to: "reference/architecture.md",
+		to: "src/reference/architecture.md",
 		title: "Architecture",
 		note: "The integration contract: which module owns which symbol.",
 	},
 	{
 		from: "ROADMAP.md",
-		to: "reference/roadmap.md",
+		to: "src/reference/roadmap.md",
 		title: "Roadmap",
 		note: "What is left, and what each milestone after this canary holds.",
 	},
 	{
 		from: "CHANGELOG.md",
-		to: "reference/changelog.md",
+		to: "src/reference/changelog.md",
 		title: "Changelog",
 		note: "What shipped in each release, with divergences and known limitations.",
 	},
@@ -73,10 +73,15 @@ async function copyDir(from: string, to: string): Promise<number> {
 async function main(): Promise<void> {
 	for (const doc of DOCUMENTS) {
 		const source = await fsp.readFile(path.join(repoRoot, doc.from), "utf8");
+		// A blockquote, not a VitePress `::: tip` container: these files are
+		// rendered by `marked` now (see `src/site/markdown.ts`), which knows
+		// CommonMark and GFM and nothing about a container syntax one generator
+		// invented. Plain Markdown is also what makes the copy readable in the
+		// checkout, which is where anyone editing it will be.
 		const banner =
 			`<!-- Copied from ${doc.from} by docs/scripts/sync.ts. Edit that file, not this one. -->\n\n` +
-			`::: tip ${doc.title}\n${doc.note} Maintained at [\`${doc.from}\`]` +
-			`(https://github.com/aussieljk/uight/blob/master/${doc.from}) in the repository.\n:::\n\n`;
+			`> **${doc.title}** — ${doc.note} Maintained at [\`${doc.from}\`]` +
+			`(https://github.com/aussieljk/uight/blob/master/${doc.from}) in the repository.\n\n`;
 		const target = path.join(docsDir, doc.to);
 		await fsp.mkdir(path.dirname(target), { recursive: true });
 		await fsp.writeFile(target, banner + source, "utf8");

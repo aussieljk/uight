@@ -136,6 +136,24 @@ export interface SetIndexMessage {
 	files: FixtureFileIndex[];
 	decorators: DecoratorFileIndex[];
 }
+/**
+ * "You are probably about to be asked for this file" — §9.1.
+ *
+ * A fixture module is a lazy chunk, so the first click on a tree row pays a
+ * network round trip before the renderer can begin. The host knows what the
+ * pointer is over long before the click; the renderer is the realm that holds
+ * the loaders. This carries the one across to the other.
+ *
+ * Advisory in the strictest sense: it names a file, never a fixture, it loads
+ * the module and discards it, and a path that resolves to nothing is silently
+ * dropped. Nothing renders, no state is touched, and a prefetch that never
+ * arrives changes nothing but the wait.
+ */
+export interface PrefetchMessage {
+	type: "PREFETCH";
+	/** A `FixtureId.path` — the file, since a chunk is per file. */
+	path: string;
+}
 export interface SetOverlaysMessage {
 	type: "SET_OVERLAYS";
 	overlays: InputOverlay[];
@@ -152,7 +170,8 @@ export type MountedMessage =
 	| DisposeMessage
 	| NavigateMessage
 	| SetIndexMessage
-	| SetOverlaysMessage;
+	| SetOverlaysMessage
+	| PrefetchMessage;
 
 export interface MountedEnvelope<T = MountedMessage> {
 	protocolVersion: number;

@@ -46,6 +46,14 @@ import { ensureStyles, escapeAttribute, readNonce, styleTag } from "./styles.ts"
 export interface FrameHostProps {
 	mountId: string;
 	rendererEntryUrl: string;
+	/**
+	 * Stylesheets the renderer entry needs, which in practice means whatever the
+	 * host's `previewEntry` imported. Empty in development, where Vite serves
+	 * CSS as JavaScript that injects itself into the realm it runs in; non-empty
+	 * in a build, where that CSS is extracted to files and the frame document —
+	 * never passed through `transformIndexHtml` — has nothing linking them.
+	 */
+	rendererStyleUrls?: readonly string[] | undefined;
 	/** True in `serve` mode; adds the Vite client so Fast Refresh reaches the frame. */
 	dev: boolean;
 	initialFixture: FixtureId | null;
@@ -71,6 +79,9 @@ export interface FrameHostProps {
 }
 
 const WRITE_RETRY_FRAMES = 60;
+
+/** A stable empty default, so the injection callback is not rebuilt per render. */
+const EMPTY_STYLES: readonly string[] = [];
 
 /**
  * The opening of §6.7 step 5's message, and the marker the host uses to keep it.
@@ -120,6 +131,7 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 	const {
 		mountId,
 		rendererEntryUrl,
+		rendererStyleUrls,
 		dev,
 		previewDocumentUrl,
 		title,
@@ -164,9 +176,36 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 		doc?.documentElement?.setAttribute(THEME_ATTRIBUTE, themeRef.current);
 	}, []);
 
+	/**
+	 * The renderer's extracted stylesheets, linked before the script that needs
+	 * them so the first paint is not unstyled.
+	 *
+	 * `<link>` rather than fetch-and-inline: a stylesheet in the head blocks
+	 * rendering until it loads, which is exactly the behaviour wanted, and it is
+	 * the same request the browser would have made from a document.
+	 */
+	const styleUrls = rendererStyleUrls ?? EMPTY_STYLES;
+	const injectRendererStyles = useCallback(
+		(doc: Document, nonce: string | undefined) => {
+			for (const href of styleUrls) {
+				if (doc.querySelector(`link[data-uight-renderer-style="${escapeAttribute(href)}"]`)) {
+					continue;
+				}
+				const link = doc.createElement("link");
+				link.rel = "stylesheet";
+				link.dataset.uightRendererStyle = href;
+				if (nonce) link.setAttribute("nonce", nonce);
+				link.href = href;
+				(doc.head ?? doc.documentElement).appendChild(link);
+			}
+		},
+		[styleUrls],
+	);
+
 	/** §6.2 step 4, and the injection half of the custom-document path (§6.6). */
 	const injectRenderer = useCallback(
 		(doc: Document, nonce: string | undefined) => {
+			injectRendererStyles(doc, nonce);
 			if (doc.querySelector("script[data-uight-renderer]")) return;
 			const script = doc.createElement("script");
 			script.type = "module";
@@ -195,7 +234,7 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 			});
 			(doc.head ?? doc.documentElement).appendChild(script);
 		},
-		[rendererEntryUrl],
+		[rendererEntryUrl, injectRendererStyles],
 	);
 
 	// The transport must exist before any document is written, or the child's

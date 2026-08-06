@@ -1,0 +1,468 @@
+/*
+ * uight.dev.
+ *
+ * Loaded by `preview.tsx`, so it lands in the frame's document rather than the
+ * host's (SPEC §6.4). The explorer around it is deliberately recessive (§10.2:
+ * "the chrome should disappear next to the fixture") and this follows the same
+ * rule from the other side: the page is the thing, the frame is not.
+ *
+ * Theme: the frame document is stamped with `data-uight-theme` by the host when
+ * the explorer's theme is explicit, and follows the OS preference when it is
+ * not. Both are honoured below, in that order, which is the same precedence the
+ * demo's preview entry reads in JavaScript.
+ */
+
+:root {
+	--doc-bg: #ffffff;
+	--doc-fg: #1a1a1a;
+	--doc-muted: #6b6b6b;
+	--doc-faint: #8e8e8e;
+	--doc-rule: #e6e6e6;
+	--doc-accent: #1a56db;
+	--doc-code-bg: #f6f6f7;
+	--doc-quote-bg: #f8f8f9;
+
+	--doc-measure: 46rem;
+	--doc-radius: 6px;
+
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--doc-bg: #161618;
+		--doc-fg: #ededed;
+		--doc-muted: #9b9b9b;
+		--doc-faint: #7a7a7a;
+		--doc-rule: #2a2a2d;
+		--doc-accent: #7aa2f7;
+		--doc-code-bg: #1d1d20;
+		--doc-quote-bg: #1b1b1e;
+
+		color-scheme: dark;
+	}
+}
+
+/* The host's explicit choice wins over the OS in both directions, so a reader
+   who set the explorer to light does not get a dark page on a dark machine. */
+:root[data-uight-theme="light"] {
+	--doc-bg: #ffffff;
+	--doc-fg: #1a1a1a;
+	--doc-muted: #6b6b6b;
+	--doc-faint: #8e8e8e;
+	--doc-rule: #e6e6e6;
+	--doc-accent: #1a56db;
+	--doc-code-bg: #f6f6f7;
+	--doc-quote-bg: #f8f8f9;
+
+	color-scheme: light;
+}
+
+:root[data-uight-theme="dark"] {
+	--doc-bg: #161618;
+	--doc-fg: #ededed;
+	--doc-muted: #9b9b9b;
+	--doc-faint: #7a7a7a;
+	--doc-rule: #2a2a2d;
+	--doc-accent: #7aa2f7;
+	--doc-code-bg: #1d1d20;
+	--doc-quote-bg: #1b1b1e;
+
+	color-scheme: dark;
+}
+
+/* The frame document is constructed at runtime (§6.2) and starts with the
+   user-agent margin. */
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background: var(--doc-bg);
+	color: var(--doc-fg);
+}
+
+body {
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+		sans-serif;
+	font-size: 16px;
+	line-height: 1.7;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------------ *
+ * Layout — one column of prose, and a contents list beside it when
+ * there is room. The list is the first thing to go: at the widths a
+ * preview pane actually gets, the prose needs all of them.
+ * ------------------------------------------------------------------ */
+
+.doc-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 3rem;
+	max-width: calc(var(--doc-measure) + 14rem);
+	margin: 0 auto;
+	padding: 3rem 2rem 8rem;
+}
+
+@media (min-width: 68rem) {
+	.doc-layout {
+		grid-template-columns: minmax(0, 1fr) 12rem;
+	}
+}
+
+.doc {
+	max-width: var(--doc-measure);
+	min-width: 0;
+}
+
+.doc-loading {
+	padding: 3rem 2rem;
+	color: var(--doc-faint);
+	font-size: 0.875rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Contents
+ * ------------------------------------------------------------------ */
+
+.doc-toc {
+	display: none;
+	position: sticky;
+	top: 3rem;
+	align-self: start;
+	font-size: 0.8125rem;
+	line-height: 1.5;
+}
+
+@media (min-width: 68rem) {
+	.doc-toc {
+		display: block;
+	}
+}
+
+.doc-toc-title {
+	margin: 0 0 0.75rem;
+	color: var(--doc-faint);
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.doc-toc ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.doc-toc li + li {
+	margin-top: 0.5rem;
+}
+
+.doc-toc a {
+	color: var(--doc-muted);
+	text-decoration: none;
+}
+
+.doc-toc a:hover {
+	color: var(--doc-fg);
+}
+
+/* ------------------------------------------------------------------ *
+ * Prose
+ * ------------------------------------------------------------------ */
+
+.doc > :first-child {
+	margin-top: 0;
+}
+
+.doc h1,
+.doc h2,
+.doc h3,
+.doc h4 {
+	position: relative;
+	margin: 2.5rem 0 1rem;
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: -0.015em;
+	scroll-margin-top: 2rem;
+}
+
+.doc h1 {
+	margin-top: 0;
+	font-size: 2.25rem;
+	letter-spacing: -0.03em;
+}
+
+.doc h2 {
+	margin-top: 3.5rem;
+	padding-top: 1.75rem;
+	border-top: 1px solid var(--doc-rule);
+	font-size: 1.5rem;
+}
+
+/* SPEC.md separates its sections with `---` *and* a heading. Two rules a line
+   apart is one rule too many, so the heading yields to the one already there. */
+.doc hr + h2 {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+
+.doc h3 {
+	font-size: 1.15rem;
+}
+
+.doc h4 {
+	font-size: 1rem;
+}
+
+/* Present, but not shouting. A heading anchor exists for the reader who
+   wants to link to a section, and for nobody else. */
+.doc .anchor {
+	position: absolute;
+	left: -1.25rem;
+	color: var(--doc-rule);
+	text-decoration: none;
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.doc :is(h1, h2, h3, h4):hover .anchor,
+.doc .anchor:focus-visible {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.doc .anchor {
+		transition: none;
+	}
+}
+
+.doc p,
+.doc ul,
+.doc ol {
+	margin: 1rem 0;
+}
+
+.doc li + li {
+	margin-top: 0.35rem;
+}
+
+.doc a {
+	color: var(--doc-accent);
+	text-decoration: none;
+	text-underline-offset: 0.2em;
+}
+
+.doc a:hover {
+	text-decoration: underline;
+}
+
+.doc strong {
+	font-weight: 600;
+}
+
+.doc hr {
+	margin: 3rem 0;
+	border: 0;
+	border-top: 1px solid var(--doc-rule);
+}
+
+.doc blockquote {
+	margin: 1.5rem 0;
+	padding: 0.75rem 1.25rem;
+	border-left: 3px solid var(--doc-rule);
+	border-radius: 0 var(--doc-radius) var(--doc-radius) 0;
+	background: var(--doc-quote-bg);
+	color: var(--doc-muted);
+}
+
+.doc blockquote > :first-child {
+	margin-top: 0;
+}
+
+.doc blockquote > :last-child {
+	margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Code
+ * ------------------------------------------------------------------ */
+
+.doc code {
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.875em;
+}
+
+/* Inline only: a fenced block's <code> is inside a shiki <pre>, which
+   brings its own background. */
+.doc :not(pre) > code {
+	padding: 0.15em 0.4em;
+	border-radius: 4px;
+	background: var(--doc-code-bg);
+}
+
+.doc pre {
+	margin: 1.5rem 0;
+	padding: 1rem 1.25rem;
+	overflow-x: auto;
+	border: 1px solid var(--doc-rule);
+	border-radius: var(--doc-radius);
+	font-size: 0.875rem;
+	line-height: 1.6;
+	tab-size: 2;
+}
+
+/*
+ * Shiki now emits one theme — dark — with the colours inline on the spans, so
+ * there is nothing left to switch. The rules that mapped `--sh-light`/`--sh-dark`
+ * onto the explorer's theme are gone with the variables they read. A code block
+ * on this site is dark on every page and in every theme, deliberately.
+ *
+ * The `<pre>` still needs its background stated here rather than taken from
+ * shiki's, so that the padding this stylesheet adds is the same colour as the
+ * code inside it.
+ */
+.doc .shiki {
+	background: #24292e;
+}
+
+/* ------------------------------------------------------------------ *
+ * Tables — the reference pages are mostly option tables, so these
+ * carry more of the site than tables usually do.
+ * ------------------------------------------------------------------ */
+
+.doc table {
+	display: block;
+	width: 100%;
+	margin: 1.5rem 0;
+	overflow-x: auto;
+	border-collapse: collapse;
+	font-size: 0.9375rem;
+}
+
+.doc th,
+.doc td {
+	padding: 0.5rem 1rem 0.5rem 0;
+	border-bottom: 1px solid var(--doc-rule);
+	text-align: left;
+	vertical-align: top;
+}
+
+.doc th {
+	color: var(--doc-faint);
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.doc td code {
+	white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ *
+ * The home page — the one page written as MDX rather than Markdown,
+ * because it is the one page that is not prose.
+ * ------------------------------------------------------------------ */
+
+.home {
+	max-width: 58rem;
+	margin: 0 auto;
+	padding: 5rem 2rem 8rem;
+}
+
+.home-name {
+	margin: 0;
+	font-size: 4rem;
+	font-weight: 600;
+	letter-spacing: -0.045em;
+	line-height: 1;
+}
+
+.home-text {
+	margin: 1rem 0 0;
+	max-width: 30rem;
+	font-size: 1.75rem;
+	font-weight: 500;
+	letter-spacing: -0.02em;
+	line-height: 1.25;
+}
+
+.home-tagline {
+	margin: 1.5rem 0 0;
+	max-width: 34rem;
+	color: var(--doc-muted);
+	font-size: 1.0625rem;
+}
+
+.home-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 2.5rem;
+}
+
+.home-action {
+	padding: 0.6rem 1.25rem;
+	border: 1px solid var(--doc-rule);
+	border-radius: var(--doc-radius);
+	background: none;
+	color: var(--doc-fg);
+	font: inherit;
+	font-size: 0.9375rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: border-color 120ms ease;
+}
+
+.home-action:hover {
+	border-color: var(--doc-faint);
+}
+
+.home-action-primary {
+	border-color: var(--doc-fg);
+	background: var(--doc-fg);
+	color: var(--doc-bg);
+}
+
+.home-action-primary:hover {
+	border-color: var(--doc-fg);
+	opacity: 0.85;
+}
+
+.home-action:focus-visible {
+	outline: 2px solid var(--doc-accent);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.home-action {
+		transition: none;
+	}
+}
+
+.home-features {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+	gap: 2.5rem 3rem;
+	margin-top: 6rem;
+	padding-top: 3rem;
+	border-top: 1px solid var(--doc-rule);
+}
+
+.home-feature h3 {
+	margin: 0 0 0.5rem;
+	font-size: 0.9375rem;
+	font-weight: 600;
+}
+
+.home-feature p {
+	margin: 0;
+	color: var(--doc-muted);
+	font-size: 0.9375rem;
+	line-height: 1.6;
+}

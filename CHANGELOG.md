@@ -15,6 +15,78 @@ Section numbers refer to `SPEC.md`; the findings behind most entries are recorde
 
 ---
 
+## Unreleased
+
+### Changed — uight.dev is a uight instance
+
+The documentation site was VitePress. It is now `bunx uight build` over a tree of
+`.docs.mdx` pages in `docs/src/`, with no second generator anywhere in it: the sidebar you
+navigate is the fixture tree, each page is one docs page (§14), and `docs/scripts/sync.ts`
+still copies `SPEC.md`, `ARCHITECTURE.md`, `ROADMAP.md` and `CHANGELOG.md` in and the
+built registry into `public/r/`.
+
+The previous entry gave the reason for VitePress — "a project whose documentation site is
+its own unshipped feature cannot publish a page about a bug in that feature" — and that
+risk is real and unchanged. What changed is the weighing of it against the other one: a
+component explorer whose own documentation is a different tool's output is a claim nobody
+has to take seriously, and every rough edge in docs pages is now one the maintainers meet
+first. §1.4's non-goal stands: uight is not becoming a documentation framework, and the
+site is missing the things that would require — full-text search, per-page URLs, a
+sitemap. `docs/guide/docs-pages` says so on the page.
+
+The four documents synced from the repository root stay Markdown and are rendered rather
+than compiled: SPEC.md is full of `{`, `<` and `|` that MDX reads as expressions and JSX,
+and escaping a document for a generator is how it stops being the copy the maintainers
+read. Every other page is Markdown for the same reason — one rendering path, one
+stylesheet, one link behaviour — with a four-line `.docs.mdx` beside it carrying its title
+and its place in the sidebar.
+
+### Added — `fileMeta.title`, and `fileMeta.order` implemented
+
+`FixtureFileMeta.order` has been documented as "sort weight within its directory, lower
+sorts first" since §3.1 was written, and `buildTree` never read it: the tree sorted by
+path and nothing else. It reads it now, and a directory takes the weight of its earliest
+child, so an ordered `guide/` sorts ahead of an ordered `reference/` without either
+directory being weighted itself. Unweighted files sort after weighted ones, alphabetically
+as before, so a corpus that declares nothing is ordered exactly as it was.
+
+`fileMeta.title` is new and does for a single-fixture file what `fixtureMeta`'s `title`
+already did for a named fixture: it is what the tree calls the row. A per-fixture title
+still wins where there is one.
+
+### Fixed — `previewEntry`'s CSS reached the frame in development only
+
+An explorer built with `uight build`, or embedded with `production: "include"`, rendered
+every fixture with none of the host's global CSS. `previewEntry` exists to deliver exactly
+that, so this was the feature failing in the one place it is deployed.
+
+In development Vite serves CSS as JavaScript that injects a `<style>` into the realm it
+runs in, and the renderer runs in the frame realm, so it worked. A build extracts that CSS
+to a file and links it from the HTML document that loads the chunk — but the renderer is
+injected into the frame as a script element at runtime (§6.3) and the frame's document
+never passes through `transformIndexHtml`, so nothing linked it. The stylesheets are now
+carried on `virtual:uight/renderer-url` beside the entry URL, resolved from the bundle in
+`generateBundle` the same way the entry URL already was, and linked into the frame ahead
+of the script that needs them. Development is unchanged: the list is empty there.
+
+Found by building this site, which is the argument for building it this way.
+
+### Added — `uight build --title`
+
+`buildStatic({ title })` had no flag, so a published explorer was titled after its
+directory — "docs — components" for a site called uight.
+
+### Fixed — an MDX page can carry metadata
+
+`parseFixtureFile` short-circuited on `.mdx` — one fixture, no parse — so `fileMeta` in a
+docs page was read by nobody. It could not be picked up later either: `default-single` is
+a decided answer, so the warm pass never executes the module. The ESM exports inside an
+MDX document are ordinary JavaScript at column zero, so the statement is now cut out of
+the prose and parsed on its own. Anything that cannot be read stays absent, as everywhere
+else metadata is read statically.
+
+---
+
 ## [0.0.1-canary.2] — 4 August 2026
 
 ### Fixed — the preview frame is a real document, not `about:blank`

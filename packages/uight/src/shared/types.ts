@@ -46,6 +46,12 @@ export interface FixtureFileMeta {
 	viewport?: Viewport;
 	/** Sort weight within its directory. Lower sorts first. */
 	order?: number;
+	/**
+	 * What the tree calls this file, instead of its filename. A per-fixture
+	 * `title` still wins where there is one to win; this is for the files that
+	 * are a single fixture, where the file and the fixture are the same thing.
+	 */
+	title?: string;
 }
 
 export interface FixtureMeta {
@@ -516,6 +522,16 @@ export interface FixtureTreeProps {
 	selected: FixtureId | null;
 	onSelect: (id: FixtureId | null) => void;
 	search?: boolean;
+	/**
+	 * "The pointer is over this row" — an invitation to warm the file's chunk
+	 * before the click that needs it (§9.1).
+	 *
+	 * Optional, and optional in both directions: a packaged explorer passes it,
+	 * an ejected tree may ignore it, and nothing about the selection depends on
+	 * it having been called. It is a hint about a *file*, because a lazy chunk
+	 * is per file and every fixture in one arrives together.
+	 */
+	onPrefetch?: (path: string) => void;
 }
 export interface ControlPanelProps {
 	inputs: RegisteredInput[];
@@ -722,6 +738,23 @@ export interface UightPluginOptions {
 
 	index?: "static" | "warm" | "lazy";
 	production?: "exclude" | "include" | "error";
+
+	/**
+	 * Bundle every fixture module into the entry chunk instead of code-splitting
+	 * one lazy chunk per file. Default false, and false is right for almost
+	 * everything: a corpus of any size would put every component in the
+	 * explorer's first download.
+	 *
+	 * It earns its place when the fixtures are small, few, and switched between
+	 * constantly — a prose documentation site is the case this exists for. There
+	 * each selection is a network round trip for a chunk of a few kilobytes, and
+	 * the round trip is most of the latency. Eager makes every switch after the
+	 * first paint synchronous.
+	 *
+	 * Build only. A dev server serves modules unbundled either way, and eager
+	 * there would only cost a slower cold start.
+	 */
+	eager?: boolean;
 
 	storybook?: boolean | StorybookSupport;
 	docgen?: boolean;

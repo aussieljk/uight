@@ -2,7 +2,7 @@
 /**
  * The uight CLI.
  *
- *   uight build [--out dist-uight] [--base /] [--root .]
+ *   uight build [--out dist-uight] [--base /] [--root .] [--title <text>]
  *   uight doctor [--root .] [--json]
  *   uight init [--root .] [--dry-run] [--no-rename]
  *   uight storybook [--root .]
@@ -38,6 +38,7 @@ function usage() {
     --base <path>             Public base path (default: /)
     --root <dir>              Project root (default: cwd)
     --config <file>           Vite config file
+    --title <text>            Page title (default: the directory name)
 
   uight init                 Wire uight into this project — one command from
                               Storybook or react-cosmos
@@ -85,6 +86,9 @@ async function main() {
 			base: String(flag("base", "/")),
 			...(typeof flag("config", undefined) === "string"
 				? { configFile: String(flag("config")) }
+				: {}),
+			...(typeof flag("title", undefined) === "string"
+				? { title: String(flag("title")) }
 				: {}),
 		});
 		console.log(

@@ -42,6 +42,7 @@ export interface GridViewProps {
 	tiles: readonly GridTile[];
 	selected: FixtureId | null;
 	rendererEntryUrl: string;
+	rendererStyleUrls?: readonly string[] | undefined;
 	dev: boolean;
 	previewDocumentUrl?: string | undefined;
 	theme: ResolvedUightTheme;
@@ -116,6 +117,7 @@ export function GridView(props: GridViewProps): ReactElement {
 							current={fixtureIdsEqual(tile.fixture, selected)}
 							height={props.tileHeight}
 							rendererEntryUrl={props.rendererEntryUrl}
+							rendererStyleUrls={props.rendererStyleUrls}
 							dev={props.dev}
 							previewDocumentUrl={props.previewDocumentUrl}
 							theme={props.theme}
@@ -142,6 +144,7 @@ interface TileProps {
 	current: boolean;
 	height: number;
 	rendererEntryUrl: string;
+	rendererStyleUrls: readonly string[] | undefined;
 	dev: boolean;
 	previewDocumentUrl: string | undefined;
 	theme: ResolvedUightTheme;
@@ -213,6 +216,7 @@ function Tile(props: TileProps): ReactElement {
 					<FrameHost
 						mountId={`uight-grid-${tileKey.replace(/[^\w-]/g, "-")}`}
 						rendererEntryUrl={props.rendererEntryUrl}
+						rendererStyleUrls={props.rendererStyleUrls}
 						dev={props.dev}
 						initialFixture={tile.fixture}
 						initialOverlays={overlays}

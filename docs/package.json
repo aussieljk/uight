@@ -4,11 +4,26 @@
 	"type": "module",
 	"scripts": {
 		"sync": "bun run scripts/sync.ts",
-		"dev": "bun run sync && vitepress dev",
-		"build": "bun run sync && vitepress build",
-		"preview": "vitepress preview"
+		"dev": "bun run sync && vite",
+		"build": "bun run sync && bunx uight build --out dist --title uight",
+		"preview": "bunx vite preview --outDir dist",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"react": "19.2.8",
+		"react-dom": "19.2.8"
 	},
 	"devDependencies": {
-		"vitepress": "^1.6.3"
+		"@aussieljk/uight": "workspace:*",
+		"@mdx-js/rollup": "3.1.0",
+		"@shikijs/langs": "3.14.0",
+		"@shikijs/themes": "3.14.0",
+		"@types/react": "19.2.18",
+		"@types/react-dom": "19.2.4",
+		"@vitejs/plugin-react": "6.0.5",
+		"marked": "16.4.1",
+		"shiki": "3.14.0",
+		"typescript": "7.0.2",
+		"vite": "8.1.5"
 	}
 }

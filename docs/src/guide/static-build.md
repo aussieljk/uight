@@ -12,12 +12,17 @@ open, linked from wherever your team already reads things.
 bunx uight build --out dist-uight --base /design/ --root .
 ```
 
-| Flag       | Default      | Notes                                                     |
-| ---------- | ------------ | --------------------------------------------------------- |
-| `--out`    | `dist-uight` | Output directory                                          |
-| `--base`   | `/`          | Public base path — set it when you deploy under a subpath |
-| `--root`   | cwd          | Project root                                              |
-| `--config` | discovered   | An explicit Vite config file                              |
+| Flag       | Default            | Notes                                                     |
+| ---------- | ------------------ | --------------------------------------------------------- |
+| `--out`    | `dist-uight`       | Output directory                                          |
+| `--base`   | `/`                | Public base path — set it when you deploy under a subpath |
+| `--root`   | cwd                | Project root                                              |
+| `--config` | discovered         | An explicit Vite config file                              |
+| `--title`  | the directory name | The page title                                            |
+
+Your `public/` directory is copied in, because this is your own Vite config building your
+own project — which is how [uight.dev](/home) serves the registry at `/r/…` from the same
+deploy as the site.
 
 ## What it builds with
 

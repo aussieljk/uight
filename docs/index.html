@@ -1,0 +1,23 @@
+<!doctype html>
+<!--
+  Development only.
+
+  There is no application here — the site *is* the explorer, and in development
+  the explorer is the plugin's own route at /uight (§5.1). Vite still wants a
+  document at the root, and a reader who opens the dev server's printed URL
+  should land on the site rather than on an empty page explaining that they
+  should have typed something else.
+
+  `uight build` never sees this file: it replaces `rollupOptions.input` with its
+  own scaffold, and the built site's index.html is the explorer itself.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>uight</title>
+		<meta http-equiv="refresh" content="0; url=/uight" />
+	</head>
+	<body>
+		<a href="/uight">uight</a>
+	</body>
+</html>

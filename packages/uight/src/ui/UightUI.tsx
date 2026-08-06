@@ -22,7 +22,7 @@ import {
 } from "react";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { config, fixtureModules } from "virtual:uight/runtime";
-import { rendererEntryUrl } from "virtual:uight/renderer-url";
+import { rendererEntryUrl, rendererStyleUrls } from "virtual:uight/renderer-url";
 
 import {
 	callSiteLabel,
@@ -733,6 +733,27 @@ export default function UightUI(props: UightProps): ReactElement {
 
 	const selectRef = useRef(select);
 	selectRef.current = select;
+
+	/**
+	 * §9.1 — warm a file's chunk while the pointer is still on its row.
+	 *
+	 * The host knows what is being hovered; the renderer holds the loaders. Sent
+	 * once per file per realm: a `Set` rather than a debounce, because the point
+	 * is not to rate-limit hovering but to never ask twice for something the
+	 * browser has already cached. It is cleared with the transport, since a new
+	 * realm has a cold module registry again.
+	 */
+	const transportRef = useRef<HostTransport | null>(null);
+	transportRef.current = transport;
+	const prefetched = useRef<Set<string>>(new Set());
+	useEffect(() => {
+		prefetched.current = new Set();
+	}, [transport]);
+	const prefetch = useCallback((path: string) => {
+		if (prefetched.current.has(path)) return;
+		prefetched.current.add(path);
+		transportRef.current?.send({ type: "PREFETCH", path });
+	}, []);
 
 	const handleTransport = useCallback((next: HostTransport | null) => {
 		setTransport(next);
@@ -1517,6 +1538,7 @@ export default function UightUI(props: UightProps): ReactElement {
 				key={frameKey}
 				mountId={mountId}
 				rendererEntryUrl={rendererEntryUrl}
+				rendererStyleUrls={rendererStyleUrls}
 				dev={config.command === "serve"}
 				initialFixture={resolution.target}
 				initialOverlays={overlayState.overlays}
@@ -1639,6 +1661,7 @@ export default function UightUI(props: UightProps): ReactElement {
 											nodes={fixtureNodes}
 											selected={selectedComponent ? null : selection}
 											onSelect={select}
+											onPrefetch={prefetch}
 											search={chrome.search}
 										/>
 
@@ -1851,6 +1874,7 @@ export default function UightUI(props: UightProps): ReactElement {
 												tiles={gridTiles}
 												selected={selection}
 												rendererEntryUrl={rendererEntryUrl}
+												rendererStyleUrls={rendererStyleUrls}
 												dev={config.command === "serve"}
 												previewDocumentUrl={props.previewDocumentUrl}
 												theme={theme}

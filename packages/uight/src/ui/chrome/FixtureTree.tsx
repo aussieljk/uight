@@ -130,6 +130,7 @@ export function FixtureTree({
 	selected,
 	onSelect,
 	search = true,
+	onPrefetch,
 }: FixtureTreeProps): ReactElement {
 	const chrome = useUightChrome();
 	const [query, setQuery] = useState("");
@@ -344,6 +345,12 @@ export function FixtureTree({
 							aria-expanded={row.group ? row.open : undefined}
 							tabIndex={node.key === tabbableKey ? 0 : -1}
 							onFocus={() => setFocusKey(node.key)}
+							// Hover and keyboard focus both mean "next, probably". Warming
+							// on `pointerenter` rather than `mouseover` keeps it to one call
+							// per row rather than one per child element crossed.
+							onPointerEnter={
+								node.fixture && onPrefetch ? () => onPrefetch(node.fixture!.path) : undefined
+							}
 							onClick={() => {
 								setFocusKey(node.key);
 								activate(row);
