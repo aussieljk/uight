@@ -11,8 +11,20 @@
  * a stale reference across HMR.
  */
 
+import {
+	Badge,
+	Button,
+	Input,
+	Select,
+	Slider,
+	Switch,
+	Textarea,
+	ToggleGroupRadioGroup,
+	Typography,
+} from "ljkui";
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentType, ReactElement, ReactNode } from "react";
+import { useUightRoot } from "../root-context.ts";
 import { applyPatches } from "../../shared/wire.ts";
 import type {
 	CodecEditorProps,
@@ -28,7 +40,7 @@ import { pathKey } from "../../shared/wire.ts";
 // §7.7, Q6 — the editors live in their own runtime module precisely so the
 // renderer chunk never pulls them in; the UI is the only importer.
 import { builtinCodecEditors } from "../../runtime/codec-editors.tsx";
-import { FOCUS_RING, MOTION, SELECTABLE, SELECTED, cx } from "../cx.ts";
+import { FOCUS_RING, MOTION, cx } from "../cx.ts";
 import {
 	childrenOf,
 	formatJson,
@@ -48,14 +60,13 @@ export type { ControlPanelInputsProps } from "../../shared/types.ts";
  * Primitives
  * ------------------------------------------------------------------ */
 
-const FIELD = cx(
-	"h-6 w-full min-w-0 rounded-sm border border-[var(--u-line)] bg-[var(--u-bg)] px-1.5",
-	"text-sm text-[var(--u-fg)] placeholder:text-[var(--u-fg-subtle)]",
-	"disabled:opacity-50",
-	FOCUS_RING,
-	MOTION,
-);
+/**
+ * The panel is a dense side pane, so every ljkui control here is size `1` —
+ * stated once rather than repeated as a magic string at each call site.
+ */
+const SIZE = "1" as const;
 
+/** A value the panel can show but not edit (§7.2). */
 function Chip({
 	children,
 	title,
@@ -64,12 +75,9 @@ function Chip({
 	title?: string;
 }): ReactElement {
 	return (
-		<span
-			title={title}
-			className="inline-flex h-6 items-center rounded-sm bg-[var(--u-bg-hover)] px-1.5 text-xs text-[var(--u-fg-muted)]"
-		>
+		<Badge size={SIZE} variant="soft" color="gray" title={title}>
 			{children}
-		</span>
+		</Badge>
 	);
 }
 
@@ -115,20 +123,21 @@ function TextField(props: {
 
 	if (props.multiline) {
 		return (
-			<textarea
+			<Textarea
+				size={SIZE}
 				aria-label={props.label}
 				value={draft}
 				rows={3}
 				disabled={props.disabled}
 				onChange={(e) => edit(e.target.value)}
 				onBlur={commit}
-				className={cx(FIELD, "h-auto resize-y py-1 leading-5")}
 			/>
 		);
 	}
 
 	return (
-		<input
+		<Input.Control
+			size={SIZE}
 			aria-label={props.label}
 			type={props.type ?? "text"}
 			value={draft}
@@ -147,7 +156,6 @@ function TextField(props: {
 					setDraft(props.value);
 				}
 			}}
-			className={FIELD}
 		/>
 	);
 }
@@ -177,68 +185,63 @@ function optionWires(input: RegisteredInput): Wire[] | null {
 
 function Editor(props: NodeProps): ReactElement {
 	const { wire, path, label, input, disabled, codecs, onSet } = props;
+	// Every popup the panel opens has to portal inside the mount, or it lands
+	// outside our scoped stylesheet and comes out unstyled (§10.3).
+	const rootEl = useUightRoot();
 	const atRoot = path.length === 0;
 	const options = atRoot ? optionWires(input) : null;
 	const control = atRoot ? (input.options?.control ?? "auto") : "auto";
 	const shape = control !== "auto" && control ? control : shapeOf(wire, options !== null);
 
-	// select / radio — §7.6, options are declared at the call site
+	// select / radio — §7.6, options are declared at the call site.
+	//
+	// Both are keyed by the option's INDEX, not by its label: two options can
+	// render the same label (`0` and `"0"`), and choosing by label would send
+	// whichever came first for either of them.
 	if (options && (shape === "select" || shape === "radio")) {
 		const current = wireLabel(wire);
+		const currentIndex = options.findIndex((o) => wireLabel(o) === current);
+		const choose = (index: number): void => {
+			const option = options[index];
+			if (option && option.t !== "opaque") onSet(path, option);
+		};
+
 		if (shape === "radio") {
 			return (
-				<div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1">
-					{options.map((option, i) => {
-						const value = wireLabel(option);
-						const active = value === current;
-						return (
-							<label
-								key={`${value}-${i}`}
-								className={cx(
-									"inline-flex h-6 cursor-pointer items-center rounded-sm px-1.5 text-xs",
-									SELECTABLE,
-									active ? SELECTED : "text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
-									"focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--u-accent)]",
-									MOTION,
-								)}
-							>
-								<input
-									type="radio"
-									className="sr-only"
-									name={`${input.name}-${pathKey(path)}`}
-									checked={active}
-									disabled={disabled}
-									onChange={() => {
-										if (option.t !== "opaque") onSet(path, option);
-									}}
-								/>
-								{value}
-							</label>
-						);
-					})}
-				</div>
+				<ToggleGroupRadioGroup.Root
+					aria-label={label}
+					name={`${input.name}-${pathKey(path)}`}
+					disabled={disabled}
+					value={currentIndex}
+					onValueChange={(next) => choose(Number(next))}
+				>
+					{options.map((option, i) => (
+						<ToggleGroupRadioGroup.Item key={i} value={i}>
+							{wireLabel(option)}
+						</ToggleGroupRadioGroup.Item>
+					))}
+				</ToggleGroupRadioGroup.Root>
 			);
 		}
 		return (
-			<select
-				aria-label={label}
-				value={String(options.findIndex((o) => wireLabel(o) === current))}
+			<Select.Root
+				size={SIZE}
+				value={currentIndex}
 				disabled={disabled}
-				onChange={(e) => {
-					const option = options[Number(e.target.value)];
-					if (option && option.t !== "opaque") onSet(path, option);
-				}}
-				className={FIELD}
+				onValueChange={(next) => choose(Number(next))}
 			>
-				{current && !options.some((o) => wireLabel(o) === current) ? (
-					<option value="-1">{current}</option>
-				) : null}
-				{options.map((option, i) => (
-					<option key={i} value={String(i)}>
-						{wireLabel(option)}
-					</option>
-				))}
-			</select>
+				<Select.Trigger aria-label={label} className="w-full" />
+				<Select.Content container={rootEl}>
+					{/* §7.2 — a value edited away from every declared option still has
+					    to be shown, or the trigger would read as one of them. */}
+					{currentIndex === -1 ? <Select.Item value={-1}>{current}</Select.Item> : null}
+					{options.map((option, i) => (
+						<Select.Item key={i} value={i}>
+							{wireLabel(option)}
+						</Select.Item>
+					))}
+				</Select.Content>
+			</Select.Root>
 		);
 	}
 
@@ -251,18 +254,15 @@ function Editor(props: NodeProps): ReactElement {
 			return (
 				<div className="flex items-center gap-1">
 					<Chip>undefined</Chip>
-					<button
-						type="button"
+					<Button
+						size={SIZE}
+						variant="ghost"
+						color="gray"
 						disabled={disabled}
 						onClick={() => onSet(path, { t: "prim", v: "" })}
-						className={cx(
-							"h-6 rounded-sm px-1.5 text-xs text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]",
-							FOCUS_RING,
-							MOTION,
-						)}
 					>
 						set a value
-					</button>
+					</Button>
 				</div>
 			);
 
@@ -308,17 +308,20 @@ function Editor(props: NodeProps): ReactElement {
 			if (typeof wire.v === "boolean" || shape === "checkbox") {
 				const checked = wire.v === true;
 				return (
-					<label className="inline-flex h-6 items-center gap-2 text-sm text-[var(--u-fg-muted)]">
-						<input
-							type="checkbox"
+					<span className="inline-flex items-center gap-2">
+						<Switch
+							size={SIZE}
 							aria-label={label}
 							checked={checked}
 							disabled={disabled}
-							onChange={(e) => onSet(path, { t: "prim", v: e.target.checked })}
-							className={cx("size-3.5 accent-[var(--u-accent)]", FOCUS_RING)}
+							onCheckedChange={(next) => onSet(path, { t: "prim", v: next })}
 						/>
-						{checked ? "true" : "false"}
-					</label>
+						{/* The literal, not "on"/"off": the panel edits a value, and
+						    `false` and `undefined` are different things here (§7.2). */}
+						<Typography.Text size={SIZE} color="gray">
+							{checked ? "true" : "false"}
+						</Typography.Text>
+					</span>
 				);
 			}
 
@@ -328,20 +331,28 @@ function Editor(props: NodeProps): ReactElement {
 				if (shape === "range") {
 					return (
 						<div className="flex items-center gap-2">
-							<input
-								type="range"
+							<Slider
+								size={SIZE}
 								aria-label={label}
 								value={numeric}
 								min={opts?.min ?? 0}
 								max={opts?.max ?? 100}
 								step={opts?.step ?? 1}
 								disabled={disabled}
-								onChange={(e) => onSet(path, { t: "prim", v: Number(e.target.value) })}
-								className={cx("h-6 min-w-0 flex-1 accent-[var(--u-accent)]", FOCUS_RING)}
+								onValueChange={(next) => {
+									// A single-thumb slider still reports an array on some paths.
+									const v = Array.isArray(next) ? next[0] : next;
+									if (typeof v === "number") onSet(path, { t: "prim", v });
+								}}
+								className="min-w-0 flex-1"
 							/>
-							<span className="w-10 shrink-0 text-right text-xs tabular-nums text-[var(--u-fg-muted)]">
+							<Typography.Text
+								size={SIZE}
+								color="gray"
+								className="w-10 shrink-0 text-right tabular-nums"
+							>
 								{numeric}
-							</span>
+							</Typography.Text>
 						</div>
 					);
 				}
@@ -368,6 +379,9 @@ function Editor(props: NodeProps): ReactElement {
 			if (shape === "color") {
 				return (
 					<div className="flex items-center gap-1">
+						{/* The one control with no ljkui equivalent: a colour well is a
+						    native widget, and rebuilding one would be a worse picker
+						    than the platform's. The field beside it is ljkui's. */}
 						<input
 							type="color"
 							aria-label={label}
@@ -456,7 +470,9 @@ function Branch(props: NodeProps): ReactElement {
 						/>
 					))}
 					{rows.length === 0 ? (
-						<p className="py-1 text-xs text-[var(--u-fg-subtle)]">empty</p>
+						<Typography.Text render={<p />} size="1" color="gray" className="py-1">
+							empty
+						</Typography.Text>
 					) : null}
 				</div>
 			) : null}
@@ -519,59 +535,53 @@ function InputRow(props: {
 			aria-label={label}
 		>
 			<div className="flex h-6 items-center gap-2">
-				<span className="truncate text-sm font-medium text-[var(--u-fg)]" title={input.name}>
+				<Typography.Text size="1" weight="medium" className="truncate" title={input.name}>
 					{label}
-				</span>
-				<span className="shrink-0 text-xs text-[var(--u-fg-subtle)]">{typeLabel(value)}</span>
+				</Typography.Text>
+				<Typography.Text size="1" color="gray" className="shrink-0">
+					{typeLabel(value)}
+				</Typography.Text>
 				{disabled ? (
 					// §7.3 — an unregistered input keeps its overlay and shows greyed.
-					<span
-						className="shrink-0 text-xs text-[var(--u-fg-subtle)]"
+					<Badge
+						size="1"
+						variant="soft"
+						color="gray"
 						title="This input was not registered by the latest render. Its setting is kept."
 					>
 						inactive
-					</span>
+					</Badge>
 				) : null}
 
 				<div className="ml-auto flex shrink-0 items-center gap-0.5">
 					{(branch || wantsJson) && canJson ? (
-						<button
-							type="button"
+						<Button
+							size="1"
+							variant={jsonMode ? "soft" : "ghost"}
+							color={jsonMode ? undefined : "gray"}
 							aria-pressed={jsonMode}
 							onClick={() => setJsonMode((v) => !v)}
-							className={cx(
-								"h-6 rounded-sm px-1.5 text-xs",
-								jsonMode
-									? "bg-[var(--u-accent-soft)] text-[var(--u-accent)]"
-									: "text-[var(--u-fg-subtle)] hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)]",
-								FOCUS_RING,
-								MOTION,
-							)}
 						>
 							JSON
-						</button>
+						</Button>
 					) : null}
 					{edited ? (
-						<button
-							type="button"
+						<Button
+							size="1"
+							variant="ghost"
 							onClick={() => onReset(input.name)}
 							title="Reset to this module's current default"
-							className={cx(
-								"h-6 rounded-sm px-1.5 text-xs text-[var(--u-accent)] hover:bg-[var(--u-bg-hover)]",
-								FOCUS_RING,
-								MOTION,
-							)}
 						>
 							Reset
-						</button>
+						</Button>
 					) : null}
 				</div>
 			</div>
 
 			{input.options?.description ? (
-				<p className="mb-1 text-xs leading-4 text-[var(--u-fg-muted)]">
+				<Typography.Text render={<p />} size="1" color="gray" className="mb-1">
 					{input.options.description}
-				</p>
+				</Typography.Text>
 			) : null}
 
 			<div className="mt-1">
@@ -631,7 +641,9 @@ function JsonEditor(props: {
 
 	return (
 		<div>
-			<textarea
+			<Textarea
+				size="1"
+				color={error ? "danger" : undefined}
 				aria-label={`${props.label} as JSON`}
 				aria-invalid={error !== null}
 				value={draft}
@@ -640,13 +652,13 @@ function JsonEditor(props: {
 				spellCheck={false}
 				onChange={(e) => setDraft(e.target.value)}
 				onBlur={commit}
-				className={cx(
-					FIELD,
-					"h-auto resize-y py-1 leading-5",
-					error ? "border-[var(--u-danger)]" : "",
-				)}
+				className="resize-y"
 			/>
-			{error ? <p className="mt-1 text-xs text-[var(--u-danger)]">{error}</p> : null}
+			{error ? (
+				<Typography.Text render={<p />} size="1" color="danger" className="mt-1">
+					{error}
+				</Typography.Text>
+			) : null}
 		</div>
 	);
 }

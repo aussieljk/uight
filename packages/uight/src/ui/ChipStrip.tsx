@@ -10,14 +10,22 @@
  * — announce a tablist to a screen reader and its user is owed arrow keys, a
  * roving tab stop, and one tab stop for the whole set.
  *
- * So: real roving tabindex, automatic activation (arrow moves focus and selects,
- * which is what stepping variants already did), `Home`/`End`, and a gradient at
- * each end that appears only when there is something past it.
+ * Both are now answered by things that already exist. The tab pattern is
+ * ljkui's `Tabs`, which is where the roving tabindex, the arrows, `Home`/`End`
+ * and activate-on-focus come from — the sixty lines of hand-rolled key handling
+ * that used to live here were a second implementation of it. The scroll is
+ * still ours: a gradient at each end that appears only when there is something
+ * past it.
+ *
+ * There are no tab PANELS. The chips select what the preview renders, and the
+ * preview is not inside this strip; `Tabs.Trigger` without a `Tabs.Content` is
+ * a tablist that controls something elsewhere, which is exactly the situation.
  */
 
+import { Tabs } from "ljkui";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { KeyboardEvent, ReactElement, ReactNode } from "react";
-import { FOCUS_RING, MOTION, cx } from "./cx.ts";
+import type { ReactElement, ReactNode } from "react";
+import { cx } from "./cx.ts";
 
 export interface Chip {
 	key: string;
@@ -62,87 +70,40 @@ export function ChipStrip({
 		return () => observer.disconnect();
 	}, [measure, chips]);
 
-	// The selected chip is the tab stop; with nothing selected the first one is,
-	// so the strip is never a set of elements Tab cannot reach.
-	const selectedIndex = chips.findIndex((chip) => chip.selected);
-	const stop = selectedIndex < 0 ? 0 : selectedIndex;
-
-	const focusAt = (index: number): void => {
-		const chip = chips[index];
-		if (!chip) return;
-		const el = scrollRef.current?.querySelector<HTMLElement>(`[data-chip="${index}"]`);
-		el?.focus();
-		el?.scrollIntoView({ block: "nearest", inline: "nearest" });
-		// Automatic activation: for a tablist whose panel is already rendered ARIA
-		// prefers it, and it is exactly what ←/→ did before this file existed.
-		chip.onSelect();
-	};
-
-	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-		if (chips.length === 0) return;
-		const attribute = (event.target as HTMLElement).getAttribute?.("data-chip");
-		const current = attribute === null || attribute === undefined ? -1 : Number(attribute);
-		const from = Number.isInteger(current) && current >= 0 ? current : stop;
-		switch (event.key) {
-			case "ArrowRight":
-				event.preventDefault();
-				focusAt((from + 1) % chips.length);
-				return;
-			case "ArrowLeft":
-				event.preventDefault();
-				focusAt((from - 1 + chips.length) % chips.length);
-				return;
-			case "Home":
-				event.preventDefault();
-				focusAt(0);
-				return;
-			case "End":
-				event.preventDefault();
-				focusAt(chips.length - 1);
-				return;
-			default:
-				return;
-		}
-	};
+	const selected = chips.find((chip) => chip.selected);
 
 	return (
 		<div className="flex items-center gap-2 px-3 py-1">
 			<div className="relative min-w-0 flex-1">
-				<div
-					ref={scrollRef}
-					role="tablist"
-					aria-label={label}
-					onKeyDown={onKeyDown}
-					onScroll={measure}
-					className="uight-scroll flex items-center gap-1 overflow-x-auto"
+				<Tabs.Root
+					value={selected?.key ?? null}
+					onValueChange={(next) => {
+						chips.find((chip) => chip.key === next)?.onSelect();
+					}}
 				>
-					{chips.map((chip, index) => (
-						<div key={chip.key} className="contents">
-							{dividerAfter > 0 && index === dividerAfter ? (
-								<span aria-hidden="true" className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]" />
-							) : null}
-							<button
-								type="button"
-								role="tab"
-								data-chip={index}
-								aria-selected={chip.selected}
-								tabIndex={index === stop ? 0 : -1}
-								onClick={chip.onSelect}
-								title={chip.title ?? chip.label}
-								className={cx(
-									"inline-flex h-6 shrink-0 items-center rounded-sm border-l-2 px-1.5 text-xs whitespace-nowrap",
-									chip.selected
-										? "border-l-[var(--u-accent)] bg-[var(--u-accent-soft)] font-medium text-[var(--u-accent)]"
-										: "border-l-transparent text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)]",
-									FOCUS_RING,
-									MOTION,
-								)}
-							>
-								{chip.label}
-							</button>
-						</div>
-					))}
-				</div>
+					<Tabs.List
+						ref={scrollRef}
+						size="1"
+						aria-label={label}
+						onScroll={measure}
+						className="uight-scroll flex items-center gap-1 overflow-x-auto"
+					>
+						{chips.map((chip, index) => (
+							<div key={chip.key} className="contents">
+								{dividerAfter > 0 && index === dividerAfter ? (
+									<span aria-hidden="true" className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]" />
+								) : null}
+								<Tabs.Trigger
+									value={chip.key}
+									title={chip.title ?? chip.label}
+									className="shrink-0 whitespace-nowrap"
+								>
+									{chip.label}
+								</Tabs.Trigger>
+							</div>
+						))}
+					</Tabs.List>
+				</Tabs.Root>
 
 				{/* Edge affordances. Presentational only — arrows and roving focus are
 				    the keyboard's answer to the same problem (§10.1). */}

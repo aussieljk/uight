@@ -11,7 +11,7 @@
  */
 
 import type { Connect, ViteDevServer } from "vite";
-import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASS } from "../ui/constants.ts";
+import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASSES } from "../ui/constants.ts";
 import type { ResolvedUightConfig } from "./config.ts";
 import {
 	DEV_ENTRY_URL,
@@ -133,7 +133,7 @@ export function generatePreviewHtml(base: string): string {
 	</head>
 	<body>
 		<div id="${FRAME_ROOT_ID}"></div>
-		<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASS}"></div>
+		<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASSES}"></div>
 	</body>
 </html>
 `;

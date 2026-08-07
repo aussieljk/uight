@@ -7,14 +7,13 @@
  * panel. Controls come from the call site (§7.6).
  */
 
+import { Table, Typography } from "ljkui";
 import type { ReactElement } from "react";
 import type { PropTableProps } from "../../shared/types.ts";
 import { SECTION_LABEL, cx } from "../cx.ts";
 import { limitationNotes, sortProps } from "../docs.ts";
 
 export type { PropTableProps };
-
-const CELL = "px-2 py-1 align-top";
 
 export function PropTable({ doc }: PropTableProps): ReactElement | null {
 	if (!doc) return null;
@@ -33,71 +32,68 @@ export function PropTable({ doc }: PropTableProps): ReactElement | null {
 			</h2>
 
 			{doc.description ? (
-				<p className="px-2 pb-2 text-xs text-[var(--u-fg-muted)]">{doc.description}</p>
+				<Typography.Text render={<p />} size="1" color="gray" className="px-2 pb-2">
+					{doc.description}
+				</Typography.Text>
 			) : null}
 
 			{props.length ? (
-				<div className="overflow-x-auto">
-					{/*
-					 * A real <table>: this is tabular data, and a screen reader reading
-					 * "Prop, column 1" is the entire reason not to build it from divs.
-					 * `tabIndex` on the scroll container keeps the horizontal overflow
-					 * reachable from the keyboard (a scrollable region that only a mouse
-					 * can pan is a keyboard trap for the content inside it).
-					 */}
-					<table className="w-full border-collapse text-left text-xs">
-						<caption className="sr-only">
-							Documented props for {doc.name}, from {doc.globPath}. Display only — these are not
-							editable controls.
-						</caption>
-						<thead>
-							<tr className="text-[var(--u-fg-subtle)]">
-								<th scope="col" className={CELL}>
-									Prop
-								</th>
-								<th scope="col" className={CELL}>
-									Type
-								</th>
-								<th scope="col" className={CELL}>
-									Default
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							{props.map((prop) => (
-								<tr key={prop.name} className="border-t border-[var(--u-line)]">
-									<th scope="row" className={cx(CELL, "font-medium text-[var(--u-fg)]")}>
-										<span className="font-mono">{prop.name}</span>
-										{prop.required ? (
-											<>
-												{" "}
-												<span aria-hidden="true" className="text-[var(--u-accent)]" title="Required">
-													*
-												</span>
-												<span className="sr-only">(required)</span>
-											</>
-										) : null}
-										{prop.description ? (
-											<span className="mt-0.5 block font-normal text-[var(--u-fg-muted)]">
-												{prop.description}
+				// A real <table>, which is what ljkui's `Table` renders: this is
+				// tabular data, and a screen reader reading "Prop, column 1" is the
+				// entire reason not to build it from divs. `Table.Root` owns the
+				// horizontal scroll container, so the overflow stays reachable
+				// without a scrollable region only a mouse can pan.
+				<Table.Root size="1" variant="ghost">
+					<Table.Header>
+						<Table.Row>
+							<Table.ColumnHeaderCell>Prop</Table.ColumnHeaderCell>
+							<Table.ColumnHeaderCell>Type</Table.ColumnHeaderCell>
+							<Table.ColumnHeaderCell>Default</Table.ColumnHeaderCell>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{props.map((prop) => (
+							<Table.Row key={prop.name}>
+								<Table.RowHeaderCell>
+									<Typography.Code size="1">{prop.name}</Typography.Code>
+									{prop.required ? (
+										<>
+											{" "}
+											<span aria-hidden="true" className="text-[var(--u-accent)]" title="Required">
+												*
 											</span>
-										) : null}
-									</th>
-									<td className={cx(CELL, "font-mono text-[var(--u-fg-muted)]")}>
+											<span className="uight-sr-only">(required)</span>
+										</>
+									) : null}
+									{prop.description ? (
+										<Typography.Text
+											size="1"
+											color="gray"
+											weight="regular"
+											className="mt-0.5 block"
+										>
+											{prop.description}
+										</Typography.Text>
+									) : null}
+								</Table.RowHeaderCell>
+								<Table.Cell>
+									<Typography.Code size="1" color="gray">
 										{prop.type ?? "—"}
-									</td>
-									<td className={cx(CELL, "font-mono text-[var(--u-fg-subtle)]")}>
+									</Typography.Code>
+								</Table.Cell>
+								<Table.Cell>
+									<Typography.Code size="1" color="gray">
 										{prop.defaultValue ?? "—"}
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+									</Typography.Code>
+								</Table.Cell>
+							</Table.Row>
+						))}
+					</Table.Body>
+				</Table.Root>
 			) : (
-				<p className="px-2 pb-2 text-xs text-[var(--u-fg-muted)]">
+				<Typography.Text render={<p />} size="1" color="gray" className="px-2 pb-2">
 					No props were documented for this component.
-				</p>
+				</Typography.Text>
 			)}
 
 			{/*
@@ -106,13 +102,15 @@ export function PropTable({ doc }: PropTableProps): ReactElement | null {
 			 * reading as a complete one (§15.2).
 			 */}
 			{notes.length ? (
-				<div className="px-2 py-2 text-xs text-[var(--u-fg-subtle)]">
-					<p className="font-medium">Incomplete</p>
-					<ul className="list-disc pl-4">
+				<div className="px-2 py-2">
+					<Typography.Text render={<p />} size="1" color="gray" weight="medium">
+						Incomplete
+					</Typography.Text>
+					<Typography.Text render={<ul />} size="1" color="gray" className="list-disc pl-4">
 						{notes.map((note) => (
 							<li key={note}>{note}</li>
 						))}
-					</ul>
+					</Typography.Text>
 				</div>
 			) : null}
 		</section>

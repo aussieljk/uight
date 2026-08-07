@@ -44,6 +44,8 @@ const PROJECT = "uight";
 /** The npm name, which is scoped — `uight` alone is not publishable. */
 const PACKAGE = "@aussieljk/uight";
 const LICENCE = "MIT";
+/** The design system the chrome is built from; ejected files import it directly. */
+const LJKUI_PACKAGE = "ljkui";
 const HOMEPAGE = "https://uight.dev";
 const NAMESPACE = "@uight";
 
@@ -242,6 +244,17 @@ const COMPANION_FILE: Readonly<Record<string, string>> = {
 	"../constants.ts": "constants.ts",
 	"../wire-view.ts": "wire-view.ts",
 	"../Overlay.tsx": "Overlay.tsx",
+	/*
+	 * The portal container for ljkui's overlays.
+	 *
+	 * A companion rather than a published entry, and the copy is the point: in
+	 * the package the context carries the mount element, because §10.3's scoped
+	 * stylesheet only applies beneath `.uight-root` and a popup in the host's
+	 * `<body>` would come out unstyled. In an ejected copy nothing provides it,
+	 * `useUightRoot()` returns `null`, and base-ui falls back to the document
+	 * body — which is the correct container in a project whose CSS is its own.
+	 */
+	"../root-context.ts": "root-context.ts",
 };
 
 {
@@ -616,9 +629,20 @@ export function buildRegistry(options: BuildRegistryOptions): BuildRegistryResul
 			title: entry.title,
 			description: entry.description,
 			author: `${PROJECT} (${HOMEPAGE})`,
-			// One published package with subpath exports (§16.1), so this is the
-			// only npm dependency an ejected component can need.
-			dependencies: [PACKAGE],
+			// §16.1 keeps our own surface to one package with subpath exports, so
+			// `@aussieljk/uight` covers everything an ejected file imports from us.
+			// The chrome is built from ljkui, so anything that actually names it
+			// needs it installed too — declared per item rather than blanket, so a
+			// component that happens not to use it does not drag in a design
+			// system on eject.
+			dependencies: [
+				PACKAGE,
+				...([content, ...companionFiles.map((f) => f.content)].some((source) =>
+					/from\s+["']ljkui(\/[\w-]+)?["']/.test(source ?? ""),
+				)
+					? [LJKUI_PACKAGE]
+					: []),
+			],
 			registryDependencies: entry.registryDependencies.map(namespaced),
 			files: [
 				{

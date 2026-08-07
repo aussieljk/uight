@@ -35,6 +35,21 @@ const GENERATED_TS = path.join(PKG_ROOT, "src", "styles", "generated.ts");
 const require_ = createRequire(import.meta.url);
 
 /* ------------------------------------------------------------------ *
+ * ljkui
+ *
+ * The chrome is built from ljkui components, so ljkui's own stylesheet has to
+ * travel with ours. It cannot ship as authored: it carries a preflight-style
+ * reset (`img`, `p`, `ul`, `:root`) that would reach the host's elements, which
+ * is exactly what §10.2 forbids. So it goes through the same §10.3 scoping pass
+ * as our own output — `:root` becomes `.uight-root`, every other selector gains
+ * a `.uight-root` ancestor, and `html`/`body` rules end up matching nothing.
+ * ------------------------------------------------------------------ */
+
+function ljkuiCss(): string {
+	return readFileSync(require_.resolve("ljkui/styles.css"), "utf8");
+}
+
+/* ------------------------------------------------------------------ *
  * Tailwind
  * ------------------------------------------------------------------ */
 
@@ -112,7 +127,16 @@ function main(): void {
 	}
 
 	const raw = compile(minify);
-	const scoped = scopeCss(raw);
+	// `ljkui` sits between `base` and `components`: the design system paints the
+	// controls, our own component rules and utilities still override it. The
+	// leading `@layer` statement is what establishes that order — the one inside
+	// the compiled sheet names a subset in the same relative order, so the two
+	// agree rather than fight.
+	const scoped = [
+		"@layer theme, base, ljkui, components, utilities;",
+		`@layer ljkui{${scopeCss(ljkuiCss())}}`,
+		scopeCss(raw),
+	].join("\n");
 
 	if (check) {
 		// `src/styles/generated.ts` is the one that can actually go stale in a way

@@ -10,7 +10,7 @@
 	"scripts": {
 		"build": "bun run --cwd packages/uight build",
 		"dev": "bun run --cwd packages/uight dev",
-		"demo": "bun run --cwd examples/frosted-ui dev",
+		"demo": "bun run --cwd examples/ljkui dev",
 		"docs": "bun run --cwd docs dev",
 		"docs:build": "bun run --cwd docs build",
 		"typecheck": "bun run build && bun run typecheck:only",

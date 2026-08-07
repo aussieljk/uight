@@ -26,6 +26,17 @@ export const STYLE_MARKER = "data-uight-styles";
 /** Every element we render lives under this class; the compiled CSS is scoped to it. */
 export const ROOT_CLASS = "uight-root";
 
+/**
+ * ljkui's theme-root class. The chrome is built from ljkui components, so its
+ * stylesheet — scoped alongside ours (§10.3) — expects this on the same element
+ * as `ROOT_CLASS`. React mounts get it from `<Theme>`; the frame and static
+ * documents are written as HTML and have to spell it out.
+ */
+export const THEME_CLASS = "ljkui";
+
+/** The class pair every uight mount point carries. */
+export const ROOT_CLASSES = `${ROOT_CLASS} ${THEME_CLASS}`;
+
 /** Attribute used to find this mount's search box for the `/` shortcut. */
 export const SEARCH_ATTR = "data-uight-search";
 

@@ -13,23 +13,13 @@
  * what people actually compare against ("does this break at 375?").
  */
 
+import { ToggleGroupRadioGroup } from "ljkui";
 import type { ReactElement } from "react";
 import type { ViewportPreset, ViewportToolbarProps } from "../../shared/types.ts";
 import { VIEWPORT_INLINE_REASON } from "../constants.ts";
-import { FOCUS_RING, MOTION, SELECTABLE, SELECTED, cx } from "../cx.ts";
 
-function itemClass(active: boolean): string {
-	return cx(
-		"inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-xs tabular-nums",
-		SELECTABLE,
-		active
-			? SELECTED
-			: "text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)]",
-		"disabled:pointer-events-none disabled:opacity-40",
-		FOCUS_RING,
-		MOTION,
-	);
-}
+/** "Fit" is a preset like any other to the segmented control; `null` to callers. */
+const FIT = "__fit__";
 
 /**
  * A device outline drawn to the preset's own aspect ratio, inside a fixed 12px
@@ -86,52 +76,53 @@ export function ViewportToolbar({
 	const hint = supported ? undefined : VIEWPORT_INLINE_REASON;
 
 	return (
-		<div
-			role="group"
-			aria-label="Viewport"
-			// §5.2 — the isolation badge points at the same element, so "these are
-			// greyed out" and "because this mount is inline" are one explanation.
-			aria-describedby={supported ? undefined : "uight-viewport-hint"}
-			className="flex items-center gap-0.5"
-			title={hint}
-		>
-			<button
-				type="button"
+		<>
+			{/*
+			 * One choice among a fixed few, which is what a segmented control is
+			 * for. §5.2 — the isolation badge points at the same description, so
+			 * "these are greyed out" and "because this mount is inline" are one
+			 * explanation rather than two.
+			 */}
+			<ToggleGroupRadioGroup.Root
+				aria-label="Viewport"
+				aria-describedby={supported ? undefined : "uight-viewport-hint"}
 				disabled={!supported}
-				aria-pressed={current === null}
-				onClick={() => onChange(null)}
-				className={itemClass(current === null)}
-				title={hint ?? "Fill the available space"}
+				title={hint}
+				value={current?.name ?? FIT}
+				onValueChange={(next) => {
+					if (next === FIT) {
+						onChange(null);
+						return;
+					}
+					const preset = presets.find((p) => p.name === next);
+					if (preset) onChange(preset);
+				}}
 			>
-				<FitGlyph />
-				Fit
-			</button>
-			{presets.map((preset) => {
-				const active = current?.name === preset.name;
-				return (
-					<button
+				<ToggleGroupRadioGroup.Item value={FIT} title={hint ?? "Fill the available space"}>
+					<FitGlyph />
+					Fit
+				</ToggleGroupRadioGroup.Item>
+				{presets.map((preset) => (
+					<ToggleGroupRadioGroup.Item
 						key={preset.name}
-						type="button"
-						disabled={!supported}
-						aria-pressed={active}
+						value={preset.name}
 						aria-label={`${preset.name}, ${preset.width} by ${preset.height}`}
-						onClick={() => onChange(preset)}
-						className={itemClass(active)}
 						title={hint ?? `${preset.name} — ${preset.width}×${preset.height}`}
+						className="tabular-nums"
 					>
 						<DeviceGlyph preset={preset} />
 						{preset.width}
 						{/* The name is the first thing to go when the bar is tight; the
 						    number and the glyph together still identify the preset. */}
 						<span className="hidden 2xl:inline">{preset.name}</span>
-					</button>
-				);
-			})}
+					</ToggleGroupRadioGroup.Item>
+				))}
+			</ToggleGroupRadioGroup.Root>
 			{supported ? null : (
-				<span id="uight-viewport-hint" className="sr-only">
+				<span id="uight-viewport-hint" className="uight-sr-only">
 					{VIEWPORT_INLINE_REASON}
 				</span>
 			)}
-		</div>
+		</>
 	);
 }

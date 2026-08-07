@@ -40,7 +40,7 @@ import type {
 	RendererError,
 	ResolvedUightTheme,
 } from "../shared/types.ts";
-import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASS } from "./constants.ts";
+import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASSES } from "./constants.ts";
 import { ensureStyles, escapeAttribute, readNonce, styleTag } from "./styles.ts";
 
 export interface FrameHostProps {
@@ -126,7 +126,7 @@ function buildDocument(opts: {
 		dev ? `<script type="module" src="/@vite/client"${nonceAttr}></script>` : "",
 		"</head><body>",
 		`<div id="${FRAME_ROOT_ID}"></div>`,
-		`<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASS}"></div>`,
+		`<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASSES}"></div>`,
 		"</body></html>",
 	].join("");
 }

@@ -27,16 +27,16 @@ plain install gets the newest canary. Every push to master releases one.
 
 ## Repository layout
 
-| Path                  | What                                                                 |
-| --------------------- | -------------------------------------------------------------------- |
-| `SPEC.md`             | The requirements document. The source of truth for behaviour         |
-| `ARCHITECTURE.md`     | The integration contract: which module owns which symbol             |
-| `NOTES.md`            | Findings from implementation, including answers to SPEC.md's Q1–Q14  |
-| `CHANGELOG.md`        | What shipped in each release, with divergences and known limitations |
-| `ROADMAP.md`          | What is left, and what each milestone after this canary holds        |
-| `packages/uight`      | The published package                                                |
-| `examples/frosted-ui` | Demo: the explorer showing Whop's frosted-ui design system           |
-| `docs`                | uight.dev — a uight instance, and the registry it hosts              |
+| Path              | What                                                                 |
+| ----------------- | -------------------------------------------------------------------- |
+| `SPEC.md`         | The requirements document. The source of truth for behaviour         |
+| `ARCHITECTURE.md` | The integration contract: which module owns which symbol             |
+| `NOTES.md`        | Findings from implementation, including answers to SPEC.md's Q1–Q14  |
+| `CHANGELOG.md`    | What shipped in each release, with divergences and known limitations |
+| `ROADMAP.md`      | What is left, and what each milestone after this canary holds        |
+| `packages/uight`  | The published package                                                |
+| `examples/ljkui`  | Demo: the explorer showing the ljkui design system                   |
+| `docs`            | uight.dev — a uight instance, and the registry it hosts              |
 
 ## Package entries (§16.1)
 
@@ -69,7 +69,7 @@ and writes none; re-running skips what is already done.
 ```bash
 bun install
 bun run build      # compile scoped CSS, then bundle with tsdown
-bun run demo       # the frosted-ui example on http://localhost:5173/uight
+bun run demo       # the ljkui example on http://localhost:5173/uight
 bun run docs       # uight.dev at /uight — the site is the explorer, there is nothing else
 bun run docs:build # …built, with SPEC/ARCHITECTURE/ROADMAP/CHANGELOG and /r synced in
 bun run typecheck  # builds first: @aussieljk/uight/client resolves types through dist
@@ -136,10 +136,11 @@ behavioural compatibility was established from public documentation rather than 
 implementation source. uight is **not affiliated with or endorsed by** the react-cosmos
 project.
 
-The example application renders [frosted-ui](https://github.com/whopio/frosted-ui), Whop's
-MIT-licensed design system, from its own Storybook story files. frosted-ui is Whop's work,
-included here under its licence as demonstration material. uight is not affiliated with
-or endorsed by Whop.
+The example application renders [ljkui](https://ljkui.com) from Storybook story files.
+ljkui is a fork of [frosted-ui](https://github.com/whopio/frosted-ui), Whop's MIT-licensed
+design system, and the vendored story files are frosted-ui's own, ported to ljkui's API.
+They are included here under that licence as demonstration material. uight is not
+affiliated with or endorsed by Whop.
 
 ## Licence
 

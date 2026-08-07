@@ -33,6 +33,7 @@
  * through an element that may not currently exist.
  */
 
+import { Badge, Input, Typography } from "ljkui";
 import {
 	useCallback,
 	useEffect,
@@ -270,7 +271,8 @@ export function FixtureTree({
 		<div className="flex min-h-0 flex-1 flex-col">
 			{search ? (
 				<div className="shrink-0 px-2 pb-2">
-					<input
+					<Input.Control
+						size="1"
 						// Matches SEARCH_ATTR — how the `/` shortcut finds this mount's box.
 						data-uight-search=""
 						type="search"
@@ -292,13 +294,7 @@ export function FixtureTree({
 								if (first) activate(first);
 							}
 						}}
-						className={cx(
-							"h-7 w-full rounded-sm border border-[var(--u-line)] bg-[var(--u-bg)] px-2",
-							"text-sm text-[var(--u-fg)] placeholder:text-[var(--u-fg-subtle)]",
-							"[&::-webkit-search-cancel-button]:hidden",
-							FOCUS_RING,
-							MOTION,
-						)}
+						className="w-full [&::-webkit-search-cancel-button]:hidden"
 					/>
 				</div>
 			) : null}
@@ -318,9 +314,9 @@ export function FixtureTree({
 				className="uight-scroll min-h-0 flex-1 px-1"
 			>
 				{rows.length === 0 ? (
-					<p className="px-2 py-3 text-xs text-[var(--u-fg-subtle)]">
+					<Typography.Text render={<p />} size="1" color="gray" className="px-2 py-3">
 						{query.trim() ? "No match." : "No fixtures."}
-					</p>
+					</Typography.Text>
 				) : null}
 
 				{windowed.map((row, offset) => {
@@ -374,22 +370,28 @@ export function FixtureTree({
 							{node.docsPage ? (
 								// §14 — a page of prose, not a component. Worth one word in the row:
 								// the two are selected the same way and read very differently.
-								<span
+								<Badge
+									size="1"
+									variant="soft"
+									color="gray"
 									title="An MDX documentation page"
-									className="ml-auto shrink-0 text-xs text-[var(--u-fg-subtle)]"
+									className="ml-auto shrink-0"
 								>
 									Doc
-								</span>
+								</Badge>
 							) : null}
 							{node.undecidable ? (
 								// §3.5 — one node until the module is loaded.
-								<span
+								<Badge
+									size="1"
+									variant="soft"
+									color="gray"
 									aria-label="Names not statically known"
 									title="This file's fixture names could not be read without running it. Select it to load the module."
-									className="ml-auto shrink-0 text-xs text-[var(--u-fg-subtle)]"
+									className="ml-auto shrink-0"
 								>
 									…
-								</span>
+								</Badge>
 							) : null}
 						</div>
 					);

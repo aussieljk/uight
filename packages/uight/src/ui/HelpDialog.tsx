@@ -8,6 +8,7 @@
  * covering. Same surface as the palette, same dismissal, same visual language.
  */
 
+import { Button, Kbd, Typography } from "ljkui";
 import type { ReactElement } from "react";
 import { KEYMAP } from "./constants.ts";
 import { Overlay } from "./Overlay.tsx";
@@ -21,30 +22,42 @@ export function HelpDialog({ open, onClose }: HelpDialogProps): ReactElement | n
 	return (
 		<Overlay open={open} label="Keyboard shortcuts" onClose={onClose}>
 			<div className="flex h-9 shrink-0 items-center border-b border-[var(--u-line)] px-3">
-				<h2 className="text-sm font-medium text-[var(--u-fg)]">Keyboard</h2>
-				<span className="ml-auto text-xs text-[var(--u-fg-subtle)]">? to close</span>
+				<Typography.Heading size="2" render={<h2 />}>
+					Keyboard
+				</Typography.Heading>
+				<Typography.Text size="1" color="gray" className="ml-auto">
+					<Kbd>?</Kbd> to close
+				</Typography.Text>
 			</div>
 
 			<dl className="grid min-h-0 flex-1 grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 overflow-auto p-3">
 				{KEYMAP.map((item) => (
 					<div key={item.keys} className="contents">
-						<dt className="text-sm font-medium whitespace-nowrap text-[var(--u-fg)] tabular-nums">
-							{item.keys}
+						{/* One `Kbd` per key, not per binding: `⌘K · Ctrl K` is two
+						    shortcuts for one action and reads as two key caps. */}
+						<dt className="flex flex-wrap items-baseline gap-1 whitespace-nowrap">
+							{item.keys.split(" · ").map((key) => (
+								<Kbd key={key} size="1">
+									{key}
+								</Kbd>
+							))}
 						</dt>
-						<dd className="text-xs text-[var(--u-fg-muted)]">{item.action}</dd>
+						<dd>
+							<Typography.Text size="1" color="gray">
+								{item.action}
+							</Typography.Text>
+						</dd>
 					</div>
 				))}
 			</dl>
 
 			<div className="flex shrink-0 items-center border-t border-[var(--u-line)] px-3 py-1.5">
-				<span className="text-xs text-[var(--u-fg-subtle)]">esc close</span>
-				<button
-					type="button"
-					onClick={onClose}
-					className="ml-auto h-6 rounded-sm px-1.5 text-xs text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)]"
-				>
+				<Typography.Text size="1" color="gray">
+					<Kbd size="1">esc</Kbd> close
+				</Typography.Text>
+				<Button size="1" variant="ghost" color="gray" onClick={onClose} className="ml-auto">
 					Close
-				</button>
+				</Button>
 			</div>
 		</Overlay>
 	);

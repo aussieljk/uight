@@ -21,6 +21,7 @@ import {
 	useState,
 } from "react";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import { Badge, Button, IconButton, Theme, Tooltip, Typography } from "ljkui";
 import { config, fixtureModules } from "virtual:uight/runtime";
 import { rendererEntryUrl, rendererStyleUrls } from "virtual:uight/renderer-url";
 
@@ -80,7 +81,7 @@ import {
 	VIEWPORT_INLINE_REASON,
 	VIEWPORT_PRESETS,
 } from "./constants.ts";
-import { FOCUS_RING, MOTION, QUIET_BUTTON, SECTION_LABEL, cx } from "./cx.ts";
+import { FOCUS_RING, MOTION, SECTION_LABEL, cx } from "./cx.ts";
 import { findDoc, resolveInputDoc } from "./docs.ts";
 import { CSP_BLOCKED_PREFIX, FrameHost } from "./FrameHost.tsx";
 import { GridView } from "./chrome/GridView.tsx";
@@ -90,6 +91,7 @@ import { PaneResizer } from "./PaneResizer.tsx";
 import { buildPaletteItems, rankPaletteItems } from "./palette.ts";
 import { useUightDefaults } from "./provider-context.ts";
 import { useRouterBinding } from "./router.ts";
+import { UightRootContext } from "./root-context.ts";
 import { pushRecent, readSession, sessionKey, writeSession } from "./session.ts";
 import { decodeOverlays, encodeOverlays } from "./share.ts";
 import { createOverlayStore, useOverlayState } from "./store.ts";
@@ -294,6 +296,18 @@ export default function UightUI(props: UightProps): ReactElement {
 	const theme = useResolvedTheme(props.theme ?? defaults.theme ?? "system");
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const mountId = `uight${useId().replace(/[^\w]/g, "")}`;
+
+	/**
+	 * The mount element, for the overlays to portal into (`ui/root-context.ts`).
+	 * A ref cannot be read during the render that creates it, so this is state:
+	 * the first pass publishes `null` — no overlay is open on it — and the
+	 * callback ref fills it in before anything can open one.
+	 */
+	const [rootEl, setRootEl] = useState<HTMLElement | null>(null);
+	const setRoot = useCallback((node: HTMLDivElement | null) => {
+		rootRef.current = node;
+		setRootEl(node);
+	}, []);
 
 	/**
 	 * Narrow enough that the three panes have to become one (`ui/compact.ts`).
@@ -1659,442 +1673,469 @@ export default function UightUI(props: UightProps): ReactElement {
 
 	return (
 		<UightChromeContext.Provider value={api}>
-			<ControlPanelSlots.Provider value={panelSlots}>
-				<div
-					ref={rootRef}
-					onKeyDown={onKeyDown}
-					data-theme={theme}
-					data-uight-isolation={isolation}
-					className={cx(
-						ROOT_CLASS,
-						// The stylesheet resolves the palette from `.uight-theme-*`; the
-						// inline custom properties below are the same values, so a mount
-						// with `theme="system"` cannot disagree with the media query.
-						theme === "dark" ? "uight-theme-dark" : "uight-theme-light",
-						"relative flex min-h-0 w-full flex-col bg-[var(--u-bg)] text-sm text-[var(--u-fg)] antialiased",
-						props.className,
-					)}
-					style={{
-						...themeVars(theme),
-						height,
-						minHeight: autoHeight && contentHeight === null ? 120 : undefined,
-						...props.style,
-					}}
-				>
-					<div
+			<UightRootContext.Provider value={rootEl}>
+				<ControlPanelSlots.Provider value={panelSlots}>
+					{/*
+					 * The mount is the ljkui theme root and the CSS scope in one element.
+					 * They have to be the same node: `styles/uight.css` maps `--uight-*`
+					 * onto ljkui's scales, and a `var()` only resolves where the scale is
+					 * declared — put `<Theme>` inside `.uight-root` and every token on the
+					 * scope element falls back to the pre-ljkui palette instead.
+					 *
+					 * `appearance` is the *resolved* theme, never `"inherit"`: inheriting
+					 * would read the host document's appearance, which says nothing about
+					 * what `theme="system"` asked for (§5.1).
+					 */}
+					<Theme
+						render={<div ref={setRoot} />}
+						appearance={theme}
+						accentColor="blue"
+						grayColor="neutral"
+						hasBackground={false}
+						onKeyDown={onKeyDown}
+						data-theme={theme}
+						data-uight-isolation={isolation}
 						className={cx(
-							"relative flex min-h-0 w-full flex-1",
-							// Compact: the panes stack instead of standing side by side.
-							compact ? "flex-col" : "",
+							ROOT_CLASS,
+							"relative flex min-h-0 w-full flex-col bg-[var(--u-bg)] text-sm text-[var(--u-fg)] antialiased",
+							props.className,
 						)}
+						style={{
+							...themeVars(theme),
+							height,
+							minHeight: autoHeight && contentHeight === null ? 120 : undefined,
+							...props.style,
+						}}
 					>
-						{/* The drawer's backdrop. A button rather than a div, so the
+						<div
+							className={cx(
+								"relative flex min-h-0 w-full flex-1",
+								// Compact: the panes stack instead of standing side by side.
+								compact ? "flex-col" : "",
+							)}
+						>
+							{/* The drawer's backdrop. A button rather than a div, so the
 						    tap that dismisses it is also a key press. */}
-						{compact && drawerOpen ? (
-							<button
-								type="button"
-								aria-label="Close the fixture list"
-								onClick={() => setDrawerOpen(false)}
-								className="absolute inset-0 z-30 cursor-default bg-[color-mix(in_srgb,var(--u-bg)_70%,transparent)]"
-							/>
-						) : null}
-						{showTree && (!compact || drawerOpen) ? (
-							<>
-								<aside
-									style={compact ? undefined : { width: sidebarWidth }}
-									className={cx(
-										"flex min-w-0 shrink-0 flex-col bg-[var(--u-bg-sunken)]",
-										compact
-											? "absolute inset-y-0 left-0 z-40 w-[min(17rem,85%)] border-r border-[var(--u-line)]"
-											: "",
-									)}
-								>
-									<div className="flex h-9 shrink-0 items-center gap-2 px-3">
-										<span className="text-sm font-medium text-[var(--u-fg)]">uight</span>
-										<span className="text-xs tabular-nums text-[var(--u-fg-subtle)]">
-											{selectable.length}
-										</span>
-										<button
-											type="button"
-											aria-expanded={helpOpen}
-											aria-haspopup="dialog"
-											onClick={() => setHelpOpen((v) => !v)}
-											title="Keyboard shortcuts (?)"
-											className={cx(QUIET_BUTTON, "ml-auto")}
-										>
-											?
-										</button>
-									</div>
-
-									<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-										<FixtureTree
-											nodes={fixtureNodes}
-											selected={selectedComponent ? null : selection}
-											onSelect={select}
-											onPrefetch={prefetch}
-											search={chrome.search}
-										/>
-
-										{inventoryItems.length ? (
-											// §12's detected components were a fixed-height scroll box
-											// under the tree with a sticky label, which reads as a list
-											// that has been cut off rather than as a section. A
-											// disclosure with a count says how many there are and gets
-											// out of the way of the tree when it is not wanted.
-											<div className="shrink-0 border-t border-[var(--u-line)]">
-												<button
-													type="button"
-													aria-expanded={inventoryOpen}
-													aria-controls={`${mountId}-inventory`}
-													onClick={toggleInventory}
-													className={cx(
-														"flex h-7 w-full cursor-pointer items-center gap-1.5 px-2 text-left",
-														"hover:bg-[var(--u-bg-hover)]",
-														FOCUS_RING,
-														MOTION,
-													)}
+							{compact && drawerOpen ? (
+								<button
+									type="button"
+									aria-label="Close the fixture list"
+									onClick={() => setDrawerOpen(false)}
+									className="absolute inset-0 z-30 cursor-default bg-[color-mix(in_srgb,var(--u-bg)_70%,transparent)]"
+								/>
+							) : null}
+							{showTree && (!compact || drawerOpen) ? (
+								<>
+									<aside
+										style={compact ? undefined : { width: sidebarWidth }}
+										className={cx(
+											"flex min-w-0 shrink-0 flex-col bg-[var(--u-bg-sunken)]",
+											compact
+												? "absolute inset-y-0 left-0 z-40 w-[min(17rem,85%)] border-r border-[var(--u-line)]"
+												: "",
+										)}
+									>
+										<div className="flex h-9 shrink-0 items-center gap-2 px-3">
+											<Typography.Text size="1" weight="medium">
+												uight
+											</Typography.Text>
+											<Typography.Text size="1" color="gray" className="tabular-nums">
+												{selectable.length}
+											</Typography.Text>
+											<Tooltip content="Keyboard shortcuts (?)">
+												<IconButton
+													size="1"
+													variant="ghost"
+													color="gray"
+													aria-expanded={helpOpen}
+													aria-haspopup="dialog"
+													aria-label="Keyboard shortcuts"
+													onClick={() => setHelpOpen((v) => !v)}
+													className="ml-auto"
 												>
-													<svg
-														viewBox="0 0 12 12"
-														aria-hidden="true"
+													?
+												</IconButton>
+											</Tooltip>
+										</div>
+
+										<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+											<FixtureTree
+												nodes={fixtureNodes}
+												selected={selectedComponent ? null : selection}
+												onSelect={select}
+												onPrefetch={prefetch}
+												search={chrome.search}
+											/>
+
+											{inventoryItems.length ? (
+												// §12's detected components were a fixed-height scroll box
+												// under the tree with a sticky label, which reads as a list
+												// that has been cut off rather than as a section. A
+												// disclosure with a count says how many there are and gets
+												// out of the way of the tree when it is not wanted.
+												<div className="shrink-0 border-t border-[var(--u-line)]">
+													<button
+														type="button"
+														aria-expanded={inventoryOpen}
+														aria-controls={`${mountId}-inventory`}
+														onClick={toggleInventory}
 														className={cx(
-															"size-3 shrink-0 fill-current text-[var(--u-fg-subtle)]",
-															"motion-safe:transition-transform motion-safe:duration-100",
-															inventoryOpen ? "rotate-90" : "",
+															"flex h-7 w-full cursor-pointer items-center gap-1.5 px-2 text-left",
+															"hover:bg-[var(--u-bg-hover)]",
+															FOCUS_RING,
+															MOTION,
 														)}
 													>
-														<path d="M4.5 2.5 8 6l-3.5 3.5z" />
-													</svg>
-													<span className={SECTION_LABEL}>Components</span>
-													<span className="ml-auto text-xs tabular-nums text-[var(--u-fg-subtle)]">
-														{inventoryItems.length}
-													</span>
-												</button>
-												{inventoryOpen ? (
-													<div id={`${mountId}-inventory`} className="uight-scroll max-h-64">
-														<InventoryList components={inventoryItems} onSelect={selectComponent} />
-													</div>
-												) : null}
-											</div>
-										) : null}
-									</div>
-								</aside>
-								{/* Nothing to trade width with when the drawer floats. */}
-								{compact ? null : (
-									<PaneResizer
-										pane="left"
-										width={sidebarWidth}
-										min={PANE_MIN_WIDTH}
-										max={PANE_MAX_WIDTH}
-										initial={SIDEBAR_WIDTH}
-										label="Sidebar width"
-										onWidth={resizeSidebar}
-									/>
-								)}
-							</>
-						) : null}
+														<svg
+															viewBox="0 0 12 12"
+															aria-hidden="true"
+															className={cx(
+																"size-3 shrink-0 fill-current text-[var(--u-fg-subtle)]",
+																"motion-safe:transition-transform motion-safe:duration-100",
+																inventoryOpen ? "rotate-90" : "",
+															)}
+														>
+															<path d="M4.5 2.5 8 6l-3.5 3.5z" />
+														</svg>
+														<span className={SECTION_LABEL}>Components</span>
+														<Typography.Text size="1" color="gray" className="ml-auto tabular-nums">
+															{inventoryItems.length}
+														</Typography.Text>
+													</button>
+													{inventoryOpen ? (
+														<div id={`${mountId}-inventory`} className="uight-scroll max-h-64">
+															<InventoryList components={inventoryItems} onSelect={selectComponent} />
+														</div>
+													) : null}
+												</div>
+											) : null}
+										</div>
+									</aside>
+									{/* Nothing to trade width with when the drawer floats. */}
+									{compact ? null : (
+										<PaneResizer
+											pane="left"
+											width={sidebarWidth}
+											min={PANE_MIN_WIDTH}
+											max={PANE_MAX_WIDTH}
+											initial={SIDEBAR_WIDTH}
+											label="Sidebar width"
+											onWidth={resizeSidebar}
+										/>
+									)}
+								</>
+							) : null}
 
-						<PreviewShell
-							loading={status !== "ready"}
-							viewport={effectiveViewport}
-							toolbar={
-								chrome.toolbar ? (
-									<Toolbar>
-										{/* Compact: the only way back to the tree, so it leads the bar. */}
-										{compact && showTree ? (
-											<button
-												type="button"
-												aria-expanded={drawerOpen}
-												onClick={() => setDrawerOpen((open) => !open)}
-												title="Fixtures"
-												className={cx(QUIET_BUTTON, "shrink-0")}
+							<PreviewShell
+								loading={status !== "ready"}
+								viewport={effectiveViewport}
+								toolbar={
+									chrome.toolbar ? (
+										<Toolbar>
+											{/* Compact: the only way back to the tree, so it leads the bar. */}
+											{compact && showTree ? (
+												<IconButton
+													size="1"
+													variant="ghost"
+													color="gray"
+													aria-expanded={drawerOpen}
+													aria-label="Fixtures"
+													onClick={() => setDrawerOpen((open) => !open)}
+													className="shrink-0"
+												>
+													<svg viewBox="0 0 12 12" aria-hidden="true" className="size-3 fill-current">
+														<path d="M1 2.5h10v1H1zM1 5.5h10v1H1zM1 8.5h10v1H1z" />
+													</svg>
+												</IconButton>
+											) : null}
+											<Typography.Text
+												size="1"
+												weight="medium"
+												className="min-w-0 truncate"
+												title={selection ? selection.path : (selectedComponent?.path ?? undefined)}
 											>
-												<svg viewBox="0 0 12 12" aria-hidden="true" className="size-3 fill-current">
-													<path d="M1 2.5h10v1H1zM1 5.5h10v1H1zM1 8.5h10v1H1z" />
-												</svg>
-												<span className="sr-only">Fixtures</span>
-											</button>
-										) : null}
-										<span
-											className="min-w-0 truncate text-sm font-medium text-[var(--u-fg)]"
-											title={selection ? selection.path : (selectedComponent?.path ?? undefined)}
-										>
-											{label || " "}
-										</span>
-										{selectedComponent ? (
-											<span className="shrink-0 text-xs text-[var(--u-fg-subtle)]">
-												detected component
-											</span>
-										) : null}
-										<div className="ml-auto flex shrink-0 items-center gap-2">
-											{gridSupported && gridTiles.length > 1 ? (
-												<button
-													type="button"
-													onClick={() => setGridOpen((v) => !v)}
-													aria-pressed={gridActive}
-													title={`Show all ${gridTiles.length} fixtures at once (g)`}
-													className={cx(QUIET_BUTTON, gridActive ? "text-[var(--u-accent)]" : "")}
-												>
-													{gridActive ? "Single" : "Grid"}
-												</button>
+												{label || " "}
+											</Typography.Text>
+											{selectedComponent ? (
+												<Badge size="1" variant="soft" color="gray" className="shrink-0">
+													detected component
+												</Badge>
 											) : null}
-											{shareState ? (
-												<button
-													type="button"
-													onClick={() => void copy("link", window.location.href, "the link")}
-													title="Copy a link to this fixture, including the current control values"
-													className={cx(
-														QUIET_BUTTON,
-														copied === "link" ? "text-[var(--u-accent)]" : "",
-													)}
-												>
-													{copied === "link" ? "Copied" : "Copy link"}
-												</button>
-											) : null}
-											{/* Six device presets and an isolation badge do not fit beside
+											<div className="ml-auto flex shrink-0 items-center gap-2">
+												{gridSupported && gridTiles.length > 1 ? (
+													<Tooltip content={`Show all ${gridTiles.length} fixtures at once (g)`}>
+														<Button
+															size="1"
+															variant={gridActive ? "soft" : "ghost"}
+															color={gridActive ? undefined : "gray"}
+															aria-pressed={gridActive}
+															onClick={() => setGridOpen((v) => !v)}
+														>
+															{gridActive ? "Single" : "Grid"}
+														</Button>
+													</Tooltip>
+												) : null}
+												{shareState ? (
+													<Tooltip content="Copy a link to this fixture, including the current control values">
+														<Button
+															size="1"
+															variant="ghost"
+															color={copied === "link" ? undefined : "gray"}
+															onClick={() => void copy("link", window.location.href, "the link")}
+														>
+															{copied === "link" ? "Copied" : "Copy link"}
+														</Button>
+													</Tooltip>
+												) : null}
+												{/* Six device presets and an isolation badge do not fit beside
 											    a fixture name on a phone, and neither is what someone is
 											    there for. They come back with the width. */}
-											{chrome.viewport && !compact ? (
-												<ViewportToolbar
-													current={effectiveViewport}
-													presets={[...VIEWPORT_PRESETS]}
-													onChange={setViewport}
-													supported={viewportSupported}
-												/>
-											) : null}
-											{/* §5.2 — a bare lowercase "frame" read like debug output
+												{chrome.viewport && !compact ? (
+													<ViewportToolbar
+														current={effectiveViewport}
+														presets={[...VIEWPORT_PRESETS]}
+														onChange={setViewport}
+														supported={viewportSupported}
+													/>
+												) : null}
+												{/* §5.2 — a bare lowercase "frame" read like debug output
 											    while carrying the reason the viewport buttons beside it
 											    are disabled. As a labelled badge it says what it is,
 											    and points at that explanation. */}
-											{compact ? null : (
-												<span
-													className={cx(
-														"inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs",
-														isolation === "frame"
-															? "border-[var(--u-line)] text-[var(--u-fg-muted)]"
-															: "border-[var(--u-line-strong)] text-[var(--u-fg)]",
-													)}
-													aria-describedby={
-														isolation === "inline" && chrome.viewport
-															? "uight-viewport-hint"
-															: undefined
-													}
-													title={
-														isolation === "frame"
-															? "Rendering in a separate realm. Same origin — this is isolation, not a sandbox."
-															: VIEWPORT_INLINE_REASON
-													}
-												>
-													<span className={SECTION_LABEL}>Isolation</span>
-													<span className="font-medium">
-														{isolation === "frame" ? "Frame" : "Inline"}
-													</span>
-												</span>
-											)}
-										</div>
-									</Toolbar>
-								) : undefined
-							}
-							subToolbar={
-								chrome.toolbar && selectedComponent && componentSites.length ? (
-									<ChipStrip
-										label={`Usages of ${selectedComponent.name}`}
-										chips={siteChips}
-										dividerAfter={1}
-										trailing={
-											<>
-												{selectedSite ? (
-													<button
-														type="button"
-														onClick={() => void openSite(selectedSite)}
-														title={`Open ${callSiteLabel(selectedSite)} in your editor`}
-														className={QUIET_BUTTON}
+												{compact ? null : (
+													<Badge
+														size="1"
+														variant="outline"
+														color={isolation === "frame" ? "gray" : undefined}
+														className="shrink-0 gap-1"
+														aria-describedby={
+															isolation === "inline" && chrome.viewport
+																? "uight-viewport-hint"
+																: undefined
+														}
+														title={
+															isolation === "frame"
+																? "Rendering in a separate realm. Same origin — this is isolation, not a sandbox."
+																: VIEWPORT_INLINE_REASON
+														}
 													>
-														Open source
-													</button>
-												) : null}
-												<button
-													type="button"
-													onClick={() =>
-														void copy(
-															"fixture",
-															formatFixtureModule(
-																selectedComponent.name,
-																selectedSite ? [selectedSite] : componentSites,
-																{
-																	importFrom: `./${selectedComponent.path.split("/").pop() ?? ""}`,
-																},
-															),
-															"the fixture",
-														)
-													}
-													title="Copy these usages as a fixture file. uight never writes files itself (§1.4)."
-													className={cx(
-														QUIET_BUTTON,
-														copied === "fixture" ? "text-[var(--u-accent)]" : "",
-													)}
-												>
-													{copied === "fixture" ? "Copied" : "Copy as fixture"}
-												</button>
-											</>
-										}
-									/>
-								) : chrome.toolbar && variants ? (
-									<ChipStrip
-										label={`Fixtures in ${selection?.path ?? ""}`}
-										chips={variantChips}
-										dividerAfter={1}
-									/>
-								) : undefined
-							}
-						>
-							<div className="relative flex h-full min-h-0 w-full flex-col">
-								{resolution.note ? (
-									<p className="shrink-0 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-1 text-xs text-[var(--u-fg-muted)]">
-										{resolution.note}
-									</p>
-								) : null}
-
-								<div className="relative min-h-0 flex-1">
-									{/*
-									 * The single host stays mounted underneath the grid. Leaving grid
-									 * mode must not cost a fresh document, a fresh renderer and the
-									 * fixture's own state, and hiding is the difference between the two.
-									 */}
-									<div className={gridActive ? "hidden" : "contents"}>{host}</div>
-
-									{gridActive ? (
-										<div className="absolute inset-0 z-10 bg-[var(--u-canvas)]">
-											<GridView
-												tiles={gridTiles}
-												selected={selection}
-												rendererEntryUrl={rendererEntryUrl}
-												rendererStyleUrls={rendererStyleUrls}
-												dev={config.command === "serve"}
-												previewDocumentUrl={props.previewDocumentUrl}
-												theme={theme}
-												tileHeight={GRID_TILE_HEIGHT}
-												budget={GRID_RENDER_BUDGET}
-												onSelect={select}
-												onOpen={() => setGridOpen(false)}
-											/>
-										</div>
-									) : null}
-
-									{error ? (
-										<div className="absolute inset-0 z-20 overflow-auto bg-[var(--u-bg)]">
-											<ErrorState
-												error={error}
-												onRetry={() => {
-													setError(null);
-													setFrameKey((k) => k + 1);
-												}}
-											/>
-										</div>
-									) : resolution.empty && !selectedComponent ? (
-										<div className="absolute inset-0 z-10 bg-[var(--u-bg)]">
-											<EmptyState
-												title={resolution.empty.title}
-												description={resolution.empty.description}
-											/>
-										</div>
-									) : null}
-								</div>
-							</div>
-						</PreviewShell>
-
-						{showControls || propDoc ? (
-							<>
-								{compact ? null : (
-									<PaneResizer
-										pane="right"
-										width={panelWidth}
-										min={PANE_MIN_WIDTH}
-										max={PANE_MAX_WIDTH}
-										initial={CONTROL_PANEL_WIDTH}
-										label="Control panel width"
-										onWidth={resizePanel}
-									/>
-								)}
-								{/* Compact: below the preview rather than beside it, and capped,
-								    so the fixture keeps most of the screen. */}
-								<aside
-									style={compact ? undefined : { width: panelWidth }}
-									className={cx(
-										"min-w-0 shrink-0 overflow-y-auto bg-[var(--u-bg-sunken)]",
-										compact ? "max-h-[45%] w-full border-t border-[var(--u-line)]" : "",
-									)}
-								>
-									{showControls ? (
-										<ControlPanel
-											inputs={registeredInputs}
-											overlay={overlayState.overlays}
-											onSet={setInput}
-											onReset={resetInput}
-											droppedPatches={overlayState.dropped}
-											droppedInputs={overlayState.droppedInputs}
+														<span className={SECTION_LABEL}>Isolation</span>
+														<span className="font-medium">
+															{isolation === "frame" ? "Frame" : "Inline"}
+														</span>
+													</Badge>
+												)}
+											</div>
+										</Toolbar>
+									) : undefined
+								}
+								subToolbar={
+									chrome.toolbar && selectedComponent && componentSites.length ? (
+										<ChipStrip
+											label={`Usages of ${selectedComponent.name}`}
+											chips={siteChips}
+											dividerAfter={1}
+											trailing={
+												<>
+													{selectedSite ? (
+														<Button
+															size="1"
+															variant="ghost"
+															color="gray"
+															onClick={() => void openSite(selectedSite)}
+															title={`Open ${callSiteLabel(selectedSite)} in your editor`}
+														>
+															Open source
+														</Button>
+													) : null}
+													<Button
+														size="1"
+														variant="ghost"
+														color={copied === "fixture" ? undefined : "gray"}
+														onClick={() =>
+															void copy(
+																"fixture",
+																formatFixtureModule(
+																	selectedComponent.name,
+																	selectedSite ? [selectedSite] : componentSites,
+																	{
+																		importFrom: `./${selectedComponent.path.split("/").pop() ?? ""}`,
+																	},
+																),
+																"the fixture",
+															)
+														}
+														title="Copy these usages as a fixture file. uight never writes files itself (§1.4)."
+													>
+														{copied === "fixture" ? "Copied" : "Copy as fixture"}
+													</Button>
+												</>
+											}
 										/>
+									) : chrome.toolbar && variants ? (
+										<ChipStrip
+											label={`Fixtures in ${selection?.path ?? ""}`}
+											chips={variantChips}
+											dividerAfter={1}
+										/>
+									) : undefined
+								}
+							>
+								<div className="relative flex h-full min-h-0 w-full flex-col">
+									{resolution.note ? (
+										<Typography.Text
+											render={<p />}
+											size="1"
+											color="gray"
+											className="shrink-0 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-1"
+										>
+											{resolution.note}
+										</Typography.Text>
 									) : null}
-									{/* Below the controls, never merged into them — D18. */}
-									<PropTable doc={propDoc} />
-								</aside>
-							</>
-						) : null}
-					</div>
 
-					{/* Transient status. In the layout rather than over the preview, and
-					    never focus-stealing: its action is a real button one Tab away. */}
-					<div
-						role="status"
-						aria-live="polite"
-						className={cx(
-							"flex shrink-0 items-center gap-3 border-t border-[var(--u-line)] px-3",
-							toast ? "h-7" : "h-0 overflow-hidden border-t-0",
-						)}
-					>
-						{toast ? (
-							<>
-								<span
-									className={cx(
-										"min-w-0 flex-1 truncate text-xs",
-										toast.tone === "danger" ? "text-[var(--u-danger)]" : "text-[var(--u-fg-muted)]",
+									<div className="relative min-h-0 flex-1">
+										{/*
+										 * The single host stays mounted underneath the grid. Leaving grid
+										 * mode must not cost a fresh document, a fresh renderer and the
+										 * fixture's own state, and hiding is the difference between the two.
+										 */}
+										<div className={gridActive ? "hidden" : "contents"}>{host}</div>
+
+										{gridActive ? (
+											<div className="absolute inset-0 z-10 bg-[var(--u-canvas)]">
+												<GridView
+													tiles={gridTiles}
+													selected={selection}
+													rendererEntryUrl={rendererEntryUrl}
+													rendererStyleUrls={rendererStyleUrls}
+													dev={config.command === "serve"}
+													previewDocumentUrl={props.previewDocumentUrl}
+													theme={theme}
+													tileHeight={GRID_TILE_HEIGHT}
+													budget={GRID_RENDER_BUDGET}
+													onSelect={select}
+													onOpen={() => setGridOpen(false)}
+												/>
+											</div>
+										) : null}
+
+										{error ? (
+											<div className="absolute inset-0 z-20 overflow-auto bg-[var(--u-bg)]">
+												<ErrorState
+													error={error}
+													onRetry={() => {
+														setError(null);
+														setFrameKey((k) => k + 1);
+													}}
+												/>
+											</div>
+										) : resolution.empty && !selectedComponent ? (
+											<div className="absolute inset-0 z-10 bg-[var(--u-bg)]">
+												<EmptyState
+													title={resolution.empty.title}
+													description={resolution.empty.description}
+												/>
+											</div>
+										) : null}
+									</div>
+								</div>
+							</PreviewShell>
+
+							{showControls || propDoc ? (
+								<>
+									{compact ? null : (
+										<PaneResizer
+											pane="right"
+											width={panelWidth}
+											min={PANE_MIN_WIDTH}
+											max={PANE_MAX_WIDTH}
+											initial={CONTROL_PANEL_WIDTH}
+											label="Control panel width"
+											onWidth={resizePanel}
+										/>
 									)}
-								>
-									{toast.message}
-								</span>
-								{toast.action ? (
-									<button
-										type="button"
-										onClick={toast.action.run}
-										className={cx(QUIET_BUTTON, "shrink-0 font-medium text-[var(--u-accent)]")}
+									{/* Compact: below the preview rather than beside it, and capped,
+								    so the fixture keeps most of the screen. */}
+									<aside
+										style={compact ? undefined : { width: panelWidth }}
+										className={cx(
+											"min-w-0 shrink-0 overflow-y-auto bg-[var(--u-bg-sunken)]",
+											compact ? "max-h-[45%] w-full border-t border-[var(--u-line)]" : "",
+										)}
 									>
-										{toast.action.label}
-									</button>
-								) : null}
-								<button
-									type="button"
-									onClick={() => setToast(null)}
-									aria-label="Dismiss"
-									className={cx(QUIET_BUTTON, "shrink-0")}
-								>
-									×
-								</button>
-							</>
-						) : null}
-					</div>
+										{showControls ? (
+											<ControlPanel
+												inputs={registeredInputs}
+												overlay={overlayState.overlays}
+												onSet={setInput}
+												onReset={resetInput}
+												droppedPatches={overlayState.dropped}
+												droppedInputs={overlayState.droppedInputs}
+											/>
+										) : null}
+										{/* Below the controls, never merged into them — D18. */}
+										<PropTable doc={propDoc} />
+									</aside>
+								</>
+							) : null}
+						</div>
 
-					<CommandPalette
-						open={paletteOpen}
-						items={rankedItems}
-						query={paletteQuery}
-						onQueryChange={setPaletteQuery}
-						onSelect={onPaletteSelect}
-						onClose={closePalette}
-					/>
+						{/* Transient status. In the layout rather than over the preview, and
+					    never focus-stealing: its action is a real button one Tab away. */}
+						<div
+							role="status"
+							aria-live="polite"
+							className={cx(
+								"flex shrink-0 items-center gap-3 border-t border-[var(--u-line)] px-3",
+								toast ? "h-7" : "h-0 overflow-hidden border-t-0",
+							)}
+						>
+							{toast ? (
+								<>
+									<Typography.Text
+										size="1"
+										color={toast.tone === "danger" ? "danger" : "gray"}
+										className="min-w-0 flex-1 truncate"
+									>
+										{toast.message}
+									</Typography.Text>
+									{toast.action ? (
+										<Button
+											size="1"
+											variant="ghost"
+											onClick={toast.action.run}
+											className="shrink-0"
+										>
+											{toast.action.label}
+										</Button>
+									) : null}
+									<IconButton
+										size="1"
+										variant="ghost"
+										color="gray"
+										onClick={() => setToast(null)}
+										aria-label="Dismiss"
+										className="shrink-0"
+									>
+										×
+									</IconButton>
+								</>
+							) : null}
+						</div>
 
-					<HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
-				</div>
-			</ControlPanelSlots.Provider>
+						<CommandPalette
+							open={paletteOpen}
+							items={rankedItems}
+							query={paletteQuery}
+							onQueryChange={setPaletteQuery}
+							onSelect={onPaletteSelect}
+							onClose={closePalette}
+						/>
+
+						<HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+					</Theme>
+				</ControlPanelSlots.Provider>
+			</UightRootContext.Provider>
 		</UightChromeContext.Provider>
 	);
 }

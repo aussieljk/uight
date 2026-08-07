@@ -6,7 +6,7 @@ independently written parts link together. If SPEC.md and this file disagree on 
 signature, this file wins for the signature and SPEC.md wins for the behaviour.
 
 Package root: `packages/uight`. Monorepo uses **bun** workspaces.
-`examples/frosted-ui/node_modules/uight` symlinks to `packages/uight`.
+`examples/ljkui/node_modules/uight` symlinks to `packages/uight`.
 
 ## Already written — DO NOT EDIT
 
@@ -34,7 +34,7 @@ Use `import type` for type-only imports.
 | Runtime      | `src/runtime/**`                             |
 | UI chrome    | `src/ui/**`, `src/chrome/**`, `src/index.ts` |
 | Styles/build | `src/styles/**`, `scripts/**`, `tests/**`    |
-| Demo         | `examples/frosted-ui/**`                     |
+| Demo         | `examples/ljkui/**`                          |
 
 Never edit a file outside your area. If you need something from another area, code
 against the signature below and assume it exists.
@@ -333,8 +333,8 @@ ancestor; the compiled CSS only matches inside it.
 
 ---
 
-## 5. Demo — `examples/frosted-ui/**`
+## 5. Demo — `examples/ljkui/**`
 
 Consumes the built package through the workspace symlink, exactly as a real user would:
-`import { uight } from "@aussieljk/uight/vite"`. Renders **frosted-ui's own Storybook stories** as
+`import { uight } from "@aussieljk/uight/vite"`. Renders **ljkui's Storybook stories** as
 fixtures through the §13 CSF subset.

@@ -5,17 +5,18 @@
  * replacing this file changes the bar's presentation without touching wiring.
  */
 
+import { HStack } from "ljkui";
 import type { ReactElement } from "react";
 import type { ToolbarProps } from "../../shared/types.ts";
 
 export function Toolbar({ children }: ToolbarProps): ReactElement {
 	return (
-		<div
+		<HStack
 			role="toolbar"
 			aria-label="Preview"
-			className="flex h-9 shrink-0 items-center gap-2 border-b border-[var(--u-line)] bg-[var(--u-bg)] px-2"
+			className="h-9 shrink-0 gap-2 border-b border-[var(--u-line)] bg-[var(--u-bg)] px-2"
 		>
 			{children}
-		</div>
+		</HStack>
 	);
 }

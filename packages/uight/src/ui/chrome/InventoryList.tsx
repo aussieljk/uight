@@ -7,6 +7,7 @@
  * component; it reports a choice and stops there.
  */
 
+import { Badge, Typography } from "ljkui";
 import { useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactElement } from "react";
 import type { InventoryItem, InventoryListProps } from "../../shared/types.ts";
@@ -68,9 +69,14 @@ export function InventoryList({
 		<div ref={listRef} onKeyDown={onKeyDown} className="pb-2">
 			{groups.map(([dir, items]) => (
 				<div key={dir || "."}>
-					<p className={cx(SECTION_LABEL, "truncate px-2 pt-2 pb-1")} title={dir || "root"}>
+					<Typography.Text
+						render={<p />}
+						size="1"
+						className={cx(SECTION_LABEL, "truncate px-2 pt-2 pb-1")}
+						title={dir || "root"}
+					>
 						{dir || "root"}
-					</p>
+					</Typography.Text>
 					{items.map((item) => {
 						const key = itemKey(item);
 						return (
@@ -91,9 +97,9 @@ export function InventoryList({
 							>
 								<span className="truncate">{item.name}</span>
 								{item.kind !== "function" ? (
-									<span className="ml-auto shrink-0 text-xs text-[var(--u-fg-subtle)]">
+									<Badge size="1" variant="soft" color="gray" className="ml-auto shrink-0">
 										{item.kind}
-									</span>
+									</Badge>
 								) : null}
 							</button>
 						);

@@ -136,7 +136,7 @@ const steps: Step[] = [
 		title: "Typecheck the demo",
 		command: "bun",
 		args: ["run", "typecheck"],
-		cwd: path.join(ROOT, "examples/frosted-ui"),
+		cwd: path.join(ROOT, "examples/ljkui"),
 	},
 	{ title: "Lint", command: "bun", args: ["run", "lint"] },
 	{ title: "Registry builds", command: "bun", args: ["run", "registry"], cwd: PKG },

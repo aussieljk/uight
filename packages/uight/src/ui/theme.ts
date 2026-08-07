@@ -1,17 +1,16 @@
 /**
- * Theme tokens. SPEC.md §10.1.
+ * Theme resolution. SPEC.md §10.1.
  *
- * Monochrome plus ONE accent, used only for selection and focus. The palette
- * ships as custom properties set on the `.uight-root` element rather than as
- * a media query, so `theme="system"` resolves in one place and a host that
- * forces a theme is honoured without a cascade fight.
+ * The chrome is built from ljkui, so the palette is ljkui's: `<Theme>` writes
+ * the scales onto its own element and flips them with a `.light` / `.dark`
+ * class. `styles/uight.css` maps our `--uight-*` tokens onto those scales, so
+ * there is exactly one palette and nothing here has to restate it.
  *
- * Every grey is a step of Tailwind's `neutral` ramp, verbatim; the accent is
- * Tailwind `blue` and danger is Tailwind `red`. Keep these in step with
- * `styles/uight.css` and `styles/chrome-tokens.css`, which say the same thing
- * for the packaged and the ejected build.
- *
- * One font family, three sizes, two weights. No shadows.
+ * What is left is the one thing ljkui cannot do for us: `theme="system"`.
+ * `appearance="inherit"` would inherit from *the host's* document, which is a
+ * different question from "what does this user's OS prefer" — a host that never
+ * set an appearance would leave the explorer light on a dark desktop. So we
+ * resolve the media query ourselves and hand `<Theme>` a concrete answer.
  */
 
 import { useSyncExternalStore } from "react";
@@ -20,53 +19,13 @@ import type { CSSProperties } from "react";
 export type ThemeSetting = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
-const FONT_STACK =
-	'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-
-const LIGHT: Record<string, string> = {
-	"--u-bg": "#ffffff",
-	"--u-bg-sunken": "#fafafa",
-	"--u-bg-hover": "#f5f5f5",
-	"--u-fg": "#171717",
-	"--u-fg-muted": "#737373",
-	"--u-fg-subtle": "#a3a3a3",
-	"--u-line": "#e5e5e5",
-	"--u-line-strong": "#d4d4d4",
-	"--u-accent": "#2563eb",
-	"--u-accent-fg": "#ffffff",
-	"--u-accent-soft": "#eff6ff",
-	"--u-danger": "#b91c1c",
-	"--u-danger-soft": "#fef2f2",
-	"--u-canvas": "#f5f5f5",
-};
-
-const DARK: Record<string, string> = {
-	"--u-bg": "#0a0a0a",
-	"--u-bg-sunken": "#171717",
-	"--u-bg-hover": "#262626",
-	"--u-fg": "#f5f5f5",
-	"--u-fg-muted": "#a3a3a3",
-	"--u-fg-subtle": "#737373",
-	"--u-line": "#262626",
-	"--u-line-strong": "#404040",
-	"--u-accent": "#60a5fa",
-	"--u-accent-fg": "#0a0a0a",
-	"--u-accent-soft": "#172554",
-	"--u-danger": "#f87171",
-	"--u-danger-soft": "#450a0a",
-	"--u-canvas": "#000000",
-};
-
 /**
- * Custom properties plus the two things every descendant inherits: the single
- * font family and the resolved colour scheme (so native widgets match).
+ * What the theme element needs beyond ljkui's own classes: the resolved colour
+ * scheme, so native widgets (scrollbars, date pickers, form controls the host's
+ * fixtures render) match the chrome around them.
  */
 export function themeVars(theme: ResolvedTheme): CSSProperties {
-	return {
-		...(theme === "dark" ? DARK : LIGHT),
-		fontFamily: FONT_STACK,
-		colorScheme: theme,
-	} as CSSProperties;
+	return { colorScheme: theme };
 }
 
 const QUERY = "(prefers-color-scheme: dark)";

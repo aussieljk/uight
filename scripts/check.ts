@@ -42,7 +42,7 @@ const steps: Step[] = [
 	{
 		title: "Typecheck the demo",
 		args: ["run", "typecheck"],
-		cwd: path.join(ROOT, "examples/frosted-ui"),
+		cwd: path.join(ROOT, "examples/ljkui"),
 	},
 	{ title: "Lint", args: ["run", "lint"] },
 	{ title: "Format", args: ["run", "format:check"] },

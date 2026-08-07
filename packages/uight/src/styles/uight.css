@@ -118,13 +118,14 @@
  * the variant would only ever read `prefers-color-scheme` and would disagree
  * with the tokens whenever the UI pins a theme.
  */
+/**
+ * `dark:` reads the same signal the palette does: ljkui's appearance class on
+ * the theme root, which `<Theme appearance>` resolves from the setting *or*
+ * from the system preference. Reading `prefers-color-scheme` here as well would
+ * make the variant disagree with the tokens whenever the UI pins a theme.
+ */
 @custom-variant dark {
-	@media (prefers-color-scheme: dark) {
-		&:where(:not(.uight-theme-light, .uight-theme-light *)) {
-			@slot;
-		}
-	}
-	&:where(.uight-theme-dark, .uight-theme-dark *) {
+	&:where(.dark, .dark *) {
 		@slot;
 	}
 }
@@ -139,63 +140,34 @@
  * ------------------------------------------------------------------ */
 
 @layer base {
-	.uight-root,
-	.uight-root.uight-theme-light,
-	.uight-theme-light .uight-root {
-		--uight-surface: #ffffff;
-		--uight-sunken: #fafafa;
-		--uight-hover: #f5f5f5;
-		--uight-canvas: #f5f5f5;
-		--uight-fg: #171717;
-		--uight-muted: #737373;
-		--uight-subtle: #a3a3a3;
-		--uight-line: #e5e5e5;
-		--uight-line-strong: #d4d4d4;
-		--uight-accent: #2563eb;
-		--uight-accent-fg: #ffffff;
-		--uight-accent-soft: #eff6ff;
-		--uight-danger: #b91c1c;
-		--uight-danger-soft: #fef2f2;
-		color-scheme: light;
-	}
-
-	@media (prefers-color-scheme: dark) {
-		.uight-root {
-			--uight-surface: #0a0a0a;
-			--uight-sunken: #171717;
-			--uight-hover: #262626;
-			--uight-canvas: #000000;
-			--uight-fg: #f5f5f5;
-			--uight-muted: #a3a3a3;
-			--uight-subtle: #737373;
-			--uight-line: #262626;
-			--uight-line-strong: #404040;
-			--uight-accent: #60a5fa;
-			--uight-accent-fg: #0a0a0a;
-			--uight-accent-soft: #172554;
-			--uight-danger: #f87171;
-			--uight-danger-soft: #450a0a;
-			color-scheme: dark;
-		}
-	}
-
-	.uight-root.uight-theme-dark,
-	.uight-theme-dark .uight-root {
-		--uight-surface: #0a0a0a;
-		--uight-sunken: #171717;
-		--uight-hover: #262626;
-		--uight-canvas: #000000;
-		--uight-fg: #f5f5f5;
-		--uight-muted: #a3a3a3;
-		--uight-subtle: #737373;
-		--uight-line: #262626;
-		--uight-line-strong: #404040;
-		--uight-accent: #60a5fa;
-		--uight-accent-fg: #0a0a0a;
-		--uight-accent-soft: #172554;
-		--uight-danger: #f87171;
-		--uight-danger-soft: #450a0a;
-		color-scheme: dark;
+	/*
+	 * The chrome is built from ljkui, so the palette is ljkui's. Each token is a
+	 * reference rather than a value: light and dark are ljkui's `.light`/`.dark`
+	 * classes flipping the scales underneath, which is why there is no second
+	 * copy of this block and no `prefers-color-scheme` query. The scales are
+	 * declared on the same element (`<Theme className="uight-root">`), so these
+	 * `var()`s resolve where they are written.
+	 *
+	 * The fallbacks are the palette this chrome shipped before ljkui, and they
+	 * are load-bearing: the frame document's chrome host and the static build's
+	 * markup carry `.uight-root` without a React `<Theme>` above them, and must
+	 * still be readable.
+	 */
+	.uight-root {
+		--uight-surface: var(--panel-solid, #ffffff);
+		--uight-sunken: var(--gray-50, #fafafa);
+		--uight-hover: var(--gray-100, #f5f5f5);
+		--uight-canvas: var(--background, #f5f5f5);
+		--uight-fg: var(--gray-950, #171717);
+		--uight-muted: var(--gray-700, #737373);
+		--uight-subtle: var(--gray-500, #a3a3a3);
+		--uight-line: var(--gray-200, #e5e5e5);
+		--uight-line-strong: var(--gray-300, #d4d4d4);
+		--uight-accent: var(--accent-700, #2563eb);
+		--uight-accent-fg: var(--accent-700-contrast, #ffffff);
+		--uight-accent-soft: var(--accent-alpha-100, #eff6ff);
+		--uight-danger: var(--danger-700, #b91c1c);
+		--uight-danger-soft: var(--danger-alpha-100, #fef2f2);
 	}
 
 	/* ---------------------------------------------------------------- *

@@ -7,9 +7,10 @@
  * it looks like it needed — a bare stack trace is not an answer to "why".
  */
 
+import { Alert, Button, Card, Typography } from "ljkui";
 import type { ReactElement } from "react";
 import type { ErrorStateProps, RendererError } from "../../shared/types.ts";
-import { FOCUS_RING, MOTION, cx } from "../cx.ts";
+import { FOCUS_RING, cx } from "../cx.ts";
 
 const KIND_LABEL: Record<RendererError["kind"], string> = {
 	fixture: "This fixture threw while rendering",
@@ -48,29 +49,33 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 	return (
 		<div className="h-full w-full overflow-auto p-6" role="alert">
 			<div className="mx-auto max-w-160">
-				<p className="text-base font-medium text-[var(--u-danger)]">
-					{KIND_LABEL[error.kind]}
-				</p>
+				<Alert.Root color="danger">
+					<Alert.Icon />
+					<Alert.Title>{KIND_LABEL[error.kind]}</Alert.Title>
+					<Alert.Description className="whitespace-pre-wrap">
+						{error.message}
+					</Alert.Description>
+				</Alert.Root>
+
 				{error.file ? (
-					<p className="mt-1 text-xs text-[var(--u-fg-subtle)]">{error.file}</p>
+					<Typography.Text render={<p />} size="1" color="gray" className="mt-2">
+						{error.file}
+					</Typography.Text>
 				) : null}
-				<p className="mt-3 text-sm leading-5 whitespace-pre-wrap text-[var(--u-fg)]">
-					{error.message}
-				</p>
 
 				{props.length ? (
-					<div className="mt-4 rounded-sm border border-[var(--u-line)] bg-[var(--u-bg-sunken)] p-3">
-						<p className="text-xs font-medium text-[var(--u-fg)]">
+					<Card className="mt-4">
+						<Typography.Text render={<p />} size="1" weight="medium">
 							Props this render seems to need
-						</p>
-						<p className="mt-1 text-xs leading-5 text-[var(--u-fg-muted)]">
-							{props.join(", ")}
-						</p>
-						<p className="mt-2 text-xs leading-5 text-[var(--u-fg-subtle)]">
+						</Typography.Text>
+						<Typography.Text render={<p />} size="1" color="gray" className="mt-1">
+							<Typography.Code>{props.join(", ")}</Typography.Code>
+						</Typography.Text>
+						<Typography.Text render={<p />} size="1" color="gray" className="mt-2">
 							Detected components are rendered with no props. Write a fixture file to give it the
 							props it needs.
-						</p>
-					</div>
+						</Typography.Text>
+					</Card>
 				) : null}
 
 				{error.componentStack ? (
@@ -106,18 +111,9 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 				) : null}
 
 				{onRetry ? (
-					<button
-						type="button"
-						onClick={onRetry}
-						className={cx(
-							"mt-5 h-7 rounded-sm border border-[var(--u-line-strong)] px-2.5 text-sm text-[var(--u-fg)]",
-							"hover:bg-[var(--u-bg-hover)]",
-							FOCUS_RING,
-							MOTION,
-						)}
-					>
+					<Button size="1" variant="surface" onClick={onRetry} className="mt-5">
 						Reload the preview
-					</button>
+					</Button>
 				) : null}
 			</div>
 		</div>

@@ -22,7 +22,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import type { PluginOption } from "vite";
-import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASS } from "../ui/constants.ts";
+import { FRAME_CHROME_ID, FRAME_ROOT_ID, ROOT_CLASSES } from "../ui/constants.ts";
 import { STATIC_ENV } from "./config.ts";
 
 export { STATIC_ENV };
@@ -182,7 +182,7 @@ function previewHtml(): string {
 	</head>
 	<body>
 		<div id="${FRAME_ROOT_ID}"></div>
-		<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASS}"></div>
+		<div id="${FRAME_CHROME_ID}" class="${ROOT_CLASSES}"></div>
 	</body>
 </html>
 `;

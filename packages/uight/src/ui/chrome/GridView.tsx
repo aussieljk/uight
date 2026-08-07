@@ -24,6 +24,7 @@
  * expansion or in bulk — §12's rule holds here exactly as it does in the tree.
  */
 
+import { Button, Card, Typography } from "ljkui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { fixtureIdsEqual, serializeFixtureId } from "../../shared/fixture-id.ts";
@@ -95,10 +96,10 @@ export function GridView(props: GridViewProps): ReactElement {
 	return (
 		<div className="h-full min-h-0 overflow-auto p-3" data-uight-grid="">
 			{atBudget ? (
-				<p className="mb-3 text-xs text-[var(--u-fg-muted)]">
+				<Typography.Text render={<p />} size="1" color="gray" className="mb-3">
 					{live.size} of {tiles.length} rendered — the rest are held back so the page stays
 					responsive. Open any one of them from its tile.
-				</p>
+				</Typography.Text>
 			) : null}
 
 			<ul
@@ -130,7 +131,9 @@ export function GridView(props: GridViewProps): ReactElement {
 			</ul>
 
 			{tiles.length === 0 ? (
-				<p className="text-sm text-[var(--u-fg-muted)]">Nothing to show in this grid.</p>
+				<Typography.Text render={<p />} size="1" color="gray">
+					Nothing to show in this grid.
+				</Typography.Text>
 			) : null}
 		</div>
 	);
@@ -180,11 +183,14 @@ function Tile(props: TileProps): ReactElement {
 	const noop = useCallback(() => {}, []);
 
 	return (
-		<li
-			ref={ref}
+		<Card
+			render={<li ref={ref} />}
+			// The current tile is outlined rather than filled: a contact sheet is
+			// read by its contents, and a filled tile would recolour the fixture
+			// inside it.
 			className={
-				"m-0 flex min-w-0 flex-col overflow-hidden rounded-sm border bg-[var(--u-bg)] " +
-				(current ? "border-[var(--u-accent)]" : "border-[var(--u-line)]")
+				"m-0 flex min-w-0 flex-col overflow-hidden p-0 " +
+				(current ? "outline-2 -outline-offset-2 outline-[var(--u-accent)]" : "")
 			}
 		>
 			{/*
@@ -205,10 +211,12 @@ function Tile(props: TileProps): ReactElement {
 					"focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--u-accent)]"
 				}
 			>
-				<span className="w-full truncate text-xs font-medium text-[var(--u-fg)]">
+				<Typography.Text size="1" weight="medium" className="w-full truncate">
 					{tile.label}
-				</span>
-				<span className="w-full truncate text-xs text-[var(--u-fg-subtle)]">{tile.path}</span>
+				</Typography.Text>
+				<Typography.Text size="1" color="gray" className="w-full truncate">
+					{tile.path}
+				</Typography.Text>
 			</button>
 
 			<div className="relative w-full" style={{ height: props.height }}>
@@ -232,19 +240,12 @@ function Tile(props: TileProps): ReactElement {
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-[var(--u-bg-sunken)]">
-						<button
-							type="button"
-							onClick={() => onRequest(tileKey, true)}
-							className={
-								"rounded-sm border border-[var(--u-line)] px-2 py-1 text-xs " +
-								"text-[var(--u-fg-muted)] hover:text-[var(--u-fg)]"
-							}
-						>
+						<Button size="1" variant="surface" onClick={() => onRequest(tileKey, true)}>
 							{atBudget ? "Render anyway" : "Render"}
-						</button>
+						</Button>
 					</div>
 				)}
 			</div>
-		</li>
+		</Card>
 	);
 }
