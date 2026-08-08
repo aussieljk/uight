@@ -24,6 +24,7 @@
  * | `/@uight/index.json`     | Fixture index: paths, names, `null`s, hashes   |
  * | `/@uight/inventory.json` | Detected components                            |
  * | `/@uight/callsites.json` | Component usages harvested from the source     |
+ * | `/@uight/docs.json`      | Prop metadata from docgen, when it is on       |
  * | `/@uight/config.json`    | Resolved config echo                           |
  * | `/@uight/health`         | version, viteVersion, protocolVersion, …       |
  *
@@ -74,6 +75,8 @@ export function readOnlyApi(
 					return { components: getIndex().inventory };
 				case "/callsites.json":
 					return callSitesPayload(getIndex());
+				case "/docs.json":
+					return docsPayload(getConfig(), getIndex());
 				case "/config.json":
 					return configPayload(getConfig(), server);
 				case "/health":
@@ -130,6 +133,21 @@ function callSitesPayload(index: FixtureIndex): unknown {
 		components: index.callSites.length,
 		sites: index.callSites.reduce((sum, group) => sum + group.sites.length, 0),
 		groups: index.callSites,
+	};
+}
+
+/**
+ * Prop metadata from the docgen pass (§15), keyed by glob path.
+ *
+ * `docgen` is echoed so a consumer that finds no docs can tell "the option is
+ * off" from "the resolver found nothing" — the MCP `component_props` tool
+ * turns that difference into two different messages.
+ */
+function docsPayload(cfg: ResolvedUightConfig, index: FixtureIndex): unknown {
+	return {
+		version: UIGHT_VERSION,
+		docgen: cfg.docgen,
+		docs: index.docs ?? {},
 	};
 }
 

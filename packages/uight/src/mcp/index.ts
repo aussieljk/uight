@@ -281,6 +281,25 @@ interface CallSitesPayload {
 	}>;
 }
 
+interface DocsPayload {
+	docgen: boolean;
+	docs: Record<
+		string,
+		Array<{
+			name: string;
+			description?: string;
+			props: Array<{
+				name: string;
+				type?: string;
+				required: boolean;
+				defaultValue?: string;
+				description?: string;
+			}>;
+			limitations?: string[];
+		}>
+	>;
+}
+
 interface ConfigPayload {
 	route: string | false;
 	[key: string]: unknown;
@@ -382,6 +401,46 @@ export const TOOLS: Tool[] = [
 				.filter((group) => matches(group.component, component))
 				.slice(0, limit);
 			return { components: payload.components, sites: payload.sites, groups };
+		},
+	},
+	{
+		name: "component_props",
+		description:
+			"Prop metadata for components: name, type as written, required, default, " +
+			"description. This is how to learn a component's API without reading its " +
+			"source. Needs `docgen: true` in the uight config; the error says so when " +
+			"it is off. Each entry names its known blind spots (e.g. inherited props).",
+		inputSchema: {
+			type: "object",
+			properties: {
+				component: {
+					type: "string",
+					description: "Case-insensitive substring of the component name; omit for all",
+				},
+			},
+		},
+		async run(args, client) {
+			const payload = await client.get<DocsPayload>("/docs.json");
+			const component = stringArg(args, "component");
+			const components = Object.values(payload.docs)
+				.flat()
+				.filter((doc) => matches(doc.name, component));
+			if (!components.length) {
+				if (!payload.docgen) {
+					throw new Error(
+						"docgen is off in this project. Set `docgen: true` in the uight " +
+							"plugin options and install react-docgen to get prop metadata — " +
+							"or use list_call_sites, which needs neither.",
+					);
+				}
+				throw new Error(
+					component
+						? `no documented component matches "${component}". list_components ` +
+								"shows what was detected; list_call_sites shows real usage."
+						: "docgen is on but produced no docs yet — is the dev server done scanning?",
+				);
+			}
+			return { components };
 		},
 	},
 	{

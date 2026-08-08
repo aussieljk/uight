@@ -10,6 +10,7 @@ import type {
 	DecoratorFileIndex,
 	FixtureFileIndex,
 	FixtureId,
+	InputOptions,
 	InputOptionsWire,
 	InputOverlay,
 	Patch,
@@ -71,6 +72,13 @@ interface SelectFixture {
 	children?: string | null;
 	/** Where those props were written, for the toolbar and the error panel. */
 	origin?: string | null;
+	/**
+	 * Per-prop control metadata for props the HOST synthesized from docgen
+	 * (D18 revised — see `ui/docs.ts`). Only ever sent alongside `props`, only
+	 * for a detected component with no call site, and JSON by the same
+	 * construction: `docControls` emits nothing but literals.
+	 */
+	propOptions?: Record<string, InputOptions<unknown>> | null;
 }
 interface InputRegistered {
 	type: "INPUT_REGISTERED";

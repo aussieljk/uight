@@ -18,6 +18,7 @@ import type {
 	FixtureFileIndex,
 	FixtureId,
 	FixtureMeta,
+	InputOptions,
 	InputOverlay,
 	RendererError,
 	RuntimeConfig,
@@ -67,6 +68,8 @@ export interface ComponentRef {
 	children?: string | null;
 	/** Where those props were written. */
 	origin?: string | null;
+	/** Host-synthesized control metadata for docgen-derived props (§15). */
+	propOptions?: Record<string, InputOptions<unknown>> | null;
 }
 
 export interface RendererAppProps extends Omit<MountRendererOptions, "root"> {
@@ -159,7 +162,12 @@ function componentFixture(module: unknown, ref: ComponentRef): NormalizedFixture
 
 	const fixture: NormalizedFixture = {
 		name: ref.exportName,
-		render: createCallSiteComponent(component, props, ref.children ?? undefined),
+		render: createCallSiteComponent(
+			component,
+			props,
+			ref.children ?? undefined,
+			ref.propOptions ?? undefined,
+		),
 	};
 	if (ref.origin) fixture.meta = { description: `as used in ${ref.origin}` };
 	return fixture;
@@ -183,6 +191,9 @@ function createCallSiteComponent(
 	component: React.ComponentType<Record<string, unknown>>,
 	props: Record<string, unknown>,
 	children: string | undefined,
+	// Present only for docgen-derived props (D18 revised): a harvested call
+	// site declares values and nothing else, exactly as before.
+	propOptions?: Record<string, InputOptions<unknown>>,
 ): React.ComponentType {
 	const keys = Object.keys(props);
 
@@ -190,7 +201,7 @@ function createCallSiteComponent(
 		const next: Record<string, unknown> = { ...props };
 		for (const key of keys) {
 			// eslint-disable-next-line react-hooks/rules-of-hooks -- fixed-length list
-			const [value] = useFixtureInput(key, props[key]);
+			const [value] = useFixtureInput(key, props[key], propOptions?.[key]);
 			next[key] = value;
 		}
 		return children === undefined
@@ -528,6 +539,7 @@ export function RendererApp(props: RendererAppProps): React.ReactElement {
 									props: message.props ?? null,
 									children: message.children ?? null,
 									origin: message.origin ?? null,
+									propOptions: message.propOptions ?? null,
 								}
 							: null,
 					});

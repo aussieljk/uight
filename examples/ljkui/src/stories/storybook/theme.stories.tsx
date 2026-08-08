@@ -78,7 +78,7 @@ export const Default: Story = {
 };
 
 export const Colors: Story = {
-	render: (args) => (
+	render: () => (
 		<div style={{ display: "flex", gap: "var(--space-6)" }}>
 			<Theme
 				grayColor="gray"
@@ -151,7 +151,7 @@ export const Colors: Story = {
 };
 
 export const Appearance: Story = {
-	render: (args) => (
+	render: () => (
 		<div style={{ display: "flex", gap: "var(--space-6)" }}>
 			<Theme
 				appearance="light"

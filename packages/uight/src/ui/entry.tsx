@@ -102,15 +102,17 @@ export interface UightErrorBoundaryProps {
 
 interface BoundaryState {
 	error: RendererError | null;
+	/** The `resetKey` the current `error` was caught under. */
+	resetKey: unknown;
 }
 
 export class UightErrorBoundary extends Component<
 	UightErrorBoundaryProps,
 	BoundaryState
 > {
-	state: BoundaryState = { error: null };
+	state: BoundaryState = { error: null, resetKey: this.props.resetKey };
 
-	static getDerivedStateFromError(error: unknown): BoundaryState {
+	static getDerivedStateFromError(error: unknown): Pick<BoundaryState, "error"> {
 		return {
 			error: {
 				kind: "fixture",
@@ -118,6 +120,15 @@ export class UightErrorBoundary extends Component<
 				stack: error instanceof Error ? error.stack : undefined,
 			},
 		};
+	}
+
+	/** Clearing during render beats a `componentDidUpdate` second pass. */
+	static getDerivedStateFromProps(
+		props: UightErrorBoundaryProps,
+		state: BoundaryState,
+	): BoundaryState | null {
+		if (props.resetKey === state.resetKey) return null;
+		return { error: null, resetKey: props.resetKey };
 	}
 
 	componentDidCatch(error: unknown, info: ErrorInfo): void {
@@ -129,12 +140,6 @@ export class UightErrorBoundary extends Component<
 		};
 		this.setState({ error: reported });
 		this.props.onError?.(reported);
-	}
-
-	componentDidUpdate(previous: UightErrorBoundaryProps): void {
-		if (this.state.error && previous.resetKey !== this.props.resetKey) {
-			this.setState({ error: null });
-		}
 	}
 
 	render(): ReactNode {

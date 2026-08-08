@@ -71,11 +71,24 @@ nothing is imported and nothing is executed.
 | `--root <dir>` | Project root            |
 | `--json`       | The full report as JSON |
 
+## `uight codemod`
+
+Rewrite simple CSF stories as plain-JSX fixture files, next to the originals. A file
+converts completely or not at all; anything the fixture form cannot represent skips the
+whole file with the reason named. See [From Storybook](/guide/storybook).
+
+| Flag           | Notes                                |
+| -------------- | ------------------------------------ |
+| `--root <dir>` | Project root                         |
+| `--dry-run`    | Print every change and write nothing |
+| `--json`       | The full report as JSON              |
+
 ## `uight mcp`
 
 Run the MCP server over stdio, against the dev server's read-only API. `--url` is
 optional — the dev server is found by probing `/@uight/health`, so nobody has to know
-which port Vite took.
+which port Vite took. See [Coding agents (MCP)](/guide/agents).
 
-It answers questions about the index and returns fixture URLs an agent with a browser can
-open. It does not take screenshots.
+It answers questions about the index — fixtures, detected components, real call sites,
+prop metadata when `docgen` is on — returns fixture URLs, and with the optional
+`playwright` package installed, `render_fixture` returns a real screenshot.

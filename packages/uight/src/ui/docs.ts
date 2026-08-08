@@ -7,16 +7,22 @@
  * Kept pure and free of React, so it can be reasoned about — and driven — on
  * its own.
  *
- * **D18 is binding.** Everything here is DISPLAY metadata. No function in this
- * file — and nothing that calls one — may look at a prop's name, type or
- * default to decide that a control should exist. Controls are declared at the
- * call site (§7.6) and only there; a prop table that quietly grew controls
- * would make docgen's guesses load-bearing, which is exactly what D18 refuses.
+ * **D18, revised.** For fixtures, D18 stands unchanged: everything docgen
+ * knows about a *fixture's* inputs is display metadata, controls are declared
+ * at the call site (§7.6), and nothing here may second-guess that. The
+ * revision is `docControls` at the bottom of this file: a **detected
+ * component with no fixture and no call site** has no declaration to defer
+ * to, so for that case — and only that case — a conservatively-read prop type
+ * may become a control. D18's rationale ("no reliable mapping from an input
+ * name to a component prop") does not apply there, because the input name IS
+ * the prop name by construction, exactly as it already is for call-site
+ * props.
  */
 
 import type {
 	ComponentDoc,
 	DocgenLimitation,
+	InputOptions,
 	InputOptionsWire,
 	PropDoc,
 } from "../shared/types.ts";
@@ -184,6 +190,90 @@ function findProp(
  * accordingly — it does not see through an alias, and it is not supposed to.
  * When it declines, the input keeps whatever the call site declared.
  */
+/* ------------------------------------------------------------------ *
+ * Docgen-derived controls for a bare detected component
+ * ------------------------------------------------------------------ */
+
+/** What `docControls` synthesizes: initial props plus per-prop options. */
+export interface DocControls {
+	props: Record<string, unknown>;
+	options: Record<string, InputOptions<unknown>>;
+}
+
+/**
+ * Controls for a detected component that has no fixture and no call site.
+ *
+ * The reading is deliberately the narrowest that is still useful, and a prop
+ * it cannot read with confidence is **skipped, never guessed**:
+ *
+ *   - `boolean` → checkbox, starting from the written default or `false`;
+ *   - `string` → text, starting from the written default or `""`;
+ *   - `number` → number, starting from the written default or `0`;
+ *   - a union of quoted string literals → select (via `unionOptions`),
+ *     starting from the default when it is a member, else the first member.
+ *
+ * Everything else — functions, elements, objects, generics, anything the
+ * resolver collapsed — is left to the prop table. The result is partial by
+ * design (and the Babel resolver cannot see inherited props at all, §15.2),
+ * which is why the panel this feeds must sit next to the limitation notes
+ * rather than presenting itself as the component's whole API.
+ *
+ * Returns `null` rather than an empty set when nothing was readable, so the
+ * caller can fall back to rendering the component bare.
+ */
+export function docControls(doc: ComponentDoc | null): DocControls | null {
+	if (!doc) return null;
+	const props: Record<string, unknown> = {};
+	const options: Record<string, InputOptions<unknown>> = {};
+
+	for (const prop of sortProps(doc.props)) {
+		const type = prop.type?.trim();
+		if (!type) continue;
+		const opts: InputOptions<unknown> = {};
+		if (prop.description) opts.description = prop.description;
+
+		const literals = unionOptions(type);
+		if (literals) {
+			const written = literalDefault(prop.defaultValue);
+			props[prop.name] =
+				typeof written === "string" && literals.includes(written) ? written : literals[0];
+			opts.control = "select";
+			opts.options = literals;
+		} else if (type === "boolean") {
+			const written = literalDefault(prop.defaultValue);
+			props[prop.name] = typeof written === "boolean" ? written : false;
+		} else if (type === "string") {
+			const written = literalDefault(prop.defaultValue);
+			props[prop.name] = typeof written === "string" ? written : "";
+		} else if (type === "number") {
+			const written = literalDefault(prop.defaultValue);
+			props[prop.name] = typeof written === "number" ? written : 0;
+		} else {
+			continue;
+		}
+		options[prop.name] = opts;
+	}
+
+	return Object.keys(props).length ? { props, options } : null;
+}
+
+/**
+ * `PropDoc.defaultValue` is the default *as written in the source*, so it is
+ * parsed as the literal it might be and ignored when it is anything else — a
+ * call, a reference, a template — because the wrong default rendered
+ * confidently is worse than the type's zero value.
+ */
+function literalDefault(written: string | undefined): string | number | boolean | null {
+	if (written === undefined) return null;
+	const text = written.trim();
+	if (text === "true") return true;
+	if (text === "false") return false;
+	const quoted = /^(['"])(.*)\1$/.exec(text);
+	if (quoted) return quoted[2] ?? "";
+	const num = Number(text);
+	return text !== "" && Number.isFinite(num) ? num : null;
+}
+
 function unionOptions(type: string | undefined): string[] | null {
 	if (!type || !type.includes("|")) return null;
 	const members = type.split("|").map((part) => part.trim());

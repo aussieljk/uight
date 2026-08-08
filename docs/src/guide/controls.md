@@ -114,3 +114,20 @@ explorer's, which is why they live in one module both realms import.
 | `useFixtureId()`        | The id of the fixture being rendered     |
 | `useSelectFixture()`    | A function that selects another fixture  |
 | `useFixtureIsolation()` | `"frame"` or `"inline"`                  |
+
+## Controls without a fixture: detected components
+
+A detected component selected from the inventory normally takes its controls from a
+harvested call site — real props, quoted from your own source. When there is no call
+site to start from and `docgen: true` is on, uight synthesizes controls from the
+component's prop types instead of rendering it bare:
+
+- `boolean` → a checkbox, `string` → a text field, `number` → a number field;
+- a union of quoted string literals (`'sm' | 'md' | 'lg'`) → a select;
+- anything else — functions, elements, objects, generics — is left to the prop table,
+  skipped rather than guessed.
+
+Written defaults are honoured when they are literals. The set is partial by design
+(the Babel resolver cannot see inherited props, and says so in the prop table's
+limitation notes), and it never applies to fixtures: a fixture's controls come from
+`useFixtureInput`, exactly as above.

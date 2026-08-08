@@ -31,7 +31,7 @@ type Story = StoryObj<typeof meta>;
 
 // More on writing stories with args: https://storybook.js.org/docs/react/writing-stories/args
 export const Default: Story = {
-	render: (args) => (
+	render: () => (
 		<div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
 			<Typography.Text>
 				Frosted-UI comes with custom styles for native CSS scrollbars:

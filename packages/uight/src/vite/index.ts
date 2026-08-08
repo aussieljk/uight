@@ -84,6 +84,8 @@ export { buildFixtureIndex, validateFixtures } from "./scan.ts";
 export { groupCallSites, parseCallSites } from "./callsites.ts";
 export { formatStorybookReport, storybookReport } from "./storybook-report.ts";
 export { formatMigration, migrateFromStorybook, migrateProject } from "./init.ts";
+export { csfCodemod, formatCodemod } from "./codemod.ts";
+export type { CodemodFileResult, CodemodOptions, CodemodResult } from "./codemod.ts";
 export type { MigrateOptions, MigrationChange, MigrationResult } from "./init.ts";
 export {
 	cosmosReport,

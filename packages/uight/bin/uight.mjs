@@ -6,6 +6,7 @@
  *   uight doctor [--root .] [--json]
  *   uight init [--root .] [--dry-run] [--no-rename]
  *   uight storybook [--root .]
+ *   uight codemod [--root .] [--dry-run]
  *   uight cosmos [--root .]
  *   uight mcp [--url <url>]
  *
@@ -53,6 +54,13 @@ function usage() {
 
   uight storybook            Report which CSF features would not survive
     --root <dir>              Project root (default: cwd)
+    --json                    Print the full report as JSON
+
+  uight codemod              Rewrite simple CSF stories as fixture files, next
+                              to the originals; anything it cannot represent
+                              is skipped whole, with the reason named
+    --root <dir>              Project root (default: cwd)
+    --dry-run                 Print every change and write nothing
     --json                    Print the full report as JSON
 
   uight cosmos               Report what a react-cosmos move would rename and decline
@@ -162,6 +170,25 @@ async function main() {
 			return;
 		}
 		console.log(formatStorybookReport(report));
+		return;
+	}
+
+	if (command === "codemod") {
+		const { resolveUightConfig, csfCodemod, formatCodemod } = await import("../dist/vite.js");
+		const root = path.resolve(String(flag("root", process.cwd())));
+		const config = resolveUightConfig({
+			root,
+			options: { storybook: true },
+			command: "build",
+		});
+		const result = await csfCodemod(config, {
+			dryRun: flag("dry-run", false) === true,
+		});
+		if (flag("json", false) === true) {
+			console.log(JSON.stringify(result, null, 2));
+			return;
+		}
+		console.log(formatCodemod(result));
 		return;
 	}
 

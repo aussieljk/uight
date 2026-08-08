@@ -83,3 +83,44 @@ uight({
 `parameters: "viewport-only"` is the stricter reading. Most design systems set
 `layout: "centered"` on nearly every story, so `"viewport-and-layout"` is usually what
 makes a corpus read the way its authors intended.
+
+## Leaving CSF behind: `uight codemod`
+
+Reading CSF in place means nobody *has* to convert anything. But a team that has
+decided to stay may not want to carry `storybook: true` forever, and for them there is
+a codemod:
+
+```bash
+bunx uight codemod --dry-run   # see what would happen
+bunx uight codemod             # write the fixture files
+```
+
+A story whose states are `args` becomes a plain-JSX fixture, written next to the
+original:
+
+```tsx
+// Button.stories.tsx (before)
+const meta = { component: Button, args: { size: "md" } };
+export default meta;
+export const Primary = { args: { variant: "primary", children: "Click me" } };
+```
+
+```tsx
+// Button.fixture.tsx (after)
+import { Button } from "./Button";
+
+export default {
+	Primary: <Button size="md" variant="primary">Click me</Button>,
+};
+```
+
+Arg values are spliced in **as the text they were written as** — any expression that
+was valid in `args` is valid in the fixture, and nothing is re-invented.
+
+The rule is convert a file completely or not at all. Anything the fixture form cannot
+represent — `render`, `play`, `decorators`, `argTypes`, a spread, a computed key —
+skips the whole file, with every reason named in the transcript, because a
+half-converted story file is two sources of truth for the same states.
+
+The `.stories` originals are left in place: check `/uight` shows both and they agree,
+then delete the stories in their own commit.

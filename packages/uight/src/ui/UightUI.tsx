@@ -85,7 +85,7 @@ import {
 	VIEWPORT_PRESETS,
 } from "./constants.ts";
 import { FOCUS_RING, MOTION, SECTION_LABEL, cx } from "./cx.ts";
-import { findDoc, resolveInputDoc } from "./docs.ts";
+import { docControls, findDoc, resolveInputDoc } from "./docs.ts";
 import { CSP_BLOCKED_PREFIX, FrameHost } from "./FrameHost.tsx";
 import { GridView } from "./chrome/GridView.tsx";
 import { HelpDialog } from "./HelpDialog.tsx";
@@ -939,6 +939,17 @@ export default function UightUI(props: UightProps): ReactElement {
 		? `${selectedComponent.globPath}#${selectedComponent.exportName}#${siteKey}`
 		: "";
 
+	// A detected component with no call site to start from gets controls
+	// synthesized from its prop types instead of rendering bare (D18 revised —
+	// see `docControls`). Inert unless `docgen` is on: no docs, no synthesis.
+	const derivedControls = useMemo(
+		() =>
+			selectedComponent && !selectedSite
+				? docControls(findDoc(index.docs, selectedComponent))
+				: null,
+		[index.docs, selectedComponent, selectedSite],
+	);
+
 	const selectMessage = useMemo(
 		() => ({
 			type: "SELECT_FIXTURE" as const,
@@ -952,12 +963,14 @@ export default function UightUI(props: UightProps): ReactElement {
 			// Harvested props travel with the selection. They are JSON by
 			// construction — the harvester only records what it could read
 			// statically — so nothing opaque can cross the realm boundary here.
-			props: selectedSite ? selectedSite.props : null,
+			// Docgen-derived props are literals by the same construction.
+			props: selectedSite ? selectedSite.props : (derivedControls?.props ?? null),
 			children: selectedSite?.children ?? null,
 			origin: selectedSite ? callSiteLabel(selectedSite) : null,
+			propOptions: derivedControls?.options ?? null,
 		}),
 		// `targetKey`/`componentKey` are the identity; the objects are not stable.
-		[targetKey, componentKey, selectedComponent, selectedSite],
+		[targetKey, componentKey, selectedComponent, selectedSite, derivedControls],
 	);
 
 	/** A shared link's patches, kept so `store.clear()` cannot outrun them. */
@@ -1593,9 +1606,10 @@ export default function UightUI(props: UightProps): ReactElement {
 	 * §15.2 — the prop table for the selected detected component.
 	 *
 	 * Only detected components (§12) have a doc: docgen reads component source,
-	 * and a fixture file is not one. D18 keeps this strictly beside the control
-	 * panel and never inside it — the panel's inputs come from the call site
-	 * (§7.6), and nothing below feeds it.
+	 * and a fixture file is not one. For fixtures D18 keeps this strictly
+	 * beside the control panel — the panel's inputs come from the call site
+	 * (§7.6). The one exception is `derivedControls` above: a bare detected
+	 * component's controls are synthesized from this same doc.
 	 */
 	const propDoc = useMemo(
 		() => findDoc(index.docs, selectedComponent),
@@ -1926,14 +1940,27 @@ export default function UightUI(props: UightProps): ReactElement {
 													</Tooltip>
 												) : null}
 												{shareState ? (
-													<Tooltip content="Copy a link to this fixture, including the current control values">
+													/* The link carries the fixture AND the control values, which
+													   makes it a reproduction, not a bookmark — worth a button
+													   that reads as a feature rather than a ghost in the
+													   overflow cluster. */
+													<Tooltip content="Copy a link to this fixture, including the current control values — it reproduces exactly what is on screen">
 														<Button
 															size="1"
-															variant="ghost"
-															color={copied === "link" ? undefined : "gray"}
+															variant="soft"
 															onClick={() => void copy("link", window.location.href, "the link")}
 														>
-															{copied === "link" ? "Copied" : "Copy link"}
+															<svg
+																viewBox="0 0 12 12"
+																aria-hidden="true"
+																className="size-3 fill-none stroke-current"
+																strokeWidth="1.2"
+																strokeLinecap="round"
+															>
+																<path d="M5 7l3.2-3.2a1.7 1.7 0 012.4 2.4L9.2 7.6" />
+																<path d="M7 5L3.8 8.2a1.7 1.7 0 002.4 2.4L7.6 9.2" />
+															</svg>
+															{copied === "link" ? "Copied" : "Share"}
 														</Button>
 													</Tooltip>
 												) : null}
