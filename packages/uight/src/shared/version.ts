@@ -11,4 +11,4 @@
  * bump anything else — but the tag is `latest`, because a canary nobody can
  * reach with a plain install is a canary nobody uses.
  */
-export const UIGHT_VERSION = "0.0.1-canary.4";
+export const UIGHT_VERSION = "0.0.1-canary.5";
