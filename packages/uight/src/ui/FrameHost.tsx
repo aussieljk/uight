@@ -178,6 +178,11 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 	 */
 	const stampTheme = useCallback((doc: Document | null) => {
 		doc?.documentElement?.setAttribute(THEME_ATTRIBUTE, themeRef.current);
+		// The chrome host in here is `.uight-root` with no `<Theme>` above it, so
+		// nothing else would turn on ljkui's dark scales for the overlay.
+		const host = doc?.getElementById(FRAME_CHROME_ID);
+		host?.classList.remove(themeRef.current === "dark" ? "light" : "dark");
+		host?.classList.add(themeRef.current);
 	}, []);
 
 	/**
@@ -415,7 +420,7 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 			title={title}
 			// No `src` — about:blank inherits the parent origin (§6.2 step 1).
 			// Note that same-origin means this is isolation, not a sandbox (§5.2).
-			className={className ?? "block h-full w-full border-0 bg-[var(--u-bg)]"}
+			className={className ?? "block h-full w-full border-0 bg-[var(--uight-surface)]"}
 			data-uight-frame=""
 		/>
 	);

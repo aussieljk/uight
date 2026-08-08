@@ -87,11 +87,6 @@ async function loadParse(): Promise<ParseFn | null> {
 	return cached.parse;
 }
 
-/** Test seam: forget the cached import so a test can exercise both branches. */
-export function resetDocgenCache(): void {
-	cached = undefined;
-}
-
 export interface BabelDocgenOptions {
 	/**
 	 * Called once, with a message, when `docgen` is on but `react-docgen` is not

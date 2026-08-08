@@ -1065,7 +1065,7 @@ export const WithSlider: Story = {
 // ============================================================================
 
 // Simulated taken usernames
-const TAKEN_USERNAMES = [
+const TAKEN_USERNAMES = new Set([
 	"admin",
 	"root",
 	"system",
@@ -1073,13 +1073,13 @@ const TAKEN_USERNAMES = [
 	"support",
 	"help",
 	"john_doe",
-];
+]);
 
 // Simulated async check
 const checkUsernameAvailability = (username: string): Promise<boolean> => {
 	return new Promise((resolve) => {
 		setTimeout(() => {
-			resolve(!TAKEN_USERNAMES.includes(username.toLowerCase()));
+			resolve(!TAKEN_USERNAMES.has(username.toLowerCase()));
 		}, 800); // Simulate network delay
 	});
 };

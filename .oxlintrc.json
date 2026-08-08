@@ -1,0 +1,47 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "oxc", "react", "import"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "warn",
+		"perf": "warn"
+	},
+	"env": {
+		"builtin": true,
+		"browser": true,
+		"es2024": true
+	},
+	"ignorePatterns": [
+		"packages/uight/registry/**",
+		"packages/uight/src/styles/generated.ts",
+		"examples/frosted-ui/src/stories/**",
+		"**/dist/**"
+	],
+	"rules": {
+		// Automatic JSX runtime — nothing has to import React to write JSX.
+		"react/react-in-jsx-scope": "off",
+		// The runtime and the generated entries are written as `createElement`
+		// calls on purpose (nothing guarantees a JSX transform runs on them), and
+		// `children` is an ordinary prop there.
+		"react/no-children-prop": "off",
+		// True often enough to keep, wrong often enough that it cannot gate a
+		// build: several of these deps are refs held deliberately stable.
+		"react-hooks/exhaustive-deps": "warn",
+		// Wrong for this codebase. Every remaining hit is `for (const l of
+		// [...listeners]) l()` — the spread snapshots the Set so a listener that
+		// unsubscribes while being notified cannot mutate the collection mid-
+		// iteration. The allocation is the point.
+		"unicorn/no-useless-spread": "off"
+	},
+	"overrides": [
+		{
+			"files": [
+				"scripts/**",
+				"**/scripts/**",
+				"packages/uight/src/vite/**",
+				"packages/uight/src/mcp/**"
+			],
+			"env": { "node": true }
+		}
+	]
+}

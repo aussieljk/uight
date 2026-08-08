@@ -60,10 +60,7 @@ interface Claimant {
 
 let nextSeq = 0;
 
-export function resolveRouterKey(
-	urlParam: string,
-	routerId?: string | undefined,
-): string {
+function resolveRouterKey(urlParam: string, routerId?: string | undefined): string {
 	return routerId ? `${urlParam}.${routerId}` : urlParam;
 }
 
@@ -97,13 +94,13 @@ function release(key: string, claimant: Claimant): void {
 	announce(key);
 }
 
-export type Ownership = "pending" | "owner" | "denied";
+type Ownership = "pending" | "owner" | "denied";
 
 /**
  * Claiming happens in a layout effect, so it runs before paint and nothing is
  * ever shown with a value the mount does not own.
  */
-export function useRouterOwnership(key: string, active: boolean): Ownership {
+function useRouterOwnership(key: string, active: boolean): Ownership {
 	const [state, setState] = useState<Ownership>("pending");
 	// Lazily, so the sequence is this component's and follows tree order. The
 	// initializer may run twice under StrictMode; only the number it kept is
@@ -172,7 +169,7 @@ function writeSearch(search: string, param: string, value: string | null): strin
 }
 
 /** `pushState` never emits `popstate`, so our own writes notify locally. */
-export function createHistoryRouter(param: string): RouterAdapter {
+function createHistoryRouter(param: string): RouterAdapter {
 	const emitter = makeEmitter();
 	return {
 		read: () => new URLSearchParams(window.location.search).get(param),
@@ -207,7 +204,7 @@ function splitHash(hash: string): { head: string; query: string } {
 	return { head: raw.slice(0, q), query: raw.slice(q + 1) };
 }
 
-export function createHashRouter(param: string): RouterAdapter {
+function createHashRouter(param: string): RouterAdapter {
 	const emitter = makeEmitter();
 	return {
 		read: () => new URLSearchParams(splitHash(window.location.hash).query).get(param),

@@ -13,7 +13,6 @@
  */
 
 import fsp from "node:fs/promises";
-import path from "node:path";
 import { parseSync } from "oxc-parser";
 import { glob } from "tinyglobby";
 import type { ResolvedUightConfig } from "./config.ts";
@@ -272,9 +271,4 @@ export function formatStorybookReport(report: StorybookReport): string {
 		lines.push(`  ${key.padEnd(width)}  ${count}`);
 	}
 	return lines.join("\n");
-}
-
-/** Resolve a report against a project directory, for the CLI and CI. */
-export function reportPath(cfg: ResolvedUightConfig, file: string): string {
-	return path.relative(cfg.root, file);
 }

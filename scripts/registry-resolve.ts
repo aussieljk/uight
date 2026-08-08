@@ -276,9 +276,9 @@ function checkInstalled(dir: string, failures: Failure[]): void {
  * ------------------------------------------------------------------ */
 
 async function main(): Promise<void> {
-	const argv = process.argv.slice(2);
-	const deployed = argv.includes("--deployed");
-	const json = argv.includes("--json");
+	const argv = new Set(process.argv.slice(2));
+	const deployed = argv.has("--deployed");
+	const json = argv.has("--json");
 	const dir = path.join(ROOT, "node_modules/.uight-registry-check");
 
 	if (!existsSync(REGISTRY_DIR)) {

@@ -116,7 +116,7 @@ function Chevron({ open }: { open: boolean }): ReactElement {
 			viewBox="0 0 12 12"
 			aria-hidden="true"
 			className={cx(
-				"size-3 shrink-0 fill-current text-[var(--u-fg-subtle)]",
+				"size-3 shrink-0 fill-current text-[var(--uight-subtle)]",
 				"motion-safe:transition-transform motion-safe:duration-100",
 				open ? "rotate-90" : "",
 			)}
@@ -359,8 +359,8 @@ export function FixtureTree({
 								isSelected
 									? SELECTED
 									: row.group
-										? "text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)]"
-										: "text-[var(--u-fg)] hover:bg-[var(--u-bg-hover)]",
+										? "text-[var(--uight-muted)] hover:bg-[var(--uight-hover)]"
+										: "text-[var(--uight-fg)] hover:bg-[var(--uight-hover)]",
 								FOCUS_RING,
 								MOTION,
 							)}

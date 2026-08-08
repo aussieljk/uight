@@ -13,11 +13,11 @@ import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import type {
 	FixtureCodec,
 	RendererError,
+	ThemeSetting,
 	UightComponents,
 	UightProps,
 } from "../shared/types.ts";
 import { UightProviderContext } from "./provider-context.ts";
-import type { ThemeSetting } from "./theme.ts";
 
 /**
  * §9.2 — written so Rollup can drop the chunk. `__UIGHT_ENABLED__` is a
@@ -146,7 +146,7 @@ export class UightErrorBoundary extends Component<
 		return (
 			<div
 				role="alert"
-				className="uight-root p-3 text-sm leading-5 text-[var(--u-danger,#b91c1c)]"
+				className="uight-root p-3 text-sm leading-5 text-[var(--uight-danger,#b91c1c)]"
 			>
 				{error.message}
 			</div>

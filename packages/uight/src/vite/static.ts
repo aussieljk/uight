@@ -144,6 +144,9 @@ function documentHtml(title: string): string {
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="robots" content="noindex" />
 		<title>${title}</title>
+		<!-- Served from the site's public directory; absent by default, and a
+		     missing icon is the same 404 a browser makes for /favicon.ico. -->
+		<link rel="icon" type="image/png" href="./favicon.png" />
 		<style>
 			html, body, #uight-app { height: 100%; margin: 0; }
 			body { background: #fff; }

@@ -39,7 +39,7 @@ function toUtcInput(iso: string): string {
 	return date.toISOString().slice(0, 16);
 }
 
-export function DateCodecEditor(props: CodecEditorProps<string>): React.ReactElement {
+function DateCodecEditor(props: CodecEditorProps<string>): React.ReactElement {
 	const [utc, setUtc] = React.useState(false);
 	const value = utc ? toUtcInput(props.value) : toLocalInput(props.value);
 
@@ -81,9 +81,7 @@ export function DateCodecEditor(props: CodecEditorProps<string>): React.ReactEle
  * RegExp
  * ------------------------------------------------------------------ */
 
-export function RegExpCodecEditor(
-	props: CodecEditorProps<RegExpData>,
-): React.ReactElement {
+function RegExpCodecEditor(props: CodecEditorProps<RegExpData>): React.ReactElement {
 	return (
 		<div className="uight-codec-editor uight-codec-regexp">
 			<span aria-hidden>/</span>
@@ -116,7 +114,7 @@ export function RegExpCodecEditor(
  * URL
  * ------------------------------------------------------------------ */
 
-export function UrlCodecEditor(props: CodecEditorProps<string>): React.ReactElement {
+function UrlCodecEditor(props: CodecEditorProps<string>): React.ReactElement {
 	const [draft, setDraft] = React.useState(props.value);
 	const [committed, setCommitted] = React.useState(props.value);
 	if (props.value !== committed) {
@@ -196,14 +194,14 @@ function JsonCodecEditor<S>(props: CodecEditorProps<S>): React.ReactElement {
 	);
 }
 
-export const MapCodecEditor = JsonCodecEditor as AnyCodecEditor;
-export const SetCodecEditor = JsonCodecEditor as AnyCodecEditor;
+const MapCodecEditor = JsonCodecEditor as AnyCodecEditor;
+const SetCodecEditor = JsonCodecEditor as AnyCodecEditor;
 
 /* ------------------------------------------------------------------ *
  * File — display only. The bytes never left the renderer realm.
  * ------------------------------------------------------------------ */
 
-export function FileCodecEditor(props: CodecEditorProps<FileData>): React.ReactElement {
+function FileCodecEditor(props: CodecEditorProps<FileData>): React.ReactElement {
 	return (
 		<div className="uight-codec-editor uight-codec-file" aria-label={props.label}>
 			<span className="uight-codec-file-name">{props.value.name}</span>

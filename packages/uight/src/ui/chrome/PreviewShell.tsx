@@ -21,10 +21,10 @@ export function PreviewShell({
 		: undefined;
 
 	return (
-		<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-[var(--u-canvas)]">
+		<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-[var(--uight-canvas)]">
 			{toolbar}
 			{subToolbar ? (
-				<div className="shrink-0 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)]">
+				<div className="shrink-0 border-b border-[var(--uight-line)] bg-[var(--uight-sunken)]">
 					{subToolbar}
 				</div>
 			) : null}
@@ -40,7 +40,7 @@ export function PreviewShell({
 				<div
 					aria-hidden={!loading}
 					className={
-						"pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-[var(--u-line-strong)] " +
+						"pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-[var(--uight-line-strong)] " +
 						"motion-safe:transition-opacity motion-safe:duration-100 " +
 						(loading ? "opacity-100" : "opacity-0")
 					}
@@ -58,8 +58,8 @@ export function PreviewShell({
 						style={box}
 						className={
 							viewport
-								? "shrink-0 overflow-hidden border border-[var(--u-line)] bg-[var(--u-bg)]"
-								: "min-h-0 w-full bg-[var(--u-bg)]"
+								? "shrink-0 overflow-hidden border border-[var(--uight-line)] bg-[var(--uight-surface)]"
+								: "min-h-0 w-full bg-[var(--uight-surface)]"
 						}
 					>
 						{children}

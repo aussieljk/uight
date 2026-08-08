@@ -30,7 +30,7 @@ export const SUPPORTED_PROTOCOL_VERSIONS = [2];
 
 /* ---------------- Bootstrap — not enveloped (D20) ---------------- */
 
-export interface ReadyMessage {
+interface ReadyMessage {
 	type: "READY";
 	protocolVersions: number[];
 	rendererVersion: string;
@@ -43,7 +43,7 @@ export interface InitMessage {
 	initialFixture: FixtureId | null;
 	overlays: InputOverlay[];
 }
-export interface InitAckMessage {
+interface InitAckMessage {
 	type: "INIT_ACK";
 	mountId: string;
 	protocolVersion: number;
@@ -53,7 +53,7 @@ export type BootstrapMessage = ReadyMessage | InitMessage | InitAckMessage;
 
 /* ---------------- Mounted — enveloped ---------------- */
 
-export interface SelectFixture {
+interface SelectFixture {
 	type: "SELECT_FIXTURE";
 	fixture: FixtureId | null;
 	/** Render a detected component instead of a fixture. §12 */
@@ -72,14 +72,14 @@ export interface SelectFixture {
 	/** Where those props were written, for the toolbar and the error panel. */
 	origin?: string | null;
 }
-export interface InputRegistered {
+interface InputRegistered {
 	type: "INPUT_REGISTERED";
 	name: string;
 	revision: number;
 	wire: Wire;
 	options?: InputOptionsWire;
 }
-export interface InputsSettled {
+interface InputsSettled {
 	type: "INPUTS_SETTLED";
 	/** Names registered during the latest render, in registration order. */
 	names: string[];
@@ -92,7 +92,7 @@ export interface OverlayMessage {
 	/** Set when the renderer's own setter produced the patch (§7.3). */
 	fromRenderer?: boolean;
 }
-export interface ResyncMessage {
+interface ResyncMessage {
 	type: "RESYNC";
 	name: string;
 	revision: number;
@@ -105,19 +105,19 @@ export interface ResyncMessage {
 	 */
 	dropped: PathSegment[][];
 }
-export interface ResizeMessage {
+interface ResizeMessage {
 	type: "RESIZE";
 	width: number;
 	height: number;
 }
-export interface RendererErrorMessage {
+interface RendererErrorMessage {
 	type: "RENDERER_ERROR";
 	error: RendererError | null;
 }
-export interface DisposeMessage {
+interface DisposeMessage {
 	type: "DISPOSE";
 }
-export interface NavigateMessage {
+interface NavigateMessage {
 	type: "NAVIGATE";
 	fixture: FixtureId;
 }
@@ -131,7 +131,7 @@ export interface NavigateMessage {
  * from the plugin's `uight:index` event; this is how it passes it on, rather
  * than each realm racing the dev server for a freshly generated module.
  */
-export interface SetIndexMessage {
+interface SetIndexMessage {
 	type: "SET_INDEX";
 	files: FixtureFileIndex[];
 	decorators: DecoratorFileIndex[];
@@ -149,12 +149,12 @@ export interface SetIndexMessage {
  * dropped. Nothing renders, no state is touched, and a prefetch that never
  * arrives changes nothing but the wait.
  */
-export interface PrefetchMessage {
+interface PrefetchMessage {
 	type: "PREFETCH";
 	/** A `FixtureId.path` — the file, since a chunk is per file. */
 	path: string;
 }
-export interface SetOverlaysMessage {
+interface SetOverlaysMessage {
 	type: "SET_OVERLAYS";
 	overlays: InputOverlay[];
 }
@@ -184,7 +184,7 @@ export interface MountedEnvelope<T = MountedMessage> {
 /** Marker so a foreign postMessage on the same window is never mistaken for ours. */
 export const CHANNEL = "uight";
 
-export interface Channelled {
+interface Channelled {
 	__uight: typeof CHANNEL;
 }
 
@@ -192,7 +192,7 @@ export type Outbound =
 	| (Channelled & BootstrapMessage)
 	| (Channelled & { type: "ENVELOPE"; envelope: MountedEnvelope });
 
-export function isChannelled(data: unknown): data is Outbound {
+function isChannelled(data: unknown): data is Outbound {
 	return (
 		typeof data === "object" &&
 		data !== null &&
@@ -268,21 +268,3 @@ export function validateEnvelope(m: unknown): MountedEnvelope | null {
 export type Scheduler = (fn: () => void) => void;
 
 export const microtaskScheduler: Scheduler = (fn) => queueMicrotask(fn);
-
-export const taskScheduler: Scheduler = (() => {
-	if (typeof MessageChannel === "undefined") return (fn: () => void) => setTimeout(fn, 0);
-	let queue: Array<() => void> = [];
-	let channel: MessageChannel | undefined;
-	return (fn: () => void) => {
-		queue.push(fn);
-		if (!channel) {
-			channel = new MessageChannel();
-			channel.port1.onmessage = () => {
-				const batch = queue;
-				queue = [];
-				for (const f of batch) f();
-			};
-		}
-		channel.port2.postMessage(null);
-	};
-})();

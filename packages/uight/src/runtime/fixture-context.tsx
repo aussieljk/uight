@@ -303,8 +303,3 @@ export function useSelectFixture(): (id: FixtureId | string) => void {
 export function useFixtureIsolation(): "frame" | "inline" {
 	return useFixtureRuntime("useFixtureIsolation").isolation;
 }
-
-/** Internal: the renderer's own access to the runtime it published. */
-export function useRendererRuntime(): FixtureRuntime | null {
-	return React.useContext(FixtureRuntimeContext);
-}

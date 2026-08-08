@@ -96,20 +96,20 @@
 	--color-current: currentColor;
 	--color-inherit: inherit;
 
-	--color-surface: var(--u-bg, var(--uight-surface));
-	--color-sunken: var(--u-bg-sunken, var(--uight-sunken));
-	--color-hover: var(--u-bg-hover, var(--uight-hover));
-	--color-canvas: var(--u-canvas, var(--uight-canvas));
-	--color-fg: var(--u-fg, var(--uight-fg));
-	--color-muted: var(--u-fg-muted, var(--uight-muted));
-	--color-subtle: var(--u-fg-subtle, var(--uight-subtle));
-	--color-line: var(--u-line, var(--uight-line));
-	--color-line-strong: var(--u-line-strong, var(--uight-line-strong));
-	--color-accent: var(--u-accent, var(--uight-accent));
-	--color-accent-fg: var(--u-accent-fg, var(--uight-accent-fg));
-	--color-accent-soft: var(--u-accent-soft, var(--uight-accent-soft));
-	--color-danger: var(--u-danger, var(--uight-danger));
-	--color-danger-soft: var(--u-danger-soft, var(--uight-danger-soft));
+	--color-surface: var(--uight-surface);
+	--color-sunken: var(--uight-sunken);
+	--color-hover: var(--uight-hover);
+	--color-canvas: var(--uight-canvas);
+	--color-fg: var(--uight-fg);
+	--color-muted: var(--uight-muted);
+	--color-subtle: var(--uight-subtle);
+	--color-line: var(--uight-line);
+	--color-line-strong: var(--uight-line-strong);
+	--color-accent: var(--uight-accent);
+	--color-accent-fg: var(--uight-accent-fg);
+	--color-accent-soft: var(--uight-accent-soft);
+	--color-danger: var(--uight-danger);
+	--color-danger-soft: var(--uight-danger-soft);
 }
 
 /**
@@ -148,21 +148,26 @@
 	 * declared on the same element (`<Theme className="uight-root">`), so these
 	 * `var()`s resolve where they are written.
 	 *
+	 * The names have to be ljkui's own: `--color-panel-solid` and
+	 * `--color-background` for the two grounds, and the raw `--gray-*` /
+	 * `--accent-*` scales for everything else. A name ljkui does not declare
+	 * silently takes the fallback below and pins the chrome to light.
+	 *
 	 * The fallbacks are the palette this chrome shipped before ljkui, and they
 	 * are load-bearing: the frame document's chrome host and the static build's
 	 * markup carry `.uight-root` without a React `<Theme>` above them, and must
 	 * still be readable.
 	 */
 	.uight-root {
-		--uight-surface: var(--panel-solid, #ffffff);
-		--uight-sunken: var(--gray-50, #fafafa);
-		--uight-hover: var(--gray-100, #f5f5f5);
-		--uight-canvas: var(--background, #f5f5f5);
+		--uight-surface: var(--color-panel-solid, #ffffff);
+		--uight-sunken: var(--gray-100, #fafafa);
+		--uight-hover: var(--gray-200, #f5f5f5);
+		--uight-canvas: var(--color-background, #f5f5f5);
 		--uight-fg: var(--gray-950, #171717);
 		--uight-muted: var(--gray-700, #737373);
 		--uight-subtle: var(--gray-500, #a3a3a3);
-		--uight-line: var(--gray-200, #e5e5e5);
-		--uight-line-strong: var(--gray-300, #d4d4d4);
+		--uight-line: var(--gray-300, #e5e5e5);
+		--uight-line-strong: var(--gray-400, #d4d4d4);
 		--uight-accent: var(--accent-700, #2563eb);
 		--uight-accent-fg: var(--accent-700-contrast, #ffffff);
 		--uight-accent-soft: var(--accent-alpha-100, #eff6ff);
@@ -181,7 +186,7 @@
 	.uight-root *::before,
 	.uight-root *::after {
 		box-sizing: border-box;
-		border: 0 solid var(--u-line, var(--uight-line));
+		border: 0 solid var(--uight-line);
 	}
 
 	.uight-root {
@@ -189,8 +194,8 @@
 		font-size: var(--text-sm);
 		line-height: var(--text-sm--line-height);
 		font-weight: var(--font-weight-normal);
-		color: var(--u-fg, var(--uight-fg));
-		background-color: var(--u-bg, var(--uight-surface));
+		color: var(--uight-fg);
+		background-color: var(--uight-surface);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 		text-size-adjust: 100%;
@@ -240,7 +245,7 @@
 
 	.uight-root :where(::placeholder) {
 		opacity: 1;
-		color: var(--u-fg-subtle, var(--uight-subtle));
+		color: var(--uight-subtle);
 	}
 
 	.uight-root :where(img, svg, video, canvas) {
@@ -267,11 +272,11 @@
 
 	/* The accent, used only for selection and focus (§10.1). */
 	.uight-root :where(::selection) {
-		background-color: var(--u-accent-soft, var(--uight-accent-soft));
+		background-color: var(--uight-accent-soft);
 	}
 
 	.uight-root :where(:focus-visible) {
-		outline: 2px solid var(--u-accent, var(--uight-accent));
+		outline: 2px solid var(--uight-accent);
 		outline-offset: 1px;
 		border-radius: var(--radius-sm);
 	}
@@ -316,7 +321,7 @@
 		overflow: auto;
 		overscroll-behavior: contain;
 		scrollbar-width: thin;
-		scrollbar-color: var(--u-line-strong, var(--uight-line-strong)) transparent;
+		scrollbar-color: var(--uight-line-strong) transparent;
 	}
 
 	/* Screen-reader-only. The chrome is keyboard-first (§10.1), so this is not

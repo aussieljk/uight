@@ -228,6 +228,7 @@ export class UightClient {
 			throw new Error(
 				`could not reach uight at ${base} (${reason}). Is the dev server ` +
 					`running, and is uight() in the Vite config?`,
+				{ cause: error },
 			);
 		} finally {
 			clearTimeout(timer);

@@ -21,7 +21,7 @@ export interface HelpDialogProps {
 export function HelpDialog({ open, onClose }: HelpDialogProps): ReactElement | null {
 	return (
 		<Overlay open={open} label="Keyboard shortcuts" onClose={onClose}>
-			<div className="flex h-9 shrink-0 items-center border-b border-[var(--u-line)] px-3">
+			<div className="flex h-9 shrink-0 items-center border-b border-[var(--uight-line)] px-3">
 				<Typography.Heading size="2" render={<h2 />}>
 					Keyboard
 				</Typography.Heading>
@@ -51,7 +51,7 @@ export function HelpDialog({ open, onClose }: HelpDialogProps): ReactElement | n
 				))}
 			</dl>
 
-			<div className="flex shrink-0 items-center border-t border-[var(--u-line)] px-3 py-1.5">
+			<div className="flex shrink-0 items-center border-t border-[var(--uight-line)] px-3 py-1.5">
 				<Typography.Text size="1" color="gray">
 					<Kbd size="1">esc</Kbd> close
 				</Typography.Text>

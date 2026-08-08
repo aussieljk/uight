@@ -190,7 +190,7 @@ function Tile(props: TileProps): ReactElement {
 			// inside it.
 			className={
 				"m-0 flex min-w-0 flex-col overflow-hidden p-0 " +
-				(current ? "outline-2 -outline-offset-2 outline-[var(--u-accent)]" : "")
+				(current ? "outline-2 -outline-offset-2 outline-[var(--uight-accent)]" : "")
 			}
 		>
 			{/*
@@ -206,9 +206,9 @@ function Tile(props: TileProps): ReactElement {
 				}}
 				aria-current={current ? "true" : undefined}
 				className={
-					"flex w-full min-w-0 flex-col items-start gap-0 border-0 border-b border-[var(--u-line)] " +
-					"bg-transparent px-2 py-1.5 text-left hover:bg-[var(--u-bg-sunken)] " +
-					"focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--u-accent)]"
+					"flex w-full min-w-0 flex-col items-start gap-0 border-0 border-b border-[var(--uight-line)] " +
+					"bg-transparent px-2 py-1.5 text-left hover:bg-[var(--uight-sunken)] " +
+					"focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--uight-accent)]"
 				}
 			>
 				<Typography.Text size="1" weight="medium" className="w-full truncate">
@@ -236,10 +236,10 @@ function Tile(props: TileProps): ReactElement {
 						// take the grid down with it — the empty tile is the report.
 						onTransport={noop}
 						onBootstrapError={noop}
-						className="pointer-events-none block h-full w-full border-0 bg-[var(--u-bg)]"
+						className="pointer-events-none block h-full w-full border-0 bg-[var(--uight-surface)]"
 					/>
 				) : (
-					<div className="flex h-full w-full items-center justify-center bg-[var(--u-bg-sunken)]">
+					<div className="flex h-full w-full items-center justify-center bg-[var(--uight-sunken)]">
 						<Button size="1" variant="surface" onClick={() => onRequest(tileKey, true)}>
 							{atBudget ? "Render anyway" : "Render"}
 						</Button>

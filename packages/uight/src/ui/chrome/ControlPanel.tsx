@@ -42,7 +42,7 @@ export function ControlPanel({
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<div className="flex h-9 shrink-0 items-center gap-2 border-b border-[var(--u-line)] px-3">
+			<div className="flex h-9 shrink-0 items-center gap-2 border-b border-[var(--uight-line)] px-3">
 				<Typography.Heading size="2" render={<h2 />}>
 					Controls
 				</Typography.Heading>

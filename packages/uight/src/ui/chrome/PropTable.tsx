@@ -25,7 +25,7 @@ export function PropTable({ doc }: PropTableProps): ReactElement | null {
 	return (
 		<section
 			aria-labelledby={headingId}
-			className="min-w-0 border-t border-[var(--u-line)]"
+			className="min-w-0 border-t border-[var(--uight-line)]"
 		>
 			<h2 id={headingId} className={cx(SECTION_LABEL, "px-2 pt-3 pb-1")}>
 				Props — {doc.name}
@@ -59,7 +59,11 @@ export function PropTable({ doc }: PropTableProps): ReactElement | null {
 									{prop.required ? (
 										<>
 											{" "}
-											<span aria-hidden="true" className="text-[var(--u-accent)]" title="Required">
+											<span
+												aria-hidden="true"
+												className="text-[var(--uight-accent)]"
+												title="Required"
+											>
 												*
 											</span>
 											<span className="uight-sr-only">(required)</span>

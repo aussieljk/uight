@@ -90,7 +90,7 @@ export function InventoryList({
 								title={`${item.path} — ${item.kind}`}
 								className={cx(
 									"flex h-6 w-full items-center gap-2 rounded-sm border-l-2 border-l-transparent px-2 text-left text-sm",
-									"text-[var(--u-fg-muted)] hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)]",
+									"text-[var(--uight-muted)] hover:bg-[var(--uight-hover)] hover:text-[var(--uight-fg)]",
 									FOCUS_RING,
 									MOTION,
 								)}

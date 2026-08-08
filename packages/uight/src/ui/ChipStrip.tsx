@@ -91,7 +91,10 @@ export function ChipStrip({
 						{chips.map((chip, index) => (
 							<div key={chip.key} className="contents">
 								{dividerAfter > 0 && index === dividerAfter ? (
-									<span aria-hidden="true" className="mx-1 h-3 w-px shrink-0 bg-[var(--u-line)]" />
+									<span
+										aria-hidden="true"
+										className="mx-1 h-3 w-px shrink-0 bg-[var(--uight-line)]"
+									/>
 								) : null}
 								<Tabs.Trigger
 									value={chip.key}
@@ -111,7 +114,7 @@ export function ChipStrip({
 					aria-hidden="true"
 					className={cx(
 						"pointer-events-none absolute inset-y-0 left-0 w-6",
-						"bg-linear-to-r from-[var(--u-bg-sunken)] to-transparent",
+						"bg-linear-to-r from-[var(--uight-sunken)] to-transparent",
 						"motion-safe:transition-opacity motion-safe:duration-100",
 						edges.start ? "opacity-100" : "opacity-0",
 					)}
@@ -120,7 +123,7 @@ export function ChipStrip({
 					aria-hidden="true"
 					className={cx(
 						"pointer-events-none absolute inset-y-0 right-0 w-6",
-						"bg-linear-to-l from-[var(--u-bg-sunken)] to-transparent",
+						"bg-linear-to-l from-[var(--uight-sunken)] to-transparent",
 						"motion-safe:transition-opacity motion-safe:duration-100",
 						edges.end ? "opacity-100" : "opacity-0",
 					)}

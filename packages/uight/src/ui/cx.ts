@@ -9,7 +9,7 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
  * `prefers-reduced-motion`.
  */
 export const FOCUS_RING =
-	"outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--u-accent)]";
+	"outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--uight-accent)]";
 
 export const MOTION = "motion-safe:transition-colors motion-safe:duration-100";
 
@@ -29,7 +29,7 @@ export const MOTION = "motion-safe:transition-colors motion-safe:duration-100";
  */
 export const SELECTABLE = "border-l-2 border-l-transparent";
 export const SELECTED =
-	"border-l-[var(--u-accent)] bg-[var(--u-accent-soft)] font-medium text-[var(--u-accent)]";
+	"border-l-[var(--uight-accent)] bg-[var(--uight-accent-soft)] font-medium text-[var(--uight-accent)]";
 
 /**
  * A quiet, borderless control. Borders only where whitespace cannot do the job.
@@ -39,12 +39,12 @@ export const SELECTED =
  * there is deliberately no fourth. Hierarchy is weight, tracking and colour.
  */
 export const QUIET_BUTTON = cx(
-	"inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-xs text-[var(--u-fg-muted)]",
-	"hover:bg-[var(--u-bg-hover)] hover:text-[var(--u-fg)] disabled:opacity-40 disabled:hover:bg-transparent",
+	"inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-xs text-[var(--uight-muted)]",
+	"hover:bg-[var(--uight-hover)] hover:text-[var(--uight-fg)] disabled:opacity-40 disabled:hover:bg-transparent",
 	FOCUS_RING,
 	MOTION,
 );
 
 /** A section heading in a sidebar or panel: quiet, and unmistakably not a row. */
 export const SECTION_LABEL =
-	"text-xs font-medium tracking-wide text-[var(--u-fg-subtle)] uppercase";
+	"text-xs font-medium tracking-wide text-[var(--uight-subtle)] uppercase";

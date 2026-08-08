@@ -117,7 +117,7 @@ export function InlineHost({
 	return (
 		<div
 			ref={setRoot}
-			className="relative isolate h-full w-full overflow-auto bg-[var(--u-bg)]"
+			className="relative isolate h-full w-full overflow-auto bg-[var(--uight-surface)]"
 			data-uight-inline=""
 		>
 			{root && providers ? (

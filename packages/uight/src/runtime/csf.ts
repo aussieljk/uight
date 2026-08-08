@@ -461,7 +461,7 @@ export function prepareStory(
 		...(support.globals ? { ...meta.globals, ...story.globals } : undefined),
 	};
 
-	const inputKeys: string[] = [...Object.keys(args)];
+	const inputKeys: string[] = Object.keys(args);
 	for (const key of Object.keys(argTypes))
 		if (!inputKeys.includes(key)) inputKeys.push(key);
 

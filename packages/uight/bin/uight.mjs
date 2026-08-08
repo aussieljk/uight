@@ -115,9 +115,9 @@ async function main() {
 	}
 
 	if (command === "init" || command === "migrate") {
-		const { migrateProject, formatMigration } = await import("../dist/vite.js");
+		const { migrateFromStorybook, formatMigration } = await import("../dist/vite.js");
 		const range = flag("version-range", undefined);
-		const result = await migrateProject({
+		const result = await migrateFromStorybook({
 			root: path.resolve(String(flag("root", process.cwd()))),
 			dryRun: flag("dry-run", false) === true,
 			renameFixtures: flag("no-rename", false) !== true,

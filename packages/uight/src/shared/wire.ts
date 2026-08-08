@@ -19,10 +19,6 @@ export function isSafePath(path: readonly PathSegment[]): boolean {
 	);
 }
 
-export function isEditableWire(w: Wire): w is EditableWire {
-	return w.t !== "opaque";
-}
-
 export function pathKey(path: readonly PathSegment[]): string {
 	return path.map((s) => (typeof s === "number" ? `[${s}]` : `.${s}`)).join("");
 }

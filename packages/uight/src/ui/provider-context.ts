@@ -7,8 +7,7 @@
  */
 
 import { createContext, useContext } from "react";
-import type { FixtureCodec, UightComponents } from "../shared/types.ts";
-import type { ThemeSetting } from "./theme.ts";
+import type { FixtureCodec, ThemeSetting, UightComponents } from "../shared/types.ts";
 
 export interface UightProviderValue {
 	components?: Partial<UightComponents> | undefined;

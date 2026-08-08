@@ -42,27 +42,6 @@ const AT_RECURSE = new Set([
 	"document",
 ]);
 
-/*
- * At-rules whose body is NOT a stylesheet. `@keyframes` bodies are keyframe
- * selectors (`from`, `50%`) and scoping them would produce nonsense; `@property`
- * registrations are global by definition and cannot be scoped at all.
- */
-const AT_VERBATIM = new Set([
-	"keyframes",
-	"-webkit-keyframes",
-	"-moz-keyframes",
-	"-o-keyframes",
-	"property",
-	"font-face",
-	"font-feature-values",
-	"font-palette-values",
-	"counter-style",
-	"page",
-	"position-try",
-	"view-transition",
-	"custom-selector",
-]);
-
 const CLOSERS: Record<string, string> = { "{": "}", "(": ")", "[": "]" };
 
 function skipString(input: string, start: number): number {

@@ -82,13 +82,13 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 					<details className="mt-4">
 						<summary
 							className={cx(
-								"cursor-pointer text-xs text-[var(--u-fg-muted)] select-none hover:text-[var(--u-fg)]",
+								"cursor-pointer text-xs text-[var(--uight-muted)] select-none hover:text-[var(--uight-fg)]",
 								FOCUS_RING,
 							)}
 						>
 							Component stack
 						</summary>
-						<pre className="mt-2 overflow-auto text-xs leading-5 text-[var(--u-fg-subtle)]">
+						<pre className="mt-2 overflow-auto text-xs leading-5 text-[var(--uight-subtle)]">
 							{error.componentStack}
 						</pre>
 					</details>
@@ -98,13 +98,13 @@ export function ErrorState({ error, onRetry }: ErrorStateProps): ReactElement {
 					<details className="mt-2">
 						<summary
 							className={cx(
-								"cursor-pointer text-xs text-[var(--u-fg-muted)] select-none hover:text-[var(--u-fg)]",
+								"cursor-pointer text-xs text-[var(--uight-muted)] select-none hover:text-[var(--uight-fg)]",
 								FOCUS_RING,
 							)}
 						>
 							Stack
 						</summary>
-						<pre className="mt-2 overflow-auto text-xs leading-5 text-[var(--u-fg-subtle)]">
+						<pre className="mt-2 overflow-auto text-xs leading-5 text-[var(--uight-subtle)]">
 							{error.stack}
 						</pre>
 					</details>

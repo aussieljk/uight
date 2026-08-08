@@ -457,6 +457,9 @@ export const THEME_ATTRIBUTE = "data-uight-theme";
 
 export type ResolvedUightTheme = "light" | "dark";
 
+/** What a host may ask for. `system` is resolved by the chrome, once (§5.1). */
+export type ThemeSetting = ResolvedUightTheme | "system";
+
 /* ------------------------------------------------------------------ *
  * Errors — §19.3
  * ------------------------------------------------------------------ */

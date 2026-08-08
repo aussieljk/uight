@@ -152,8 +152,8 @@ export function PaneResizer({
 				// already had, so widening the target adds nothing to the layout.
 				"relative w-2 shrink-0 cursor-col-resize touch-none select-none",
 				"before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2",
-				"before:bg-[var(--u-line)] hover:before:bg-[var(--u-line-strong)]",
-				"focus-visible:before:bg-[var(--u-accent)] focus-visible:before:w-0.5",
+				"before:bg-[var(--uight-line)] hover:before:bg-[var(--uight-line-strong)]",
+				"focus-visible:before:bg-[var(--uight-accent)] focus-visible:before:w-0.5",
 				FOCUS_RING,
 			)}
 		/>

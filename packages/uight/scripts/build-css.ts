@@ -118,9 +118,9 @@ function utilityCount(css: string): number {
 }
 
 function main(): void {
-	const argv = process.argv.slice(2);
-	const minify = argv.includes("--minify");
-	const check = argv.includes("--check");
+	const argv = new Set(process.argv.slice(2));
+	const minify = argv.has("--minify");
+	const check = argv.has("--check");
 
 	if (!existsSync(INPUT)) {
 		throw new Error(`[uight] missing stylesheet source: ${INPUT}`);

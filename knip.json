@@ -1,0 +1,29 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"workspaces": {
+		".": {
+			"entry": ["scripts/*.ts"],
+			"project": ["scripts/**/*.ts"]
+		},
+		"packages/uight": {
+			"entry": ["src/ui/entry.tsx", "bin/*.mjs", "scripts/*.ts"],
+			"project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"]
+		},
+		"docs": {
+			"entry": ["src/site/**/*.{ts,tsx}", "scripts/*.ts", "plugins/*.ts"],
+			"project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "plugins/**/*.ts"]
+		},
+		"examples/*": {
+			"entry": [
+				"src/**/*.fixture.{ts,tsx}",
+				"src/**/*.stories.{ts,tsx}",
+				"src/**/*.decorator.{ts,tsx}",
+				"src/uight.preview.tsx",
+				"src/uight.codecs.tsx"
+			],
+			"project": ["src/**/*.{ts,tsx}", "*.ts"],
+			"ignore": ["src/components/**"]
+		}
+	},
+	"ignoreDependencies": ["@tailwindcss/cli", "tailwindcss", "react-docgen"]
+}

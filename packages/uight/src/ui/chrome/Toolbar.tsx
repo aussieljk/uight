@@ -14,7 +14,7 @@ export function Toolbar({ children }: ToolbarProps): ReactElement {
 		<HStack
 			role="toolbar"
 			aria-label="Preview"
-			className="h-9 shrink-0 gap-2 border-b border-[var(--u-line)] bg-[var(--u-bg)] px-2"
+			className="h-9 shrink-0 gap-2 border-b border-[var(--uight-line)] bg-[var(--uight-surface)] px-2"
 		>
 			{children}
 		</HStack>

@@ -582,7 +582,11 @@ async function migrateCosmos(args: {
 	return report;
 }
 
-/** The name this had when Storybook was the only source. */
+/**
+ * The name this had when Storybook was the only source, and the one the CLI
+ * calls: `uight init` is overwhelmingly reached from a Storybook repository,
+ * and the name says so at the call site.
+ */
 export const migrateFromStorybook = migrateProject;
 
 function plural(n: number, one: string, many = `${one}s`): string {

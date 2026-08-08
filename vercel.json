@@ -5,7 +5,7 @@
 	"outputDirectory": "docs/dist",
 	"rewrites": [
 		{
-			"source": "/((?!assets/|r/|preview\\.html).*)",
+			"source": "/((?!assets/|r/|favicon\\.png|preview\\.html).*)",
 			"destination": "/index.html"
 		}
 	]

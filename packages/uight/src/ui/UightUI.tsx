@@ -19,6 +19,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { Badge, Button, IconButton, Theme, Tooltip, Typography } from "ljkui";
@@ -55,6 +56,8 @@ import type {
 	InventoryItem,
 	PathSegment,
 	RendererError,
+	ResolvedUightTheme,
+	ThemeSetting,
 	TreeNode,
 	UightProps,
 	ViewportPreset,
@@ -96,13 +99,50 @@ import { pushRecent, readSession, sessionKey, writeSession } from "./session.ts"
 import { decodeOverlays, encodeOverlays } from "./share.ts";
 import { createOverlayStore, useOverlayState } from "./store.ts";
 import { ensureStyles, readNonce } from "./styles.ts";
-import { themeVars, useResolvedTheme } from "./theme.ts";
 
 const InlineHost = lazy(() =>
 	import("./InlineHost.tsx").then((m) => ({ default: m.InlineHost })),
 );
 
 const isDev = process.env.NODE_ENV !== "production";
+
+/* ------------------------------------------------------------------ *
+ * Theme resolution — §10.1
+ * ------------------------------------------------------------------ */
+
+/**
+ * The palette is ljkui's: `<Theme>` writes the scales onto its own element and
+ * flips them with a `.light` / `.dark` class, and `styles/uight.css` maps our
+ * `--uight-*` tokens onto those scales. The one thing ljkui cannot do for us is
+ * `theme="system"` — its `appearance="inherit"` inherits from *the host's*
+ * document, a different question from "what does this user's OS prefer", and a
+ * host that never set an appearance would leave the explorer light on a dark
+ * desktop. So we answer the media query ourselves and hand `<Theme>` a concrete
+ * appearance.
+ */
+const SCHEME_QUERY = "(prefers-color-scheme: dark)";
+
+function subscribeToScheme(cb: () => void): () => void {
+	if (typeof window === "undefined" || !window.matchMedia) return () => {};
+	const mql = window.matchMedia(SCHEME_QUERY);
+	mql.addEventListener("change", cb);
+	return () => mql.removeEventListener("change", cb);
+}
+
+function schemeSnapshot(): ResolvedUightTheme {
+	if (typeof window === "undefined" || !window.matchMedia) return "light";
+	return window.matchMedia(SCHEME_QUERY).matches ? "dark" : "light";
+}
+
+function useResolvedTheme(setting: ThemeSetting | undefined): ResolvedUightTheme {
+	const system = useSyncExternalStore(
+		subscribeToScheme,
+		schemeSnapshot,
+		() => "light" as const,
+	);
+	if (setting === "light" || setting === "dark") return setting;
+	return system;
+}
 
 /* ------------------------------------------------------------------ *
  * Names — §3.4 reconciliation, §3.5 progressive disclosure and warm pass
@@ -1685,6 +1725,13 @@ export default function UightUI(props: UightProps): ReactElement {
 					 * `appearance` is the *resolved* theme, never `"inherit"`: inheriting
 					 * would read the host document's appearance, which says nothing about
 					 * what `theme="system"` asked for (§5.1).
+					 *
+					 * The `light`/`dark` class is ours to write. ljkui only stamps it on
+					 * its own element for a *nested* theme; with no `<Theme>` above us it
+					 * takes itself for the document root and puts the class on `<html>`
+					 * instead — which our scoped stylesheet (§10.3) can never match, so
+					 * the dark scales would never come on and the chrome would sit in
+					 * light whatever `appearance` said.
 					 */}
 					<Theme
 						render={<div ref={setRoot} />}
@@ -1697,11 +1744,14 @@ export default function UightUI(props: UightProps): ReactElement {
 						data-uight-isolation={isolation}
 						className={cx(
 							ROOT_CLASS,
-							"relative flex min-h-0 w-full flex-col bg-[var(--u-bg)] text-sm text-[var(--u-fg)] antialiased",
+							theme,
+							"relative flex min-h-0 w-full flex-col bg-[var(--uight-surface)] text-sm text-[var(--uight-fg)] antialiased",
 							props.className,
 						)}
 						style={{
-							...themeVars(theme),
+							// Native widgets (scrollbars, date pickers, the host's own form
+							// controls) follow this, so they match the chrome around them.
+							colorScheme: theme,
 							height,
 							minHeight: autoHeight && contentHeight === null ? 120 : undefined,
 							...props.style,
@@ -1721,7 +1771,7 @@ export default function UightUI(props: UightProps): ReactElement {
 									type="button"
 									aria-label="Close the fixture list"
 									onClick={() => setDrawerOpen(false)}
-									className="absolute inset-0 z-30 cursor-default bg-[color-mix(in_srgb,var(--u-bg)_70%,transparent)]"
+									className="absolute inset-0 z-30 cursor-default bg-[color-mix(in_srgb,var(--uight-surface)_70%,transparent)]"
 								/>
 							) : null}
 							{showTree && (!compact || drawerOpen) ? (
@@ -1729,9 +1779,9 @@ export default function UightUI(props: UightProps): ReactElement {
 									<aside
 										style={compact ? undefined : { width: sidebarWidth }}
 										className={cx(
-											"flex min-w-0 shrink-0 flex-col bg-[var(--u-bg-sunken)]",
+											"flex min-w-0 shrink-0 flex-col bg-[var(--uight-sunken)]",
 											compact
-												? "absolute inset-y-0 left-0 z-40 w-[min(17rem,85%)] border-r border-[var(--u-line)]"
+												? "absolute inset-y-0 left-0 z-40 w-[min(17rem,85%)] border-r border-[var(--uight-line)]"
 												: "",
 										)}
 									>
@@ -1773,7 +1823,7 @@ export default function UightUI(props: UightProps): ReactElement {
 												// that has been cut off rather than as a section. A
 												// disclosure with a count says how many there are and gets
 												// out of the way of the tree when it is not wanted.
-												<div className="shrink-0 border-t border-[var(--u-line)]">
+												<div className="shrink-0 border-t border-[var(--uight-line)]">
 													<button
 														type="button"
 														aria-expanded={inventoryOpen}
@@ -1781,7 +1831,7 @@ export default function UightUI(props: UightProps): ReactElement {
 														onClick={toggleInventory}
 														className={cx(
 															"flex h-7 w-full cursor-pointer items-center gap-1.5 px-2 text-left",
-															"hover:bg-[var(--u-bg-hover)]",
+															"hover:bg-[var(--uight-hover)]",
 															FOCUS_RING,
 															MOTION,
 														)}
@@ -1790,7 +1840,7 @@ export default function UightUI(props: UightProps): ReactElement {
 															viewBox="0 0 12 12"
 															aria-hidden="true"
 															className={cx(
-																"size-3 shrink-0 fill-current text-[var(--u-fg-subtle)]",
+																"size-3 shrink-0 fill-current text-[var(--uight-subtle)]",
 																"motion-safe:transition-transform motion-safe:duration-100",
 																inventoryOpen ? "rotate-90" : "",
 															)}
@@ -1987,7 +2037,7 @@ export default function UightUI(props: UightProps): ReactElement {
 											render={<p />}
 											size="1"
 											color="gray"
-											className="shrink-0 border-b border-[var(--u-line)] bg-[var(--u-bg-sunken)] px-3 py-1"
+											className="shrink-0 border-b border-[var(--uight-line)] bg-[var(--uight-sunken)] px-3 py-1"
 										>
 											{resolution.note}
 										</Typography.Text>
@@ -2002,7 +2052,7 @@ export default function UightUI(props: UightProps): ReactElement {
 										<div className={gridActive ? "hidden" : "contents"}>{host}</div>
 
 										{gridActive ? (
-											<div className="absolute inset-0 z-10 bg-[var(--u-canvas)]">
+											<div className="absolute inset-0 z-10 bg-[var(--uight-canvas)]">
 												<GridView
 													tiles={gridTiles}
 													selected={selection}
@@ -2020,7 +2070,7 @@ export default function UightUI(props: UightProps): ReactElement {
 										) : null}
 
 										{error ? (
-											<div className="absolute inset-0 z-20 overflow-auto bg-[var(--u-bg)]">
+											<div className="absolute inset-0 z-20 overflow-auto bg-[var(--uight-surface)]">
 												<ErrorState
 													error={error}
 													onRetry={() => {
@@ -2030,7 +2080,7 @@ export default function UightUI(props: UightProps): ReactElement {
 												/>
 											</div>
 										) : resolution.empty && !selectedComponent ? (
-											<div className="absolute inset-0 z-10 bg-[var(--u-bg)]">
+											<div className="absolute inset-0 z-10 bg-[var(--uight-surface)]">
 												<EmptyState
 													title={resolution.empty.title}
 													description={resolution.empty.description}
@@ -2059,8 +2109,8 @@ export default function UightUI(props: UightProps): ReactElement {
 									<aside
 										style={compact ? undefined : { width: panelWidth }}
 										className={cx(
-											"min-w-0 shrink-0 overflow-y-auto bg-[var(--u-bg-sunken)]",
-											compact ? "max-h-[45%] w-full border-t border-[var(--u-line)]" : "",
+											"min-w-0 shrink-0 overflow-y-auto bg-[var(--uight-sunken)]",
+											compact ? "max-h-[45%] w-full border-t border-[var(--uight-line)]" : "",
 										)}
 									>
 										{showControls ? (
@@ -2086,7 +2136,7 @@ export default function UightUI(props: UightProps): ReactElement {
 							role="status"
 							aria-live="polite"
 							className={cx(
-								"flex shrink-0 items-center gap-3 border-t border-[var(--u-line)] px-3",
+								"flex shrink-0 items-center gap-3 border-t border-[var(--uight-line)] px-3",
 								toast ? "h-7" : "h-0 overflow-hidden border-t-0",
 							)}
 						>

@@ -389,7 +389,7 @@ function Editor(props: NodeProps): ReactElement {
 							disabled={disabled}
 							onChange={(e) => onSet(path, { t: "prim", v: e.target.value })}
 							className={cx(
-								"h-6 w-8 shrink-0 rounded-sm border border-[var(--u-line)] bg-[var(--u-bg)] p-0.5",
+								"h-6 w-8 shrink-0 rounded-sm border border-[var(--uight-line)] bg-[var(--uight-surface)] p-0.5",
 								FOCUS_RING,
 							)}
 						/>
@@ -442,22 +442,22 @@ function Branch(props: NodeProps): ReactElement {
 				aria-expanded={open}
 				onClick={() => setOpen((v) => !v)}
 				className={cx(
-					"flex h-6 w-full items-center gap-1 rounded-sm px-1 text-left text-xs text-[var(--u-fg-muted)]",
-					"hover:bg-[var(--u-bg-hover)]",
+					"flex h-6 w-full items-center gap-1 rounded-sm px-1 text-left text-xs text-[var(--uight-muted)]",
+					"hover:bg-[var(--uight-hover)]",
 					FOCUS_RING,
 					MOTION,
 				)}
 			>
-				<span aria-hidden="true" className="w-3 shrink-0 text-[var(--u-fg-subtle)]">
+				<span aria-hidden="true" className="w-3 shrink-0 text-[var(--uight-subtle)]">
 					{open ? "−" : "+"}
 				</span>
 				<span className="truncate">{props.label}</span>
-				<span className="ml-auto shrink-0 text-[var(--u-fg-subtle)]">
+				<span className="ml-auto shrink-0 text-[var(--uight-subtle)]">
 					{wireLabel(props.wire)}
 				</span>
 			</button>
 			{open ? (
-				<div className="ml-2 border-l border-[var(--u-line)] pl-2">
+				<div className="ml-2 border-l border-[var(--uight-line)] pl-2">
 					{rows.map(([segment, label, child]) => (
 						<Node
 							key={`${typeof segment}:${String(segment)}`}
@@ -486,7 +486,7 @@ function Node(props: NodeProps): ReactElement {
 	return (
 		<div className="flex items-start gap-2 py-0.5">
 			<span
-				className="mt-1 w-16 shrink-0 truncate text-xs text-[var(--u-fg-subtle)]"
+				className="mt-1 w-16 shrink-0 truncate text-xs text-[var(--uight-subtle)]"
 				title={props.label}
 			>
 				{props.label}
@@ -529,7 +529,7 @@ function InputRow(props: {
 	return (
 		<section
 			className={cx(
-				"border-b border-[var(--u-line)] px-3 py-2 last:border-b-0",
+				"border-b border-[var(--uight-line)] px-3 py-2 last:border-b-0",
 				disabled ? "opacity-50" : "",
 			)}
 			aria-label={label}

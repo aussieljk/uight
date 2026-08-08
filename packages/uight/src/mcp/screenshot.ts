@@ -116,11 +116,6 @@ async function loadPlaywright(): Promise<PlaywrightModule | null> {
 	return cached.mod;
 }
 
-/** Test seam: forget the cached import so a test can exercise both branches. */
-export function resetPlaywrightCache(): void {
-	cached = undefined;
-}
-
 /** Resolve the viewport argument, rejecting an unknown preset by name. */
 export function resolveViewport(viewport: RenderOptions["viewport"]): {
 	width: number;

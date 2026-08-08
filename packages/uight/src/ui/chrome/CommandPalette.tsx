@@ -72,7 +72,7 @@ export function CommandPalette(props: CommandPaletteProps): ReactElement | null 
 				</Command.List>
 			</Command.Root>
 
-			<div className="flex shrink-0 items-center gap-3 border-t border-[var(--u-line)] px-3 py-1.5">
+			<div className="flex shrink-0 items-center gap-3 border-t border-[var(--uight-line)] px-3 py-1.5">
 				<Typography.Text size="1" color="gray" className="flex items-center gap-3">
 					<span>
 						<Kbd size="1">↑↓</Kbd> move
