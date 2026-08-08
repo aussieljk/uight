@@ -19,9 +19,8 @@ import {
 	useMemo,
 	useRef,
 	useState,
-	useSyncExternalStore,
 } from "react";
-import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 import { Badge, Button, IconButton, Theme, Tooltip, Typography } from "ljkui";
 import { config, fixtureModules } from "virtual:uight/runtime";
 import { rendererEntryUrl, rendererStyleUrls } from "virtual:uight/renderer-url";
@@ -39,14 +38,18 @@ import {
 	parseFixtureId,
 	serializeFixtureId,
 } from "../shared/fixture-id.ts";
-import { viewportFor } from "../shared/meta.ts";
-import { buildTree, flattenRows, flattenSelectable, searchTree } from "../shared/tree.ts";
+import {
+	buildTree,
+	flattenRows,
+	flattenSelectable,
+	isCovered,
+	searchTree,
+} from "../shared/tree.ts";
 import { ALL_FIXTURES } from "../shared/types.ts";
 import type {
 	CallSite,
 	CallSiteGroup,
 	ComponentDoc,
-	CommandPaletteItem,
 	EditableWire,
 	FixtureCodec,
 	FixtureFileIndex,
@@ -56,14 +59,11 @@ import type {
 	InventoryItem,
 	PathSegment,
 	RendererError,
-	ResolvedUightTheme,
-	ThemeSetting,
 	TreeNode,
 	UightProps,
-	ViewportPreset,
 } from "../shared/types.ts";
 import type { HostTransport } from "../runtime/index.ts";
-import { fixtureHotRegistry, loadFixtureModule } from "../runtime/hot.ts";
+import { loadFixtureModule } from "../runtime/hot.ts";
 
 import { ChipStrip } from "./ChipStrip.tsx";
 import { useCompactLayout } from "./compact.ts";
@@ -78,7 +78,6 @@ import {
 	GRID_TILE_HEIGHT,
 	PANE_MAX_WIDTH,
 	PANE_MIN_WIDTH,
-	SEARCH_ATTR,
 	SIDEBAR_WIDTH,
 	ROOT_CLASS,
 	VIEWPORT_INLINE_REASON,
@@ -89,238 +88,29 @@ import { docControls, findDoc, resolveInputDoc } from "./docs.ts";
 import { CSP_BLOCKED_PREFIX, FrameHost } from "./FrameHost.tsx";
 import { GridView } from "./chrome/GridView.tsx";
 import { HelpDialog } from "./HelpDialog.tsx";
-import { openInEditor } from "./open-in-editor.ts";
 import { PaneResizer } from "./PaneResizer.tsx";
-import { buildPaletteItems, rankPaletteItems } from "./palette.ts";
 import { useUightDefaults } from "./provider-context.ts";
 import { useRouterBinding } from "./router.ts";
 import { UightRootContext } from "./root-context.ts";
-import { pushRecent, readSession, sessionKey, writeSession } from "./session.ts";
+import { readSession, sessionKey, writeSession } from "./session.ts";
 import { decodeOverlays, encodeOverlays } from "./share.ts";
+import { SINGLE_FIXTURE, nameCache, readNames, sameNames, viteHot } from "./names.ts";
+import type { IndexedNames } from "./names.ts";
+import { resolve, resolveChrome } from "./resolution.tsx";
 import { createOverlayStore, useOverlayState } from "./store.ts";
 import { ensureStyles, readNonce } from "./styles.ts";
+import { useClipboard } from "./use-clipboard.ts";
+import { usePaneLayout } from "./use-pane-layout.ts";
+import { handleKeyDown } from "./keyboard.ts";
+import { useCommandPalette } from "./use-command-palette.ts";
+import { useViewport } from "./use-viewport.ts";
+import { useResolvedTheme } from "./theme.ts";
 
 const InlineHost = lazy(() =>
 	import("./InlineHost.tsx").then((m) => ({ default: m.InlineHost })),
 );
 
 const isDev = process.env.NODE_ENV !== "production";
-
-/* ------------------------------------------------------------------ *
- * Theme resolution — §10.1
- * ------------------------------------------------------------------ */
-
-/**
- * The palette is ljkui's: `<Theme>` writes the scales onto its own element and
- * flips them with a `.light` / `.dark` class, and `styles/uight.css` maps our
- * `--uight-*` tokens onto those scales. The one thing ljkui cannot do for us is
- * `theme="system"` — its `appearance="inherit"` inherits from *the host's*
- * document, a different question from "what does this user's OS prefer", and a
- * host that never set an appearance would leave the explorer light on a dark
- * desktop. So we answer the media query ourselves and hand `<Theme>` a concrete
- * appearance.
- */
-const SCHEME_QUERY = "(prefers-color-scheme: dark)";
-
-function subscribeToScheme(cb: () => void): () => void {
-	if (typeof window === "undefined" || !window.matchMedia) return () => {};
-	const mql = window.matchMedia(SCHEME_QUERY);
-	mql.addEventListener("change", cb);
-	return () => mql.removeEventListener("change", cb);
-}
-
-function schemeSnapshot(): ResolvedUightTheme {
-	if (typeof window === "undefined" || !window.matchMedia) return "light";
-	return window.matchMedia(SCHEME_QUERY).matches ? "dark" : "light";
-}
-
-function useResolvedTheme(setting: ThemeSetting | undefined): ResolvedUightTheme {
-	const system = useSyncExternalStore(
-		subscribeToScheme,
-		schemeSnapshot,
-		() => "light" as const,
-	);
-	if (setting === "light" || setting === "dark") return setting;
-	return system;
-}
-
-/* ------------------------------------------------------------------ *
- * Names — §3.4 reconciliation, §3.5 progressive disclosure and warm pass
- * ------------------------------------------------------------------ */
-
-/**
- * A `null` entry is §3.4's marker for "the default export IS the fixture", so
- * `[null]` is a single-fixture file and `names: null` (the whole field) is an
- * undecidable one. They are different states and neither is an empty list.
- */
-type IndexedNames = Array<string | null>;
-const SINGLE_FIXTURE: IndexedNames = [null];
-
-/** Cached by content hash, so a remount does not reload every undecidable module. */
-const nameCache = new Map<string, IndexedNames>();
-
-/**
- * Publish this realm's hot registry as soon as the explorer is loaded (§4.5).
- *
- * The code the plugin injects into `virtual:uight/runtime` and into every
- * fixture module reaches for it through `globalThis` and skips silently when it
- * is absent — so it has to exist before the first edit, not on first use.
- */
-fixtureHotRegistry();
-
-function readNames(mod: unknown): IndexedNames {
-	const record = (mod ?? {}) as Record<string, unknown>;
-	const declared = record.fixtureNames;
-	if (Array.isArray(declared) && declared.every((n) => typeof n === "string")) {
-		return declared;
-	}
-	const value = record.default;
-	if (
-		value !== null &&
-		typeof value === "object" &&
-		!Array.isArray(value) &&
-		!("$$typeof" in value)
-	) {
-		return Object.keys(value);
-	}
-	return SINGLE_FIXTURE;
-}
-
-function sameNames(
-	a: readonly (string | null)[],
-	b: readonly (string | null)[],
-): boolean {
-	return a.length === b.length && a.every((n, i) => n === b[i]);
-}
-
-interface HotLike {
-	on(event: string, cb: (data: unknown) => void): void;
-	off?(event: string, cb: (data: unknown) => void): void;
-	send?(event: string, data?: unknown): void;
-}
-
-function viteHot(): HotLike | undefined {
-	return (import.meta as unknown as { hot?: HotLike }).hot;
-}
-
-/* ------------------------------------------------------------------ *
- * Chrome options — §5.1
- * ------------------------------------------------------------------ */
-
-interface ResolvedChrome {
-	tree: boolean;
-	toolbar: boolean;
-	controls: boolean;
-	viewport: boolean;
-	search: boolean;
-}
-
-function resolveChrome(chrome: UightProps["chrome"]): ResolvedChrome {
-	if (chrome === false) {
-		return { tree: false, toolbar: false, controls: false, viewport: false, search: false };
-	}
-	if (chrome === true || chrome === undefined) {
-		return { tree: true, toolbar: true, controls: true, viewport: true, search: true };
-	}
-	return {
-		tree: chrome.tree ?? true,
-		toolbar: chrome.toolbar ?? true,
-		controls: chrome.controls ?? true,
-		viewport: chrome.viewport ?? true,
-		search: chrome.search ?? true,
-	};
-}
-
-/* ------------------------------------------------------------------ *
- * Selection resolution — §3.5, §5.4
- * ------------------------------------------------------------------ */
-
-interface Resolution {
-	/** What the renderer is asked to render. */
-	target: FixtureId | null;
-	/** §3.5 — the file node stays selected; say what is actually on screen. */
-	note: string | null;
-	empty: { title: string; description?: ReactNode } | null;
-	/** An undecidable file whose module has to be loaded before we can resolve. */
-	pendingFile: FixtureFileIndex | null;
-}
-
-function resolve(
-	selection: FixtureId | null,
-	files: readonly FixtureFileIndex[],
-): Resolution {
-	const base: Resolution = { target: null, note: null, empty: null, pendingFile: null };
-
-	if (!selection) {
-		return {
-			...base,
-			empty: {
-				title: "Nothing selected",
-				description: "Pick a fixture from the list, or press / to search.",
-			},
-		};
-	}
-
-	const file = files.find((f) => f.path === selection.path);
-	if (!file) {
-		// §5.4 — well-formed but unknown: the parameter is PRESERVED, because it
-		// may become valid after HMR or a deploy.
-		return {
-			...base,
-			empty: {
-				title: "That fixture is not here",
-				description: (
-					<>
-						Nothing in this project resolves to <code>{selection.path}</code>. The link is kept,
-						so it will start working if the file appears.
-					</>
-				),
-			},
-		};
-	}
-
-	if (file.names === null) return { ...base, pendingFile: file };
-
-	// Every fixture in the file, as one page. Not a name in the index by
-	// construction, so it has to be admitted before the membership check.
-	if (selection.name === ALL_FIXTURES) {
-		return file.names.length > 0
-			? { ...base, target: selection }
-			: {
-					...base,
-					empty: { title: "This file has no fixtures", description: selection.path },
-				};
-	}
-
-	if (selection.name === null) {
-		const first = file.names[0] ?? null;
-		// `[null]` — the default export is the fixture, so the selection is exact.
-		if (first === null) return { ...base, target: selection };
-
-		// §3.5 — do NOT auto-select a child. Render the first one and say so.
-		return {
-			...base,
-			target: { path: selection.path, name: first },
-			note: `Showing "${first === "" ? "(empty name)" : first}" — the first fixture in this file. Pick one to link to it.`,
-		};
-	}
-
-	if (file.names.includes(selection.name)) return { ...base, target: selection };
-
-	return {
-		...base,
-		empty: {
-			title: "That fixture name is not in this file",
-			description: (
-				<>
-					<code>{selection.path}</code> has no fixture called{" "}
-					<code>{selection.name === "" ? "(empty name)" : selection.name}</code>. The link is
-					kept in case it comes back.
-				</>
-			),
-		},
-	};
-}
 
 /* ------------------------------------------------------------------ *
  * The explorer
@@ -687,17 +477,28 @@ export default function UightUI(props: UightProps): ReactElement {
 	const mergedNodes = useMemo(
 		() =>
 			inventoryEnabled
-				? buildTree({ files, inventory: index.inventory, filter: props.filter })
+				? buildTree({
+						files,
+						inventory: index.inventory,
+						filter: props.filter,
+						mergeInventory: true,
+					})
 				: fixtureNodes,
 		[inventoryEnabled, files, index.inventory, props.filter, fixtureNodes],
 	);
-	const inventoryItems = useMemo(
-		() =>
-			inventoryEnabled
-				? index.inventory.filter((i) => matchesFilter(i.path, props.filter))
-				: [],
-		[inventoryEnabled, index.inventory, props.filter],
-	);
+	/*
+	 * The same coverage rule the tree uses, or the two disagree: without it a
+	 * component with fixtures is listed BOTH as a fixture in the tree and as an
+	 * un-fixtured component in the panel below it, which is what §12 says the
+	 * inventory is not.
+	 */
+	const inventoryItems = useMemo(() => {
+		if (!inventoryEnabled) return [];
+		const paths = files.map((f) => f.path);
+		return index.inventory.filter(
+			(i) => matchesFilter(i.path, props.filter) && !isCovered(i.path, paths),
+		);
+	}, [inventoryEnabled, files, index.inventory, props.filter]);
 
 	// Groups are expanded by default, so the backing state is what is CLOSED.
 	// Restored from the session: a reload that re-opens every directory in an
@@ -1093,44 +894,7 @@ export default function UightUI(props: UightProps): ReactElement {
 	}, [shareState, stateOwned, stateWrite, overlayState.overlays]);
 
 	/* ---- viewport — §6.5, §3.1 ---- */
-
-	/**
-	 * Two sources, and the rule between them is stickiness.
-	 *
-	 * `undefined` means the user has not chosen: the fixture's own `fileMeta` /
-	 * `fixtureMeta` viewport applies (§3.1), and when it has none that is Fit,
-	 * which is what the preview did before. `null` and a preset are both
-	 * *choices* — including choosing Fit — and a choice survives changing
-	 * fixture, because the whole reason to pin 375px is to walk a list of
-	 * components at 375px. Resetting to Fit on every selection made the control
-	 * useless for the one job it exists to do.
-	 *
-	 * The meta rides on the index rather than arriving as a message precisely so
-	 * this is known before the first paint: under `index: "static"` no module is
-	 * executed, and a viewport applied after the preview opened would be a resize
-	 * the user watches happen.
-	 */
-	const [manualViewport, setManualViewport] = useState<ViewportPreset | null | undefined>(
-		undefined,
-	);
-	const fixtureViewport = useMemo<ViewportPreset | null>(() => {
-		const id = resolution.target ?? selection;
-		if (!id) return null;
-		const file = files.find((f) => f.path === id.path);
-		const wanted = file ? viewportFor(file, id.name) : undefined;
-		if (!wanted) return null;
-		// Name it after the preset it matches, so the toolbar shows the row as
-		// pressed rather than showing nothing pressed at a preset's dimensions.
-		const preset = VIEWPORT_PRESETS.find(
-			(p) => p.width === wanted.width && p.height === wanted.height,
-		);
-		return preset ?? { name: "Fixture", width: wanted.width, height: wanted.height };
-	}, [resolution.target, selection, files]);
-
-	const viewport = manualViewport === undefined ? fixtureViewport : manualViewport;
-	const setViewport = useCallback((next: ViewportPreset | null) => {
-		setManualViewport(next);
-	}, []);
+	const { viewport, setViewport } = useViewport(resolution.target, selection, files);
 	const viewportSupported = isolation === "frame";
 	const effectiveViewport = viewportSupported && chrome.viewport ? viewport : null;
 
@@ -1242,92 +1006,18 @@ export default function UightUI(props: UightProps): ReactElement {
 		[store, transport, sendOverlay, showToast],
 	);
 
-	/* ---- clipboard, with an answer ---- */
+	/* ---- clipboard, and opening a call site in an editor ---- */
+	const { copied, copy, openSite } = useClipboard(showToast);
 
-	/**
-	 * "Copy link" was fire-and-forget, and its `execCommand` fallback — which
-	 * exists because a dev server on a LAN address is not a secure context and
-	 * `navigator.clipboard` refuses there — could fail into the console and
-	 * nowhere else. A copy button that does nothing visible is indistinguishable
-	 * from a copy button that worked, so both outcomes are now stated: the label
-	 * flips for a moment on success, and a failure says so in the status region
-	 * with the reason, which is almost always the origin.
-	 */
-	const [copied, setCopied] = useState<string | null>(null);
-	const copiedTimer = useRef(0);
-	useEffect(
-		() => () => {
-			window.clearTimeout(copiedTimer.current);
-		},
-		[],
-	);
-
-	const copy = useCallback(
-		async (key: string, text: string, what: string) => {
-			if (await copyText(text)) {
-				setCopied(key);
-				window.clearTimeout(copiedTimer.current);
-				copiedTimer.current = window.setTimeout(() => setCopied(null), 1500);
-				return;
-			}
-			showToast({
-				tone: "danger",
-				message: `Could not copy ${what}. The clipboard needs a secure context — this page is ${window.location.protocol}//${window.location.host}.`,
-			});
-		},
-		[showToast],
-	);
-
-	/**
-	 * A call-site chip names a file, a line and a column, and until now that was
-	 * where it stopped. Vite's dev server already mounts `/__open-in-editor`, so
-	 * the chip can finish the sentence. The static build has no such endpoint and
-	 * says so rather than failing quietly (`ui/open-in-editor.ts`).
-	 */
-	const openSite = useCallback(
-		async (site: CallSite) => {
-			const result = await openInEditor(site);
-			if (result === "opened") return;
-			showToast({
-				tone: "danger",
-				message:
-					result === "unavailable"
-						? `${callSiteLabel(site)} — opening in an editor needs the Vite dev server; this build does not have one.`
-						: `${callSiteLabel(site)} — the dev server could not launch an editor. Set $EDITOR, or open the file yourself.`,
-			});
-		},
-		[showToast],
-	);
-
-	/* ---- pane widths and the inventory disclosure — §10.1, `ui/session.ts` ---- */
-	const [sidebarWidth, setSidebarWidth] = useState(
-		() => restored.sidebarWidth ?? SIDEBAR_WIDTH,
-	);
-	const [panelWidth, setPanelWidth] = useState(
-		() => restored.panelWidth ?? CONTROL_PANEL_WIDTH,
-	);
-	const [inventoryOpen, setInventoryOpen] = useState(() => restored.inventoryOpen);
-
-	const resizeSidebar = useCallback(
-		(width: number) => {
-			setSidebarWidth(width);
-			remember({ sidebarWidth: width });
-		},
-		[remember],
-	);
-	const resizePanel = useCallback(
-		(width: number) => {
-			setPanelWidth(width);
-			remember({ panelWidth: width });
-		},
-		[remember],
-	);
-	const toggleInventory = useCallback(() => {
-		setInventoryOpen((open) => {
-			remember({ inventoryOpen: !open });
-			return !open;
-		});
-	}, [remember]);
+	/* ---- pane widths and the inventory disclosure ---- */
+	const {
+		sidebarWidth,
+		panelWidth,
+		inventoryOpen,
+		resizeSidebar,
+		resizePanel,
+		toggleInventory,
+	} = usePaneLayout(restored, remember);
 
 	/* ---- codecs (§7.7) — loaded lazily so editors stay out of the first paint ---- */
 	const [loadedCodecs, setLoadedCodecs] = useState<FixtureCodec[] | undefined>(undefined);
@@ -1349,51 +1039,15 @@ export default function UightUI(props: UightProps): ReactElement {
 	);
 
 	/* ---- command palette — ⌘K ---- */
-
-	const [paletteOpen, setPaletteOpen] = useState(false);
-	const [paletteQuery, setPaletteQuery] = useState("");
-
-	const paletteItems = useMemo(
-		() =>
-			buildPaletteItems({
-				nodes: fixtureNodes,
-				inventory: inventoryItems,
-				callSites: index.callSites,
-			}),
-		[fixtureNodes, inventoryItems, index.callSites],
-	);
-	/**
-	 * The MRU list behind an empty ⌘K. Persisted with the rest of the session, so
-	 * it survives the reload that a fixture edit causes; a key naming something
-	 * that no longer exists is skipped by the ranker rather than repaired here.
-	 */
-	const [recents, setRecents] = useState<string[]>(() => restored.recents);
-	const rankedItems = useMemo(
-		() => rankPaletteItems(paletteItems, paletteQuery, 50, recents),
-		[paletteItems, paletteQuery, recents],
-	);
-
-	const closePalette = useCallback(() => {
-		setPaletteOpen(false);
-		setPaletteQuery("");
-	}, []);
-
-	const onPaletteSelect = useCallback(
-		(item: CommandPaletteItem) => {
-			closePalette();
-			setRecents((prev) => {
-				const next = pushRecent(prev, item.key);
-				remember({ recents: next });
-				return next;
-			});
-			if (item.kind === "fixture" && item.fixture) {
-				select(item.fixture);
-				return;
-			}
-			if (item.component) selectComponent(item.component, item.callSite ?? null);
-		},
-		[closePalette, select, selectComponent, remember],
-	);
+	const palette = useCommandPalette({
+		nodes: fixtureNodes,
+		inventory: inventoryItems,
+		callSites: index.callSites,
+		restored,
+		remember,
+		select,
+		selectComponent,
+	});
 
 	/* ---- the facade — §19.3 ---- */
 	const api = useMemo<UightChromeApiV1>(
@@ -1416,12 +1070,12 @@ export default function UightUI(props: UightProps): ReactElement {
 				callSites: index.callSites,
 			},
 			palette: {
-				open: paletteOpen,
-				setOpen: setPaletteOpen,
-				query: paletteQuery,
-				setQuery: setPaletteQuery,
-				items: rankedItems,
-				select: onPaletteSelect,
+				open: palette.open,
+				setOpen: palette.setOpen,
+				query: palette.query,
+				setQuery: palette.setQuery,
+				items: palette.items,
+				select: palette.onSelect,
 			},
 			selection: {
 				current: selection,
@@ -1460,10 +1114,10 @@ export default function UightUI(props: UightProps): ReactElement {
 			selectComponent,
 			clearComponent,
 			index.callSites,
-			paletteOpen,
-			paletteQuery,
-			rankedItems,
-			onPaletteSelect,
+			palette.open,
+			palette.query,
+			palette.items,
+			palette.onSelect,
 			selection,
 			select,
 			step,
@@ -1516,86 +1170,22 @@ export default function UightUI(props: UightProps): ReactElement {
 	const [helpOpen, setHelpOpen] = useState(false);
 
 	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-		// Scoped to this mount rather than the document, like every other
-		// shortcut here: an embedded explorer must not take ⌘K from its host.
-		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-			event.preventDefault();
-			setPaletteOpen((open) => !open);
-			return;
-		}
-		if (event.metaKey || event.ctrlKey || event.altKey) return;
-		const target = event.target as HTMLElement | null;
-		const typing = !!target?.closest?.("input, textarea, select, [contenteditable='true']");
-
-		if (event.key === "Escape" && helpOpen) {
-			event.preventDefault();
-			setHelpOpen(false);
-			return;
-		}
-		if (event.key === "Escape" && drawerOpen) {
-			event.preventDefault();
-			setDrawerOpen(false);
-			return;
-		}
-		if (typing) return;
-		// The tree owns arrows while focus is inside it — there they rove and
-		// expand — and it has already called preventDefault on the ones it took.
-		if (event.defaultPrevented) return;
-
-		switch (event.key) {
-			case "ArrowDown":
-				event.preventDefault();
-				step(1);
-				return;
-			case "ArrowUp":
-				event.preventDefault();
-				step(-1);
-				return;
-			case "ArrowRight":
-				if (!variants) return;
-				event.preventDefault();
-				stepVariant(1);
-				return;
-			case "ArrowLeft":
-				if (!variants) return;
-				event.preventDefault();
-				stepVariant(-1);
-				return;
-			case "/":
-				event.preventDefault();
-				// Compact: the search box lives in the drawer, so open it first. The
-				// input is not in the DOM until that has painted.
-				if (compact) setDrawerOpen(true);
-				requestAnimationFrame(() =>
-					rootRef.current?.querySelector<HTMLInputElement>(`[${SEARCH_ATTR}]`)?.focus(),
-				);
-				return;
-			case "?":
-				event.preventDefault();
-				setHelpOpen((v) => !v);
-				return;
-			case "j":
-				event.preventDefault();
-				step(1);
-				return;
-			case "k":
-				event.preventDefault();
-				step(-1);
-				return;
-			case "r":
-				if (overlayState.overlays.length) {
-					event.preventDefault();
-					resetInput();
-				}
-				return;
-			case "g":
-				if (!gridSupported) return;
-				event.preventDefault();
-				setGridOpen((v) => !v);
-				return;
-			default:
-				return;
-		}
+		handleKeyDown(event, {
+			rootRef,
+			step,
+			stepVariant,
+			variants: Boolean(variants),
+			compact,
+			drawerOpen,
+			setDrawerOpen,
+			helpOpen,
+			setHelpOpen,
+			togglePalette: () => palette.setOpen((open) => !open),
+			gridSupported,
+			setGridOpen,
+			hasOverlays: overlayState.overlays.length > 0,
+			resetInput,
+		});
 	};
 
 	/* ---- layout ---- */
@@ -2201,12 +1791,12 @@ export default function UightUI(props: UightProps): ReactElement {
 						</div>
 
 						<CommandPalette
-							open={paletteOpen}
-							items={rankedItems}
-							query={paletteQuery}
-							onQueryChange={setPaletteQuery}
-							onSelect={onPaletteSelect}
-							onClose={closePalette}
+							open={palette.open}
+							items={palette.items}
+							query={palette.query}
+							onQueryChange={palette.setQuery}
+							onSelect={palette.onSelect}
+							onClose={palette.close}
 						/>
 
 						<HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
@@ -2215,43 +1805,4 @@ export default function UightUI(props: UightProps): ReactElement {
 			</UightRootContext.Provider>
 		</UightChromeContext.Provider>
 	);
-}
-
-/* ------------------------------------------------------------------ *
- * Clipboard
- * ------------------------------------------------------------------ */
-
-/**
- * `navigator.clipboard` needs a secure context, which a dev server on a LAN
- * address is not. The textarea fallback is the only thing that works there.
- *
- * Returns whether it worked, because "copy" silently doing nothing is a bad way
- * to learn about origins — the caller turns the answer into something visible.
- * `execCommand` reports failure by returning `false` as well as by throwing, and
- * both were being ignored.
- */
-async function copyText(text: string): Promise<boolean> {
-	try {
-		if (navigator.clipboard?.writeText) {
-			await navigator.clipboard.writeText(text);
-			return true;
-		}
-	} catch {
-		/* fall through to the legacy path */
-	}
-	try {
-		const area = document.createElement("textarea");
-		area.value = text;
-		area.setAttribute("readonly", "");
-		area.style.position = "fixed";
-		area.style.opacity = "0";
-		document.body.appendChild(area);
-		area.select();
-		const ok = document.execCommand("copy");
-		document.body.removeChild(area);
-		return ok;
-	} catch (error) {
-		console.error("[uight] could not copy to the clipboard.", error);
-		return false;
-	}
 }

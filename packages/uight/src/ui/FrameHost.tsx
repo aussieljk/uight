@@ -417,7 +417,14 @@ export function FrameHost(props: FrameHostProps): ReactElement {
 	return (
 		<iframe
 			ref={ref}
-			title={title}
+			/*
+			 * `aria-label`, not `title`. Both name the frame for assistive tech, but
+			 * `title` additionally renders a native tooltip — and this iframe is the
+			 * whole preview canvas, so that tooltip trails the cursor across the one
+			 * region the user is trying to look at, covering the fixture it names.
+			 * `aria-label` is the accessible name with no such second effect.
+			 */
+			aria-label={title}
 			// No `src` — about:blank inherits the parent origin (§6.2 step 1).
 			// Note that same-origin means this is isolation, not a sandbox (§5.2).
 			className={className ?? "block h-full w-full border-0 bg-[var(--uight-surface)]"}

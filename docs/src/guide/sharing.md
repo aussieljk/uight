@@ -2,7 +2,7 @@
 
 ## The Share button
 
-Every fixture URL carries the fixture *and the current control values*. The
+Every fixture URL carries the fixture _and the current control values_. The
 **Share** button in the toolbar copies it. That makes a link a reproduction,
 not a bookmark: a QA report that says "open this" puts the exact props on the
 reader's screen, including everything they changed in the control panel.

@@ -1,8 +1,8 @@
 # Point your coding agent at your design system
 
 uight ships an MCP server. An agent that edits components has three questions
-source code alone cannot answer — *what components exist*, *what states do
-they have*, and *what does this one actually look like* — and the explorer
+source code alone cannot answer — _what components exist_, _what states do
+they have_, and _what does this one actually look like_ — and the explorer
 already answers all three. `uight mcp` exposes those answers over the Model
 Context Protocol, so Claude Code (or any MCP client) can use your running dev
 server as a perception tool.
@@ -33,15 +33,15 @@ or the `UIGHT_URL` env var if you prefer.
 
 ## What the agent can do
 
-| Tool              | Answers                                                        |
-| ----------------- | -------------------------------------------------------------- |
-| `list_fixtures`   | What fixtures exist, with display paths and names               |
-| `list_components` | What components were detected that have no fixtures yet         |
-| `list_call_sites` | How a component is *actually used* — real props, quoted from your source |
-| `component_props` | A component's API: prop names, types, defaults, doc comments (needs `docgen: true`) |
-| `render_fixture`  | **What it looks like** — a real screenshot of the rendered fixture |
-| `fixture_url`     | A deep link to hand to a human or a browser tool                |
-| `get_config`, `health` | Why is my fixture not found; is the index clean            |
+| Tool                   | Answers                                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `list_fixtures`        | What fixtures exist, with display paths and names                                   |
+| `list_components`      | What components were detected that have no fixtures yet                             |
+| `list_call_sites`      | How a component is _actually used_ — real props, quoted from your source            |
+| `component_props`      | A component's API: prop names, types, defaults, doc comments (needs `docgen: true`) |
+| `render_fixture`       | **What it looks like** — a real screenshot of the rendered fixture                  |
+| `fixture_url`          | A deep link to hand to a human or a browser tool                                    |
+| `get_config`, `health` | Why is my fixture not found; is the index clean                                     |
 
 Everything is read-only: the MCP server is a client of your dev server's
 read-only JSON endpoints, never a writer, and it executes none of your code

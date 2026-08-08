@@ -222,25 +222,50 @@ export interface BuildTreeOptions {
 }
 
 export function buildTree(options: BuildTreeOptions): TreeNode[] {
-	const { files, inventory = [], filter, caseSensitive = true } = options;
+	const {
+		files,
+		inventory = [],
+		filter,
+		caseSensitive = true,
+		mergeInventory = false,
+	} = options;
 	const root = emptyDir();
 
-	const covered = new Set<string>();
+	const fixturePaths: string[] = [];
 	for (const file of files) {
 		if (!matchesFilter(file.path, filter, caseSensitive)) continue;
-		const segments = file.path.split("/");
-		const dir = segments.slice(0, -1);
-		covered.add(dir.join("/"));
-		insert(root, dir, (d) => d.files.push(file));
+		fixturePaths.push(file.path);
+		insert(root, file.path.split("/").slice(0, -1), (d) => d.files.push(file));
 	}
 
 	for (const item of inventory) {
 		if (!matchesFilter(item.path, filter, caseSensitive)) continue;
+		if (mergeInventory && isCovered(item.path, fixturePaths)) continue;
 		const segments = item.path.split("/");
 		insert(root, segments.slice(0, -1), (d) => d.components.push(item));
 	}
 
 	return toNodes(root, "");
+}
+
+/**
+ * Whether a module already contributes fixtures, and so has no business in the
+ * inventory (§12: the inventory is what you have NOT written fixtures for).
+ *
+ * Matching is on the module path, not its directory. Directory coverage was the
+ * tempting shortcut and it is wrong in the one case that matters: a component
+ * with no fixtures sitting beside one that has them would be swallowed, which
+ * is precisely the component the inventory exists to surface.
+ *
+ * A fixture file is `<stem>.<suffix>.<ext>` for a configurable suffix, so
+ * prefix-matching on `<stem>.` covers every suffix without shared/ having to
+ * know which one is configured. `LineDetailExtra.fixture.tsx` does not prefix
+ * `LineDetail.` — the dot is load-bearing. Equality catches the other layout,
+ * where a module declares its own fixtures inline.
+ */
+export function isCovered(modulePath: string, fixturePaths: readonly string[]): boolean {
+	const stem = `${modulePath.replace(/\.[cm]?[jt]sx?$/, "")}.`;
+	return fixturePaths.some((p) => p === modulePath || p.startsWith(stem));
 }
 
 /** Depth-first flatten of the visible leaves, for next()/previous(). */

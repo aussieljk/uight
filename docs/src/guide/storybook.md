@@ -86,7 +86,7 @@ makes a corpus read the way its authors intended.
 
 ## Leaving CSF behind: `uight codemod`
 
-Reading CSF in place means nobody *has* to convert anything. But a team that has
+Reading CSF in place means nobody _has_ to convert anything. But a team that has
 decided to stay may not want to carry `storybook: true` forever, and for them there is
 a codemod:
 
@@ -110,7 +110,11 @@ export const Primary = { args: { variant: "primary", children: "Click me" } };
 import { Button } from "./Button";
 
 export default {
-	Primary: <Button size="md" variant="primary">Click me</Button>,
+	Primary: (
+		<Button size="md" variant="primary">
+			Click me
+		</Button>
+	),
 };
 ```
 

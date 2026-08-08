@@ -174,7 +174,8 @@ async function main() {
 	}
 
 	if (command === "codemod") {
-		const { resolveUightConfig, csfCodemod, formatCodemod } = await import("../dist/vite.js");
+		const { resolveUightConfig, csfCodemod, formatCodemod } =
+			await import("../dist/vite.js");
 		const root = path.resolve(String(flag("root", process.cwd())));
 		const config = resolveUightConfig({
 			root,

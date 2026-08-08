@@ -56,7 +56,7 @@ Tailwind, the same providers — and there is nothing to keep in sync.
   agent can list fixtures, find real usages of a component, and screenshot a
   fixture as it actually renders. See the agents guide in the docs.
 - **Deployable.** `uight build` emits a static explorer — one directory, a URL
-  your whole organisation can open. Links carry fixture *and control state*,
+  your whole organisation can open. Links carry fixture _and control state_,
   so a bug report link reproduces the exact props.
 - **Keyboard-first.** `⌘K` finds anything; `g` shows every fixture at once;
   `?` lists the rest.
@@ -76,8 +76,8 @@ uight mcp         MCP server for coding agents (stdio)
 ## Documentation
 
 The docs live in [`docs/`](docs/) and at the deployed docs site — start with
-*Getting started*, then *Fixtures*, *Controls*, *Static build*, and
-*Storybook*.
+_Getting started_, then _Fixtures_, _Controls_, _Static build_, and
+_Storybook_.
 
 ## Repository
 

@@ -220,9 +220,9 @@ export function convertCsf(
 			isNode(statement) && statement.type === "VariableDeclaration"
 				? statement
 				: isNode(statement) &&
-						statement.type === "ExportNamedDeclaration" &&
-						isNode(statement.declaration) &&
-						statement.declaration.type === "VariableDeclaration"
+					  statement.type === "ExportNamedDeclaration" &&
+					  isNode(statement.declaration) &&
+					  statement.declaration.type === "VariableDeclaration"
 					? statement.declaration
 					: null;
 		if (!declaration) continue;

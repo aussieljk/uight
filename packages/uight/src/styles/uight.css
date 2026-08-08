@@ -159,20 +159,67 @@
 	 * still be readable.
 	 */
 	.uight-root {
+		color-scheme: light;
+
 		--uight-surface: var(--color-panel-solid, #ffffff);
 		--uight-sunken: var(--gray-100, #fafafa);
 		--uight-hover: var(--gray-200, #f5f5f5);
 		--uight-canvas: var(--color-background, #f5f5f5);
 		--uight-fg: var(--gray-950, #171717);
-		--uight-muted: var(--gray-700, #737373);
-		--uight-subtle: var(--gray-500, #a3a3a3);
+		/*
+		 * Text steps are chosen by CONTRAST, not by how the number reads.
+		 * `--gray-700` is the obvious-looking pick for "muted" and it is wrong:
+		 * against the panel it measures 3.45:1 in light and 3.04:1 in dark, under
+		 * the 4.5:1 body-text floor in both. `--gray-500` for "subtle" is worse —
+		 * 1.48:1 and 1.85:1, which is not dim, it is invisible. Those two steps
+		 * are borders wearing text's name.
+		 *
+		 * `--gray-900` measures 6.10:1 / 8.59:1 and `--gray-800` 4.06:1 / 3.52:1,
+		 * so muted clears AA outright and subtle clears the 3:1 floor its
+		 * secondary-label role actually needs. The scale ascends in both
+		 * appearances, so one step number is correct for both — there is no
+		 * light/dark fork here, only a fork if you pick by eye in one mode.
+		 */
+		--uight-muted: var(--gray-900, #626262);
+		--uight-subtle: var(--gray-800, #7e7e7e);
 		--uight-line: var(--gray-300, #e5e5e5);
 		--uight-line-strong: var(--gray-400, #d4d4d4);
-		--uight-accent: var(--accent-700, #2563eb);
+		--uight-accent: var(--accent-700, #216fff);
 		--uight-accent-fg: var(--accent-700-contrast, #ffffff);
 		--uight-accent-soft: var(--accent-alpha-100, #eff6ff);
 		--uight-danger: var(--danger-700, #b91c1c);
 		--uight-danger-soft: var(--danger-alpha-100, #fef2f2);
+	}
+
+	/*
+	 * Dark fallbacks. Everything above resolves through ljkui, but two of those
+	 * chains only exist when ljkui's `<Theme>` has stamped its attributes on the
+	 * scope element: the `--gray-*` scale needs the appearance class, and
+	 * `--accent-*` / `--danger-*` are declared solely under
+	 * `[data-accent-color='…']`. The frame document's chrome host and the static
+	 * build's markup carry `.uight-root` with no `<Theme>` above them, so there
+	 * the fallbacks are not a safety net, they are the palette — and a single
+	 * set of them pins those roots to light-mode ink on a dark ground.
+	 *
+	 * Same measured steps as above, read off the dark scale.
+	 */
+	.uight-root.dark {
+		color-scheme: dark;
+
+		--uight-surface: var(--color-panel-solid, #1e1e1e);
+		--uight-sunken: var(--gray-100, #1e1e1e);
+		--uight-hover: var(--gray-200, #2a2a2a);
+		--uight-canvas: var(--color-background, #171717);
+		--uight-fg: var(--gray-950, #ededed);
+		--uight-muted: var(--gray-900, #bababa);
+		--uight-subtle: var(--gray-800, #737373);
+		--uight-line: var(--gray-300, #333333);
+		--uight-line-strong: var(--gray-400, #404040);
+		--uight-accent: var(--accent-700, #5c9dff);
+		--uight-accent-fg: var(--accent-700-contrast, #ffffff);
+		--uight-accent-soft: var(--accent-alpha-100, #1a2740);
+		--uight-danger: var(--danger-700, #f87171);
+		--uight-danger-soft: var(--danger-alpha-100, #2a1616);
 	}
 
 	/* ---------------------------------------------------------------- *
